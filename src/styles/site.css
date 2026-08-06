@@ -1,0 +1,297 @@
+/* 本体サービスとLPで共有するスタイル。design/service.md */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  /* 🔒 本文は 16px を下回らない。iOS のズーム発動を防ぐ */
+  font-size: var(--size-base);
+  line-height: 1.7;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  margin: 0;
+}
+
+p {
+  margin: 0;
+}
+
+ol,
+ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+a {
+  color: inherit;
+}
+
+/* 🔒 すべての数値に tabular-nums。桁が揃わない比較表は比較表として機能しない */
+.num,
+.cost__value,
+.cost__unit,
+table td,
+table th {
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: 2px;
+}
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+}
+.skip-link:focus {
+  left: var(--space-4);
+  top: var(--space-4);
+  background: var(--paper);
+  padding: var(--space-2) var(--space-3);
+  border: var(--rule-row);
+  z-index: 10;
+}
+
+.wrap {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 var(--space-4);
+}
+
+/* ---- ワードマーク ---------------------------------------------------- */
+
+.brand {
+  display: inline-flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  text-decoration: none;
+}
+.brand__ticks {
+  display: block;
+  height: 8px;
+  width: 88px;
+  /* ルーラーティック。6px / 1px の交互は罫線階層と同じ規則から導く */
+  background-image: repeating-linear-gradient(
+    to right,
+    var(--ink) 0 1px,
+    transparent 1px 11px
+  );
+  background-size: 100% 8px;
+  background-repeat: no-repeat;
+}
+.brand__name {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: var(--size-md);
+  letter-spacing: -0.03em;
+  /* 🔒 全て小文字。Pergram / PerGram は不可 */
+  text-transform: lowercase;
+}
+.brand__tagline {
+  font-size: var(--size-sm);
+  color: var(--muted);
+}
+
+/* ---- ページヘッダ ---------------------------------------------------- */
+
+.page-head {
+  border-top: var(--rule-section);
+  padding-top: var(--space-4);
+  margin-top: var(--space-6);
+}
+.page-head__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+.page-head h1 {
+  font-size: var(--size-xl);
+}
+.page-head__meta {
+  font-size: var(--size-sm);
+  color: var(--muted);
+}
+.page-head__subtitle {
+  margin-top: var(--space-2);
+  color: var(--muted);
+}
+
+/* ---- ランキング ------------------------------------------------------ */
+
+.ranking {
+  border-top: var(--rule-major);
+  margin-top: var(--space-6);
+}
+
+.ranking__item {
+  display: grid;
+  grid-template-columns: 2.5rem 1fr auto;
+  gap: var(--space-2) var(--space-3);
+  align-items: start;
+  padding: var(--space-4) 0;
+  border-bottom: var(--rule-row);
+}
+
+.ranking__rank {
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--size-md);
+  color: var(--muted);
+  padding-top: 2px;
+}
+
+.ranking__name {
+  font-weight: 500;
+  margin: 0;
+}
+
+.ranking__attrs {
+  margin-top: var(--space-1);
+  font-size: var(--size-sm);
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+}
+
+.ranking__metrics {
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* 主指標。行内で最大かつ --signal。他はこれより小さく */
+.cost {
+  color: var(--signal);
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+  display: block;
+}
+.cost__value {
+  font-size: var(--size-lg);
+  font-weight: 500;
+}
+.cost__unit {
+  font-size: var(--size-sm);
+}
+
+.cost-secondary {
+  display: block;
+  margin-top: var(--space-1);
+  font-size: var(--size-sm);
+  color: var(--muted);
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+}
+
+.merchants {
+  grid-column: 2 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.merchant-button {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap-target);
+  padding: 0 var(--space-4);
+  border: var(--rule-row);
+  border-radius: var(--radius-interactive);
+  text-decoration: none;
+  font-size: var(--size-sm);
+  background: var(--paper);
+}
+.merchant-button:hover {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0 var(--space-2);
+  border: 1px solid currentColor;
+  border-radius: var(--radius-interactive);
+  font-size: var(--size-xs);
+}
+.badge--verified {
+  color: var(--verified);
+}
+/* 🔒 色だけで表現しない。アイコンとテキストを必ず併記する */
+.badge--warn {
+  color: var(--warn);
+}
+.badge--review {
+  color: var(--muted);
+}
+
+.empty-state {
+  padding: var(--space-8) 0;
+  color: var(--muted);
+}
+
+/* ---- 免責 ------------------------------------------------------------ */
+
+.disclosure {
+  border-top: var(--rule-major);
+  margin-top: var(--space-12);
+  padding: var(--space-6) 0 var(--space-16);
+  font-size: var(--size-sm);
+  color: var(--muted);
+  display: grid;
+  gap: var(--space-3);
+}
+
+/* ---- レスポンシブ ---------------------------------------------------- */
+
+@media (max-width: 640px) {
+  .ranking__item {
+    grid-template-columns: 2rem 1fr;
+  }
+  .ranking__metrics {
+    grid-column: 2;
+    text-align: left;
+  }
+  .merchants {
+    grid-column: 1 / -1;
+  }
+  .page-head h1 {
+    font-size: var(--size-lg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

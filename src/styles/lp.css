@@ -1,0 +1,268 @@
+/* 検証用LP。design/ad-lp.md
+   トークンは site.css / tokens.css をそのまま継承する。LPと本体で見た目を変えない。 */
+
+.lp {
+  max-width: 680px;
+  padding-bottom: var(--space-16);
+}
+
+.lp-head {
+  padding: var(--space-6) 0 var(--space-4);
+}
+
+/* ---- ① ヒーロー ------------------------------------------------------ */
+
+.lp-hero h1 {
+  font-size: var(--size-lg);
+  margin-bottom: var(--space-3);
+}
+
+.lp-lede {
+  color: var(--muted);
+  font-size: var(--size-sm);
+  margin-bottom: var(--space-6);
+}
+
+.lp-table {
+  border-top: var(--rule-section);
+  border-bottom: var(--rule-major);
+}
+
+.lp-row {
+  display: grid;
+  grid-template-columns: 2rem 1fr auto;
+  gap: var(--space-3);
+  align-items: center;
+  padding: var(--space-3) 0;
+  border-bottom: var(--rule-minor);
+  min-height: var(--tap-target);
+}
+.lp-row:last-child {
+  border-bottom: 0;
+}
+.lp-row__rank {
+  color: var(--muted);
+}
+.lp-row__name {
+  font-weight: 500;
+  font-size: var(--size-base);
+}
+.lp-row__attrs {
+  font-size: var(--size-sm);
+  color: var(--muted);
+}
+
+.lp-rest {
+  margin-top: var(--space-3);
+  font-size: var(--size-sm);
+  color: var(--muted);
+}
+
+.cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--tap-target);
+  margin-top: var(--space-6);
+  padding: 0 var(--space-6);
+  background: var(--signal);
+  color: var(--paper);
+  border: 0;
+  border-radius: var(--radius-interactive);
+  font-family: var(--font-body);
+  font-size: var(--size-base);
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  width: 100%;
+}
+.cta:disabled {
+  opacity: 0.5;
+}
+
+/* ---- ② 元素量の比較 --------------------------------------------------- */
+
+.lp-section {
+  margin-top: var(--space-16);
+  border-top: var(--rule-section);
+  padding-top: var(--space-4);
+}
+.lp-section h2 {
+  font-size: var(--size-md);
+  margin-bottom: var(--space-6);
+}
+.lp-body {
+  margin-top: var(--space-6);
+  font-size: var(--size-sm);
+  color: var(--muted);
+}
+
+.compare {
+  display: grid;
+  gap: var(--space-6);
+}
+.compare__label {
+  font-size: var(--size-sm);
+}
+.compare__sub {
+  font-size: var(--size-sm);
+  color: var(--muted);
+  margin-bottom: var(--space-2);
+}
+.compare__bar {
+  height: 12px;
+  background: var(--ink);
+}
+
+/* ---- ③ コストの物差し ------------------------------------------------- */
+
+.ruler__axis {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.ruler__label {
+  font-size: var(--size-xs);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.ruler__track {
+  position: relative;
+  flex: 1;
+  height: var(--tap-target);
+  border-top: var(--rule-row);
+  border-bottom: var(--rule-row);
+}
+.ruler__dot {
+  position: absolute;
+  top: 0;
+  /* タップ領域 44px を確保する。見た目のドットは ::before で描く */
+  width: var(--tap-target);
+  height: var(--tap-target);
+  margin-left: calc(var(--tap-target) / -2);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.ruler__dot::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  margin: -4px 0 0 -4px;
+  background: var(--ink);
+}
+.ruler__dot.is-dimmed::before {
+  opacity: 0.15;
+}
+.ruler__note {
+  margin-top: var(--space-2);
+  font-size: var(--size-xs);
+  color: var(--muted);
+}
+.ruler__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+.ruler__gap {
+  margin-top: var(--space-4);
+  color: var(--signal);
+  font-size: var(--size-md);
+  min-height: 1.7em;
+}
+
+/* ---- ④ フォーム ------------------------------------------------------- */
+
+.field {
+  display: block;
+  border: 0;
+  padding: 0;
+  margin: 0 0 var(--space-6);
+}
+.field__label {
+  display: block;
+  font-size: var(--size-sm);
+  margin-bottom: var(--space-2);
+  padding: 0;
+}
+.field input[type='email'] {
+  width: 100%;
+  min-height: var(--tap-target);
+  padding: 0 var(--space-3);
+  border: var(--rule-row);
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  /* 16px を下回らない */
+  font-size: var(--size-base);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap-target);
+  padding: 0 var(--space-4);
+  border: var(--rule-row);
+  border-radius: var(--radius-interactive);
+  font-size: var(--size-sm);
+  cursor: pointer;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+}
+.chip input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.chip:has(input:checked),
+.chip--button.is-active {
+  background: var(--ink);
+  color: var(--paper);
+}
+.chip:has(input:focus-visible) {
+  outline: 2px solid var(--signal);
+  outline-offset: 2px;
+}
+
+/* エラーは謝らない。何が起きて、どうすれば直るかだけを書く */
+.form-error {
+  color: var(--warn);
+  font-size: var(--size-sm);
+  margin-bottom: var(--space-3);
+}
+
+.lp-note {
+  margin-top: var(--space-3);
+  font-size: var(--size-xs);
+  color: var(--muted);
+}
+
+.waitlist__done {
+  font-size: var(--size-base);
+}
+
+/* ---- ⑤ 免責 ---------------------------------------------------------- */
+
+.disclosure__heading {
+  font-size: var(--size-md);
+  color: var(--ink);
+  margin-bottom: var(--space-4);
+}
+.disclosure ul {
+  display: grid;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}

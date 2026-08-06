@@ -4,9 +4,28 @@ pergram — サプリメントを有効成分1単位あたりの価格で比較�
 
 ## リポジトリの現状
 
-**実装コードはまだ存在しない。** 企画ドキュメント4本のみ。ビルド・テスト・Lint コマンドは未定義。
+**プロテイン1成分に絞った骨格が動く。データは空。** Node 22 以上、**依存パッケージなし**。
 
-実装に着手する際は、まず [docs/product/requirements.md](docs/product/requirements.md) §13 のフェーズ計画（P0 から）に従うこと。
+```bash
+npm test          # 導出計算・正規化・バリデーション・描画の不変条件
+npm run build     # dist/ を生成（--strict で LP 未出力時に失敗）
+npm run preview   # サンプルデータで .preview/ に描画。デプロイ禁止
+npm run validate  # data/ のバリデーションのみ
+```
+
+実装済みは P0 と P1c の骨格。データ投入の手順は [README.md](README.md) を見る。
+続きは [docs/product/requirements.md](docs/product/requirements.md) §13 のフェーズ計画に従うこと。
+
+### 触るときに壊しやすい箇所
+
+| 場所 | 不変条件 |
+|---|---|
+| `src/lib/cost.js` | 導出計算はここだけ。`data/` に導出値を保存しない |
+| `src/lib/normalize_protein.js` | 唯一のカテゴリ固有処理。他所にカテゴリ分岐を持ち出さない |
+| `config/categories.json` | 新カテゴリはここに1ブロック足すだけで済む状態を保つ |
+| `config/markets.json` | merchant は配列を回して描画する。UI に `if (locale === ...)` を書かない |
+| `locales/*.json` | 未定義キーはビルドを落とす。文言をテンプレートに直書きしない |
+| `src/build/build.js` | LP は実データ20件未満なら出力しない。この門を緩めない |
 
 | ドキュメント | 役割 |
 |---|---|

@@ -1,0 +1,16 @@
+{
+  "JP": {
+    "merchants": ["rakuten", "amazon_jp", "iherb"],
+    "referenceRegion": "JP",
+    "disclosureKey": "disclosure.jp",
+    "currency": "JPY",
+    "claimSource": "nutrient_function_food"
+  },
+  "US": {
+    "merchants": ["iherb", "amazon_us"],
+    "referenceRegion": "US",
+    "disclosureKey": "disclosure.us",
+    "currency": "USD",
+    "claimSource": null
+  }
+}
