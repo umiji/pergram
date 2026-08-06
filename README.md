@@ -80,7 +80,7 @@ npm run ingest -- data/_drafts/rakuten_ホエイプロテイン_2026-08-06.json
 npm run build
 ```
 
-LP は実データが **20 製品以上** ないと出力されない。ヒーローにダミーを置かない決まり（`docs/design/ad-lp.md` ① 🔒）をビルドで強制している。
+LP は実データが **20 製品以上** ないと出力されない。ヒーローにダミーを置かない決まり（`docs/design/design.md` §7 🔒）をビルドで強制している。
 
 ### ディレクトリ
 
@@ -110,11 +110,12 @@ LP は実データが **20 製品以上** ないと出力されない。ヒー�
 | ドキュメント | 内容 |
 |---|---|
 | [docs/product/requirements.md](docs/product/requirements.md) | **要件定義書 v0.4** — スコープ、法規制要件、中核アルゴリズム、データモデル、フェーズ計画 |
+| [docs/design/design.md](docs/design/design.md) | **デザイン要件書 v1.0** — 目的・必須要素・絶対制約。**Claude Design への受け渡しはこれ1本** |
 | [docs/design/service.md](docs/design/service.md) | **UI/UX 定義書 v0.3** — デザイントークン、画面構成、シグネチャ要素「コストの物差し」 |
-| [docs/design/ad-lp.md](docs/design/ad-lp.md) | **広告用LP デザイン仕様 v0.3** — 検証用ランディングページの構成と制約 |
+| ~~[docs/design/ad-lp.md](docs/design/ad-lp.md)~~ | design.md に置き換え済み。競合調査とベンチマークの記録として残す |
 | [docs/research/validation-plan.md](docs/research/validation-plan.md) | **先行需要検証プラン v0.3** — 3段階の検証設計、判定基準、計測設計 |
 
-読む順序: `validation-plan`（なぜ作るか）→ `requirements`（何を作るか）→ `design/service`（どう見せるか）→ `design/ad-lp`（検証用LP）
+読む順序: `validation-plan`（なぜ作るか）→ `requirements`（何を作るか）→ `design/design`（デザイン要件）→ `design/service`（本体の画面）
 
 ---
 

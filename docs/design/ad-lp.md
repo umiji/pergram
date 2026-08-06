@@ -1,7 +1,12 @@
 # 広告用ランディングページ デザイン仕様 (v0.4)
 
+> **⚠️ この文書は [design.md](./design.md) に置き換えられた。**
+> ピクセル単位まで指定した結果、デザインの自由度を奪って退屈なページになった。
+> **Claude Design への受け渡しには `design.md` を使うこと。**
+> 本書は、そこに至る検討過程（競合調査・ベンチマーク・却下した案）の記録として残してある。
+> `design.md` と矛盾する箇所は、すべて `design.md` が正。
+
 プロダクト: **pergram**（パーグラム）
-送付先: Claude Design
 関連: [service.md](./service.md)（本体サービス） / [research/validation-plan.md](../research/validation-plan.md)（検証戦略） / [product/requirements.md](../product/requirements.md)
 
 **この文書は単体で読めるように書いてある。** 他のドキュメントを開かなくても実装できる。

@@ -1,7 +1,7 @@
 # 先行需要検証プラン (v0.3)
 
 プロダクト: **pergram**（パーグラム）
-関連: [product/requirements.md](../product/requirements.md) / [design/service.md](../design/service.md) / [design/ad-lp.md](../design/ad-lp.md)
+関連: [product/requirements.md](../product/requirements.md) / [design/service.md](../design/service.md) / [design/design.md](../design/design.md)
 
 ---
 

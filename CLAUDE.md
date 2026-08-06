@@ -30,8 +30,9 @@ npm run validate  # data/ のバリデーションのみ
 | ドキュメント | 役割 |
 |---|---|
 | [docs/product/requirements.md](docs/product/requirements.md) | 要件定義。**迷ったらここが正** |
+| [docs/design/design.md](docs/design/design.md) | **デザイン要件書。Claude Design への受け渡しはこれ** |
 | [docs/design/service.md](docs/design/service.md) | 本体サービスの UI/UX 定義 |
-| [docs/design/ad-lp.md](docs/design/ad-lp.md) | 検証用 LP のデザイン仕様 |
+| ~~[docs/design/ad-lp.md](docs/design/ad-lp.md)~~ | design.md に置き換え済み。検討過程の記録 |
 | [docs/research/validation-plan.md](docs/research/validation-plan.md) | 先行需要検証プラン |
 
 ドキュメント間は相対リンクで相互参照している。**ファイルを移動・改名する場合は全参照を更新すること。**
