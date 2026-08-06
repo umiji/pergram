@@ -1,0 +1,51 @@
+/* デザイントークン。design/service.md §3
+   LP と本体で必ず同じものを使う。見た目が変わると別サービスに見える。 */
+
+:root {
+  /* 色 — 増やさない。--signal を2つ目の意味に使いたくなったら情報設計が間違っている */
+  --ink: #14161a;
+  --paper: #fbfaf7;
+  --muted: #6b6f76;
+  --line: #dcd9d2;
+  --signal: #1b44c8;
+  --warn: #b3261e;
+  --verified: #1f6f4a;
+
+  /* 書体 — Archivo / IBM Plex はサブセット化して self-host する（未実施）。
+     それまではフォールバックで組む。CDN からは読み込まない。 */
+  --font-display: 'Archivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-body: 'IBM Plex Sans JP', system-ui, -apple-system, 'Hiragino Sans',
+    'Noto Sans JP', sans-serif;
+  --font-data: 'IBM Plex Mono', ui-monospace, 'SF Mono', 'Consolas', monospace;
+
+  /* 型スケール (rem) */
+  --size-xs: 0.75rem;
+  --size-sm: 0.875rem;
+  --size-base: 1rem;
+  --size-md: 1.25rem;
+  --size-lg: 1.75rem;
+  --size-xl: 2.5rem;
+  --size-2xl: 3.5rem;
+
+  /* スペーシング — 4px ベース */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* 罫線階層 — Supplement Facts パネル由来 */
+  --rule-section: 6px solid var(--ink);
+  --rule-major: 3px solid var(--ink);
+  --rule-row: 1px solid var(--ink);
+  --rule-minor: 1px solid var(--line);
+
+  /* 角丸は 0。触れる要素だけ 2px */
+  --radius: 0;
+  --radius-interactive: 2px;
+
+  --tap-target: 44px;
+}

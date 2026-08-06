@@ -1,0 +1,20 @@
+{
+  "name": "pergram",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "サプリメントを有効成分1単位あたりの価格で比較する静的サイト",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "node src/build/build.js",
+    "test": "node --test \"tests/**/*.test.js\"",
+    "preview": "node scripts/preview.js",
+    "collect:rakuten": "node scripts/collect_rakuten.js",
+    "ingest": "node scripts/ingest_draft.js",
+    "prices:refresh": "node scripts/refresh_prices.js",
+    "ogp": "node scripts/make_ogp.js",
+    "validate": "node scripts/validate_data.js"
+  }
+}

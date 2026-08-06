@@ -38,16 +38,70 @@ pergram は、ラベル表示の含有量を**元素量に換算**したうえ�
 
 ## 現在のステータス
 
-**企画・検証フェーズ。実装コードはまだ存在しない。**
+**検証フェーズ。プロテイン1成分に絞った骨格が動く状態。データはまだ空。**
 
 | 段階 | 状態 |
 |---|---|
 | 段0 キーワードボリューム調査 | ✅ 完了（2026-08-05）— **判定: GO** |
-| 段1 データコンテンツの反応テスト | ⬜ 未着手 |
-| 段2 LP + 検索広告 | ⬜ 未着手 |
-| P0 単位正規化・元素量換算・i18n 設計 | ⬜ 未着手 |
+| P0 単位正規化・導出計算・i18n 設計・URL 構造 | ✅ 完了 |
+| P1c プロテインのパイプラインと LP | 🟡 骨格完成・**実データ未収集** |
+| 段1/段2 LP + X / Google 広告 | ⬜ データ収集後 |
 
-段0 の結果、攻略可能な「コスパ」クラスタでプロテインがクレアチンの約30倍の検索需要を持つことが判明し、**P1 の本命をプロテインに決定**した。ただし着手順は「クレアチン → プロテイン」とする（最も単純なデータで先にパイプラインを通すため）。
+段0 の結果、攻略可能な「コスパ」クラスタでプロテインがクレアチンの約30倍の検索需要を持つことが判明し、**P1 の本命をプロテインに決定**した。
+
+プロテインは塩形態を持たず国内品のみで完結するため、🔒 未決事項（Q-18 iHerb の送料・関税 / Q-07 名寄せキー / Q-01 元素含有率の一次ソース）に触れずに実装できる。これが先にプロテインを通す理由。
+
+---
+
+## 開発
+
+Node 22 以上。**依存パッケージなし**（テストは `node:test`、ビルドは素の Node）。
+
+```bash
+npm test              # 60 テスト。導出計算・正規化・バリデーション・描画の不変条件
+npm run build         # dist/ を生成
+npm run preview       # サンプルデータで .preview/ に描画（デプロイ禁止）
+npm run validate      # data/ のバリデーションのみ
+```
+
+### データを入れる手順
+
+```bash
+# 1. 楽天から製品の下書きを作る（内容量は商品名から自動抽出）
+RAKUTEN_APP_ID=xxxx npm run collect:rakuten -- --keyword ホエイプロテイン --pages 4
+
+# 2. data/_drafts/*.json の protein_per_100g と brand を人間が埋める
+#    タンパク質含有量は商品名から読めないため、商品ページの栄養成分表示を見る
+
+# 3. 正規化・バリデーションを通して data/ に取り込む
+npm run ingest -- data/_drafts/rakuten_ホエイプロテイン_2026-08-06.json
+
+# 4. ビルド
+npm run build
+```
+
+LP は実データが **20 製品以上** ないと出力されない。ヒーローにダミーを置かない決まり（`docs/design/design.md` §7 🔒）をビルドで強制している。
+
+### ディレクトリ
+
+| パス | 役割 |
+|---|---|
+| `data/` | 公開データ。保存してよい独立変数は3つだけ（`data/README.md`） |
+| `config/markets.json` | 市場ごとの merchant・参照値・免責・通貨。UI の条件分岐をゼロにするための配列 |
+| `config/categories.json` | カテゴリ差の吸収先。カテゴリ固有テーブルを作らないための JSON |
+| `locales/` | 翻訳キー。未定義キーはビルドを失敗させる |
+| `src/lib/cost.js` | **導出計算の唯一の置き場** |
+| `src/lib/normalize_protein.js` | 唯一のカテゴリ固有処理（抽出時の正規化） |
+| `src/lib/validate.js` | V-01〜V-06 |
+| `src/templates/` | ランキングページ / LP |
+| `functions/` | Cloudflare Pages Functions（待機リスト）と D1 スキーマ |
+| `scripts/` | 収集・取り込み・価格更新・OGP |
+
+### 検証段階の設定
+
+- `dist/robots.txt` は全面 `Disallow`。広告と計測にだけ使い、インデックスさせない。公開時に外す
+- LP にアフィリエイトリンクを置かない（広告審査でアフィリエイトサイト判定を避けるため）
+- GA4 は `GA4_MEASUREMENT_ID` を渡したときだけ埋め込まれる
 
 ---
 
@@ -56,11 +110,12 @@ pergram は、ラベル表示の含有量を**元素量に換算**したうえ�
 | ドキュメント | 内容 |
 |---|---|
 | [docs/product/requirements.md](docs/product/requirements.md) | **要件定義書 v0.4** — スコープ、法規制要件、中核アルゴリズム、データモデル、フェーズ計画 |
+| [docs/design/design.md](docs/design/design.md) | **デザイン要件書 v1.0** — 目的・必須要素・絶対制約。**Claude Design への受け渡しはこれ1本** |
 | [docs/design/service.md](docs/design/service.md) | **UI/UX 定義書 v0.3** — デザイントークン、画面構成、シグネチャ要素「コストの物差し」 |
-| [docs/design/ad-lp.md](docs/design/ad-lp.md) | **広告用LP デザイン仕様 v0.3** — 検証用ランディングページの構成と制約 |
+| ~~[docs/design/ad-lp.md](docs/design/ad-lp.md)~~ | design.md に置き換え済み。競合調査とベンチマークの記録として残す |
 | [docs/research/validation-plan.md](docs/research/validation-plan.md) | **先行需要検証プラン v0.3** — 3段階の検証設計、判定基準、計測設計 |
 
-読む順序: `validation-plan`（なぜ作るか）→ `requirements`（何を作るか）→ `design/service`（どう見せるか）→ `design/ad-lp`（検証用LP）
+読む順序: `validation-plan`（なぜ作るか）→ `requirements`（何を作るか）→ `design/design`（デザイン要件）→ `design/service`（本体の画面）
 
 ---
 

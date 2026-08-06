@@ -1,0 +1,6 @@
+node_modules/
+dist/
+.preview/
+data/_drafts/
+data/_review/
+.env

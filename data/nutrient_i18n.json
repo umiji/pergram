@@ -1,0 +1,26 @@
+[
+  {
+    "nutrient_id": "protein",
+    "locale": "ja",
+    "name": "タンパク質",
+    "synonyms": ["たんぱく質", "蛋白質", "プロテイン", "protein"]
+  },
+  {
+    "nutrient_id": "protein",
+    "locale": "en",
+    "name": "Protein",
+    "synonyms": ["protein"]
+  },
+  {
+    "nutrient_id": "creatine",
+    "locale": "ja",
+    "name": "クレアチン",
+    "synonyms": ["クレアチンモノハイドレート", "クレアチン一水和物", "creatine"]
+  },
+  {
+    "nutrient_id": "creatine",
+    "locale": "en",
+    "name": "Creatine",
+    "synonyms": ["creatine monohydrate"]
+  }
+]

@@ -1,0 +1,14 @@
+[
+  {
+    "id": "protein",
+    "canonical_unit": "g",
+    "category": "protein",
+    "has_reference_value": true
+  },
+  {
+    "id": "creatine",
+    "canonical_unit": "g",
+    "category": "amino_acid",
+    "has_reference_value": false
+  }
+]

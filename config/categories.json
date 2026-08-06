@@ -1,0 +1,22 @@
+{
+  "_comment": "requirements.md §4.2 — カテゴリ差はこの JSON で吸収する。カテゴリ固有テーブルを作らない。新カテゴリの追加はここに1ブロック足すだけで済む状態を保つこと。",
+
+  "protein": {
+    "primaryMetric": "cost_per_nutrient_unit",
+    "secondaryMetrics": ["content_ratio", "cost_per_serving"],
+    "displayUnit": "g",
+    "targetIntake": { "default": 60, "min": 10, "max": 200, "step": 5 }
+  },
+  "creatine": {
+    "primaryMetric": "cost_per_nutrient_unit",
+    "secondaryMetrics": ["content_ratio", "cost_per_serving"],
+    "displayUnit": "g",
+    "targetIntake": { "default": 5, "min": 1, "max": 25, "step": 1 }
+  },
+  "zinc": {
+    "primaryMetric": "cost_per_nutrient_unit",
+    "secondaryMetrics": ["ul_percentage", "cost_per_serving"],
+    "displayUnit": "mg",
+    "targetIntake": { "default": 10, "min": 1, "max": 40, "step": 1 }
+  }
+}
