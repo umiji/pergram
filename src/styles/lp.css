@@ -1,268 +1,1161 @@
-/* 検証用LP。design/ad-lp.md
-   トークンは site.css / tokens.css をそのまま継承する。LPと本体で見た目を変えない。 */
+/* 検証用ランディングページ。LP_mockup/ の Claude Design 版の移植。
+   モバイルファースト。900px 以上で PC 版のレイアウトに切り替える。
 
-.lp {
-  max-width: 680px;
-  padding-bottom: var(--space-16);
+   🔒 数値は tabular-nums（site.css の .num / .cost で適用済み）
+   🔒 状態・方向・警告を色だけで表さない。記号かテキストを必ず併記する */
+
+/* ---- 基礎 ------------------------------------------------------------ */
+
+.lp-body-root {
+  background: var(--paper);
+  text-wrap: pretty;
+  -webkit-font-smoothing: antialiased;
 }
 
-.lp-head {
-  padding: var(--space-6) 0 var(--space-4);
+/* 本文中のリンクの既定色。
+   :where() で詳細度を 0 にしてある。これがないとボタン（.btn--signal /
+   .btn--dark）やワードマーク（.brand）の文字色を上書きしてしまい、
+   青地に青文字・黒地に青文字になる。地の色より後に書けば必ず勝つ、にしない。 */
+:where(.lp-body-root) :where(a) {
+  color: var(--signal);
+  text-decoration: none;
+}
+:where(.lp-body-root) :where(a:hover) {
+  color: var(--signal-hover);
 }
 
-/* ---- ① ヒーロー ------------------------------------------------------ */
-
-.lp-hero h1 {
-  font-size: var(--size-lg);
-  margin-bottom: var(--space-3);
+/* ワードマークは常に地の文字色。リンクの青にしない */
+.lp-body-root .brand,
+.lp-body-root .brand:hover {
+  color: var(--ink);
 }
 
-.lp-lede {
-  color: var(--muted);
-  font-size: var(--size-sm);
-  margin-bottom: var(--space-6);
+/* アンカー移動時にスティッキーヘッダの下へ潜らせない */
+.lp [id],
+.waitlist-band[id] {
+  scroll-margin-top: 76px;
 }
 
-.lp-table {
-  border-top: var(--rule-section);
-  border-bottom: var(--rule-major);
+/* 🔒 動きの抑制を尊重する */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
 }
 
-.lp-row {
-  display: grid;
-  grid-template-columns: 2rem 1fr auto;
-  gap: var(--space-3);
+.u-desktop {
+  display: none;
+}
+.u-mobile {
+  display: inline;
+}
+
+/* ---- ボタン ---------------------------------------------------------- */
+
+.btn {
+  display: inline-flex;
   align-items: center;
-  padding: var(--space-3) 0;
-  border-bottom: var(--rule-minor);
+  justify-content: center;
+  /* 🔒 タップ領域 44px 以上 */
   min-height: var(--tap-target);
-}
-.lp-row:last-child {
-  border-bottom: 0;
-}
-.lp-row__rank {
-  color: var(--muted);
-}
-.lp-row__name {
-  font-weight: 500;
-  font-size: var(--size-base);
-}
-.lp-row__attrs {
+  padding: 0 var(--space-4);
+  border: none;
+  border-radius: var(--radius-interactive);
+  font-family: inherit;
   font-size: var(--size-sm);
-  color: var(--muted);
+  font-weight: 700;
+  line-height: 1.5;
+  text-align: center;
+  cursor: pointer;
 }
 
-.lp-rest {
-  margin-top: var(--space-3);
-  font-size: var(--size-sm);
-  color: var(--muted);
+.btn--dark {
+  background: var(--ink);
+  color: var(--paper);
+}
+.btn--dark:hover {
+  background: #000;
+  color: var(--paper);
 }
 
-.cta {
+.btn--signal {
+  background: var(--signal);
+  color: #fff;
+  border-radius: var(--radius-cta);
+}
+.btn--signal:hover {
+  background: var(--signal-hover);
+  color: #fff;
+}
+
+.btn--block {
+  display: flex;
+  width: 100%;
+  padding: var(--space-4);
+  font-size: 15px;
+}
+
+/* ---- ヘッダ ---------------------------------------------------------- */
+
+.site-head {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: rgba(250, 250, 247, 0.95);
+  backdrop-filter: blur(6px);
+  border-bottom: 1px solid var(--line);
+}
+
+.site-head__inner {
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: 14px var(--space-4);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.site-head .brand__name {
+  font-size: 17px;
+}
+/* ヘッダのタグラインは PC のみ。SP は幅が足りないのでヒーロー側で出す */
+.site-head .brand__tagline {
+  display: none;
+}
+
+.site-nav {
+  display: none;
+  gap: var(--space-8);
+  font-size: 14px;
+}
+.site-nav a {
+  color: var(--muted-strong);
+}
+.site-nav a:hover {
+  color: var(--signal);
+}
+
+.site-head .btn {
+  min-height: 38px;
+  font-size: 12px;
+  padding: 0 14px;
+}
+
+/* ---- 共通のセクション ------------------------------------------------ */
+
+.hero,
+.section {
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: 0 var(--space-4) 44px;
+}
+
+.hero {
+  padding-top: 36px;
+}
+
+.section h2 {
+  font-size: var(--size-lg);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.5;
+  margin: 0 0 var(--space-3);
+}
+
+.eyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--signal);
+  margin: 0 0 var(--space-2);
+}
+
+.section__lede {
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.9;
+  max-width: 720px;
+  margin: 0 0 var(--space-6);
+}
+
+.section__footnote {
+  font-size: 12px;
+  color: var(--muted-faint);
+  line-height: 1.8;
+  margin: var(--space-3) 0 0;
+}
+
+/* ---- ヒーロー -------------------------------------------------------- */
+
+.hero__tagline {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--signal);
+  margin: 0 0 var(--space-2);
+}
+
+.hero h1 {
+  font-size: var(--size-xl);
+  font-weight: 700;
+  line-height: 1.5;
+  letter-spacing: -0.01em;
+  margin: 0 0 var(--space-4);
+}
+
+.hero__lede {
+  font-size: 14.5px;
+  color: var(--muted);
+  line-height: 1.9;
+  margin: 0 0 var(--space-6);
+}
+
+.hero__note {
+  font-size: 12px;
+  color: var(--muted-faint);
+  margin: var(--space-3) 0 0;
+  text-align: center;
+}
+
+/* ---- ヒーローのランキングカード -------------------------------------- */
+
+.rank-card {
+  margin-top: var(--space-8);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+.rank-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 14px var(--space-4);
+  border-bottom: 1px solid rgba(22, 24, 29, 0.08);
+}
+
+.rank-card__title {
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0;
+  margin: 0;
+}
+
+.rank-card__updated {
+  font-size: 10.5px;
+  color: var(--muted-faint);
+  white-space: nowrap;
+}
+
+.rank-card__foot {
+  padding: 11px var(--space-4);
+  border-top: 1px solid rgba(22, 24, 29, 0.08);
+  font-size: 11px;
+  color: var(--muted-faint);
+  margin: 0;
+}
+
+.rank-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rank-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 14px var(--space-4);
+  border-bottom: var(--rule-row);
+}
+.rank-row:last-child {
+  border-bottom: none;
+}
+
+/* 最安の行。順位番号と色の両方で示す。色だけに意味を持たせない */
+.rank-row--top {
+  background: var(--verified-tint);
+}
+
+.rank-row__num {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  border-radius: var(--radius-pill);
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: var(--tap-target);
-  margin-top: var(--space-6);
-  padding: 0 var(--space-6);
-  background: var(--signal);
-  color: var(--paper);
-  border: 0;
-  border-radius: var(--radius-interactive);
-  font-family: var(--font-body);
-  font-size: var(--size-base);
+  font-weight: 700;
+  font-size: 11px;
+  background: var(--fill-weak);
+}
+.rank-row--top .rank-row__num {
+  background: var(--verified);
+  color: #fff;
+}
+
+.rank-row__body {
+  flex: 1;
+  min-width: 0;
+  display: block;
+}
+
+.rank-row__name {
+  display: block;
+  font-size: 13px;
   font-weight: 500;
-  text-decoration: none;
-  cursor: pointer;
-  width: 100%;
-}
-.cta:disabled {
-  opacity: 0.5;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
-/* ---- ② 元素量の比較 --------------------------------------------------- */
-
-.lp-section {
-  margin-top: var(--space-16);
-  border-top: var(--rule-section);
-  padding-top: var(--space-4);
-}
-.lp-section h2 {
-  font-size: var(--size-md);
-  margin-bottom: var(--space-6);
-}
-.lp-body {
-  margin-top: var(--space-6);
-  font-size: var(--size-sm);
-  color: var(--muted);
+.rank-row__sub {
+  display: block;
+  font-size: 11px;
+  color: var(--muted-weak);
+  margin-top: 2px;
 }
 
-.compare {
+.rank-row__metrics {
+  flex: none;
+  text-align: right;
+}
+
+/* 主指標。行内で最も強い要素にする */
+.rank-row .cost {
+  display: block;
+  color: inherit;
+}
+.rank-row .cost__value {
+  font-size: 15px;
+  font-weight: 700;
+}
+.rank-row .cost__unit {
+  font-size: 10px;
+  font-weight: 400;
+}
+.rank-row--top .cost {
+  color: var(--verified);
+}
+
+.rank-row__pack {
+  display: block;
+  font-size: 10px;
+  color: var(--muted-faint);
+}
+
+/* ---- 製品パッケージのサムネイル -------------------------------------- */
+
+.thumb {
+  width: 70px;
+  height: 70px;
+  flex: none;
+  border-radius: var(--radius-thumb);
+  background: var(--fill-panel);
+  border: 1px solid var(--line-soft);
+  object-fit: contain;
+}
+
+/* 🔒 画像がない製品は必ずある。空白にせず、壊れて見せない */
+.thumb--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-data);
+  font-weight: 700;
+  font-size: 20px;
+  color: var(--muted-faint);
+}
+
+/* ---- 特徴カード ------------------------------------------------------ */
+
+.feature-grid {
   display: grid;
-  gap: var(--space-6);
-}
-.compare__label {
-  font-size: var(--size-sm);
-}
-.compare__sub {
-  font-size: var(--size-sm);
-  color: var(--muted);
-  margin-bottom: var(--space-2);
-}
-.compare__bar {
-  height: 12px;
-  background: var(--ink);
+  gap: 14px;
 }
 
-/* ---- ③ コストの物差し ------------------------------------------------- */
+.feature {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 22px;
+}
 
-.ruler__axis {
+.feature .icon {
+  display: block;
+  margin-bottom: var(--space-3);
+}
+
+.feature__label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--muted-faint);
+  margin: 0 0 5px;
+}
+.feature__label--signal {
+  color: var(--signal);
+}
+
+.feature__problem {
+  font-size: 13.5px;
+  color: var(--muted-strong);
+  line-height: 1.8;
+  margin: 0 0 14px;
+}
+
+.feature__rule {
+  border: none;
+  border-top: 1px solid rgba(22, 24, 29, 0.08);
+  margin: 0 0 14px;
+}
+
+.feature__solution {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.7;
+  margin: 0;
+}
+
+/* ---- 帯の CTA -------------------------------------------------------- */
+
+.banner {
+  margin-top: var(--space-6);
+  border: 1px solid var(--signal-edge);
+  background: var(--signal-tint);
+  border-radius: 12px;
+  padding: 18px;
+}
+
+.banner__text {
+  font-size: 14px;
+  line-height: 1.8;
+  margin: 0 0 14px;
+}
+
+.banner .btn {
+  display: flex;
+  width: 100%;
+  font-size: 13.5px;
+  border-radius: var(--radius-interactive);
+}
+
+/* ---- 順位が入れ替わる図 ---------------------------------------------- */
+
+.flip {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.flip__panel {
+  padding: 22px;
+}
+.flip__panel--after {
+  background: rgba(36, 84, 230, 0.04);
+}
+
+.flip__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-1);
+}
+
+.flip__label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted-weak);
+}
+.flip__label--signal {
+  color: var(--signal);
+}
+
+.flip__sub {
+  font-size: 12px;
+  color: var(--muted-weak);
+  margin: 0 0 18px;
+}
+
+.flip__note {
+  margin: var(--space-4) 0 0;
+  font-size: 12px;
+  color: var(--muted-weak);
+  line-height: 1.8;
+}
+
+.flip__divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: 10px;
+  background: var(--fill-panel);
+  border-top: 1px solid rgba(22, 24, 29, 0.08);
+  border-bottom: 1px solid rgba(22, 24, 29, 0.08);
+}
+
+.flip__divider-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--muted-faint);
+  letter-spacing: 0.12em;
+}
+
+.flip__divider .icon {
+  display: block;
+}
+
+/* 状態のラベル。色だけでなく文言でも意味を伝える */
+.tag {
+  font-size: 10.5px;
+  font-weight: 700;
+  border-radius: var(--radius-pill);
+  padding: 3px var(--space-2);
+}
+.tag--warn {
+  color: var(--warn);
+  background: var(--warn-tint);
+}
+.tag--verified {
+  color: var(--verified);
+  background: var(--verified-chip);
+}
+
+/* ---- 比較バー -------------------------------------------------------- */
+
+.cmp-row {
   display: flex;
   align-items: center;
   gap: var(--space-3);
 }
-.ruler__label {
-  font-size: var(--size-xs);
-  color: var(--muted);
-  white-space: nowrap;
-}
-.ruler__track {
-  position: relative;
-  flex: 1;
-  height: var(--tap-target);
-  border-top: var(--rule-row);
-  border-bottom: var(--rule-row);
-}
-.ruler__dot {
-  position: absolute;
-  top: 0;
-  /* タップ領域 44px を確保する。見た目のドットは ::before で描く */
-  width: var(--tap-target);
-  height: var(--tap-target);
-  margin-left: calc(var(--tap-target) / -2);
-  padding: 0;
-  border: 0;
-  background: transparent;
-  cursor: pointer;
-}
-.ruler__dot::before {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 8px;
-  height: 8px;
-  margin: -4px 0 0 -4px;
-  background: var(--ink);
-}
-.ruler__dot.is-dimmed::before {
-  opacity: 0.15;
-}
-.ruler__note {
-  margin-top: var(--space-2);
-  font-size: var(--size-xs);
-  color: var(--muted);
-}
-.ruler__filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
+.cmp-row + .cmp-row {
   margin-top: var(--space-4);
-}
-.ruler__gap {
-  margin-top: var(--space-4);
-  color: var(--signal);
-  font-size: var(--size-md);
-  min-height: 1.7em;
 }
 
-/* ---- ④ フォーム ------------------------------------------------------- */
+.cmp-row__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.cmp-row__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin-bottom: 6px;
+}
+
+.cmp-row__label {
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+.cmp-row__value {
+  font-weight: 700;
+  font-size: 14px;
+  white-space: nowrap;
+}
+.cmp-row__value--lead {
+  color: var(--verified);
+  font-size: 17px;
+}
+
+.cmp-row__unit {
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.cmp-bar {
+  height: 9px;
+  background: var(--fill-weak);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.cmp-bar__fill {
+  display: block;
+  height: 100%;
+  border-radius: 5px;
+  background: rgba(22, 24, 29, 0.3);
+}
+.cmp-bar__fill--lead {
+  background: var(--verified);
+}
+
+/* ---- ロードマップのチップ -------------------------------------------- */
+
+.pill-list {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.pill {
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid rgba(22, 24, 29, 0.15);
+  border-radius: var(--radius-pill);
+  padding: var(--space-2) 14px;
+}
+
+/* ---- 待機リスト ------------------------------------------------------ */
+
+.waitlist-band {
+  background: var(--signal-band);
+  padding: 44px var(--space-4);
+}
+
+.waitlist-band__inner {
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.waitlist-band__heading {
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.6;
+  text-align: center;
+  margin: 0 0 10px;
+}
+
+.waitlist-band__lede {
+  font-size: 13.5px;
+  color: var(--muted);
+  text-align: center;
+  margin: 0 0 var(--space-6);
+}
+
+.waitlist {
+  background: var(--surface);
+  border: 1px solid rgba(22, 24, 29, 0.08);
+  border-radius: var(--radius);
+  padding: 22px;
+}
 
 .field {
   display: block;
-  border: 0;
+  border: none;
+  margin: 0 0 20px;
   padding: 0;
-  margin: 0 0 var(--space-6);
 }
+
 .field__label {
   display: block;
-  font-size: var(--size-sm);
+  font-size: 12.5px;
+  font-weight: 700;
   margin-bottom: var(--space-2);
   padding: 0;
 }
-.field input[type='email'] {
+
+.waitlist input[type='email'] {
   width: 100%;
-  min-height: var(--tap-target);
-  padding: 0 var(--space-3);
-  border: var(--rule-row);
-  border-radius: var(--radius);
-  background: var(--paper);
-  color: var(--ink);
-  font-family: var(--font-body);
-  /* 16px を下回らない */
+  padding: 14px;
+  border: 1px solid rgba(22, 24, 29, 0.15);
+  border-radius: var(--radius-interactive);
+  /* 🔒 16px を下回らない。iOS の自動ズームを防ぐ */
   font-size: var(--size-base);
+  font-family: inherit;
+  background: var(--surface);
+  color: var(--ink);
 }
 
-.chips {
-  display: flex;
-  flex-wrap: wrap;
+.check-grid {
+  display: grid;
   gap: var(--space-2);
 }
-.chip {
-  display: inline-flex;
+
+.check,
+.pill-choice {
+  display: flex;
   align-items: center;
+  gap: 10px;
+  /* 🔒 タップ領域 44px 以上 */
   min-height: var(--tap-target);
-  padding: 0 var(--space-4);
-  border: var(--rule-row);
+  border: 1px solid rgba(22, 24, 29, 0.12);
   border-radius: var(--radius-interactive);
-  font-size: var(--size-sm);
+  padding: var(--space-2) 14px;
+  font-size: 14px;
   cursor: pointer;
-  background: var(--paper);
-  color: var(--ink);
-  font-family: var(--font-body);
-}
-.chip input {
-  position: absolute;
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-.chip:has(input:checked),
-.chip--button.is-active {
-  background: var(--ink);
-  color: var(--paper);
-}
-.chip:has(input:focus-visible) {
-  outline: 2px solid var(--signal);
-  outline-offset: 2px;
 }
 
-/* エラーは謝らない。何が起きて、どうすれば直るかだけを書く */
+.pill-choices {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.pill-choice {
+  gap: 6px;
+  font-size: 13px;
+  border-radius: var(--radius-pill);
+}
+
+.check:hover,
+.pill-choice:hover {
+  border-color: var(--signal-edge);
+}
+
+.check:has(input:checked),
+.pill-choice:has(input:checked) {
+  border-color: var(--signal);
+  background: var(--signal-tint);
+}
+
+.check input,
+.pill-choice input {
+  accent-color: var(--signal);
+  width: 18px;
+  height: 18px;
+  flex: none;
+  margin: 0;
+}
+
+/* エラー文は謝らない。何が起きて、どうすれば直るかだけを書く */
 .form-error {
   color: var(--warn);
-  font-size: var(--size-sm);
-  margin-bottom: var(--space-3);
+  font-size: 13px;
+  margin: 0 0 var(--space-3);
 }
 
-.lp-note {
-  margin-top: var(--space-3);
-  font-size: var(--size-xs);
-  color: var(--muted);
+.form-note {
+  font-size: 11.5px;
+  color: var(--muted-weak);
+  text-align: center;
+  line-height: 1.7;
+  margin: var(--space-3) 0 0;
 }
 
 .waitlist__done {
-  font-size: var(--size-base);
+  background: var(--surface);
+  border: 1px solid var(--signal-edge);
+  border-radius: var(--radius);
+  padding: 22px;
+  text-align: center;
+  font-weight: 500;
 }
 
-/* ---- ⑤ 免責 ---------------------------------------------------------- */
+/* ---- フッタ ---------------------------------------------------------- */
+
+.site-foot {
+  border-top: 1px solid var(--line);
+  padding: 36px var(--space-4) 32px;
+}
+
+.site-foot__inner {
+  max-width: var(--page-max);
+  margin: 0 auto;
+  display: grid;
+  gap: var(--space-6);
+}
+
+.site-foot .brand {
+  margin-bottom: var(--space-3);
+}
+
+.site-foot__text {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.9;
+  margin: 0 0 var(--space-6);
+  max-width: 380px;
+}
+
+.site-foot__copyright {
+  font-size: 11.5px;
+  color: var(--muted-faint);
+  margin: 0;
+}
+
+/* 🔒 免責は常時表示。折りたたまない */
+.site-foot .disclosure {
+  border-top: none;
+  margin-top: 0;
+  padding: 0;
+  display: block;
+  font-size: inherit;
+  color: inherit;
+}
 
 .disclosure__heading {
-  font-size: var(--size-md);
-  color: var(--ink);
-  margin-bottom: var(--space-4);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0;
+  margin: 0 0 var(--space-3);
 }
-.disclosure ul {
+
+.disclosure__list {
+  list-style: none;
+  margin: 0 0 18px;
+  padding: 0;
   display: grid;
-  gap: var(--space-2);
-  margin-bottom: var(--space-4);
+  gap: 9px;
+}
+
+.disclosure__list li {
+  position: relative;
+  padding-left: 14px;
+  font-size: 12.5px;
+  color: var(--muted-strong);
+  line-height: 1.7;
+}
+.disclosure__list li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 9px;
+  width: 5px;
+  height: 5px;
+  border-radius: var(--radius-pill);
+  background: var(--ink);
+}
+
+.disclosure__fine {
+  font-size: 11px;
+  color: var(--muted-faint);
+  line-height: 1.9;
+  margin: 0 0 var(--space-2);
+}
+
+/* ---- PC -------------------------------------------------------------- */
+
+@media (min-width: 900px) {
+  .u-desktop {
+    display: inline;
+  }
+  .u-mobile {
+    display: none;
+  }
+
+  .lp [id],
+  .waitlist-band[id] {
+    scroll-margin-top: 88px;
+  }
+
+  .site-head__inner {
+    padding: 18px var(--space-8);
+  }
+  .site-head .brand__name {
+    font-size: 19px;
+  }
+  .site-head .brand__tagline {
+    display: block;
+    font-size: 11px;
+  }
+  .site-nav {
+    display: flex;
+  }
+  .site-head .btn {
+    min-height: var(--tap-target);
+    font-size: 13px;
+    padding: 0 18px;
+  }
+
+  .hero,
+  .section {
+    padding: 0 var(--space-8) 96px;
+  }
+  .hero {
+    padding-top: 80px;
+  }
+
+  .hero__grid {
+    display: grid;
+    grid-template-columns: 1.05fr 0.95fr;
+    gap: var(--space-16);
+    align-items: center;
+  }
+
+  .hero__tagline {
+    font-size: 14px;
+  }
+  .hero h1 {
+    font-size: var(--size-2xl);
+    line-height: 1.35;
+    margin-bottom: 22px;
+  }
+  .hero__lede {
+    font-size: 17px;
+    line-height: 1.85;
+    max-width: 480px;
+    margin-bottom: var(--space-8);
+  }
+  .hero .btn--block {
+    display: inline-flex;
+    width: auto;
+    padding: var(--space-4) 28px;
+  }
+  .hero__note {
+    text-align: left;
+    font-size: 12.5px;
+    margin-top: 14px;
+  }
+
+  .rank-card {
+    margin-top: 0;
+    box-shadow: var(--shadow-card-lg);
+  }
+  .rank-card__head,
+  .rank-row {
+    padding: var(--space-4) 20px;
+  }
+  .rank-card__title {
+    font-size: 13px;
+  }
+  .rank-card__updated {
+    font-size: 11px;
+  }
+  .rank-card__foot {
+    padding: var(--space-3) 20px;
+    font-size: 11.5px;
+  }
+  .rank-row {
+    gap: var(--space-4);
+  }
+  .rank-row__num {
+    width: 26px;
+    height: 26px;
+    font-size: 12px;
+  }
+  .rank-row__name {
+    font-size: 14px;
+  }
+  .rank-row__sub {
+    font-size: 11.5px;
+    margin-top: 3px;
+  }
+  .rank-row .cost__value {
+    font-size: 17px;
+  }
+  .rank-row .cost__unit {
+    font-size: 11px;
+  }
+  .rank-row__pack {
+    font-size: 11px;
+    margin-top: 2px;
+  }
+
+  .thumb {
+    width: 76px;
+    height: 76px;
+  }
+
+  .section h2 {
+    font-size: 32px;
+    line-height: 1.35;
+    margin-bottom: var(--space-4);
+  }
+  .eyebrow {
+    font-size: 13px;
+    margin-bottom: 10px;
+  }
+  .section__lede {
+    font-size: var(--size-base);
+    line-height: 1.85;
+    margin-bottom: 40px;
+  }
+  .section__footnote {
+    font-size: 12.5px;
+    margin-top: var(--space-4);
+  }
+
+  #features h2 {
+    margin-bottom: 40px;
+  }
+
+  .feature-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 28px;
+  }
+  .feature {
+    padding: 28px;
+  }
+  .feature .icon {
+    margin-bottom: var(--space-4);
+  }
+  .feature__label {
+    font-size: 11.5px;
+    margin-bottom: 6px;
+  }
+  .feature__problem {
+    font-size: 14.5px;
+    margin-bottom: 18px;
+  }
+  .feature__rule {
+    margin-bottom: 18px;
+  }
+  .feature__solution {
+    font-size: var(--size-base);
+  }
+
+  .banner {
+    margin-top: 36px;
+    padding: 20px 28px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  .banner__text {
+    font-size: 15px;
+    margin: 0;
+  }
+  .banner .btn {
+    display: inline-flex;
+    width: auto;
+    flex: none;
+    padding: 0 20px;
+  }
+
+  .flip {
+    display: grid;
+    grid-template-columns: 1fr 64px 1fr;
+    align-items: stretch;
+    border-radius: var(--radius-lg);
+  }
+  .flip__panel {
+    padding: var(--space-8);
+  }
+  .flip__divider {
+    flex-direction: column;
+    padding: 0;
+    border-top: none;
+    border-bottom: none;
+    border-left: 1px solid rgba(22, 24, 29, 0.08);
+    border-right: 1px solid rgba(22, 24, 29, 0.08);
+  }
+  .flip__divider-label {
+    writing-mode: vertical-rl;
+    letter-spacing: 0.14em;
+  }
+  .flip__label,
+  .flip__sub {
+    font-size: 12.5px;
+  }
+  .flip__sub {
+    margin-bottom: var(--space-6);
+  }
+  .flip__note {
+    margin-top: var(--space-6);
+    padding-top: 18px;
+    border-top: 1px dashed rgba(22, 24, 29, 0.15);
+    font-size: 12.5px;
+  }
+  .flip__panel--after .flip__note {
+    border-top-color: var(--signal-edge);
+  }
+  .tag {
+    font-size: 11px;
+    padding: 3px 9px;
+  }
+
+  .cmp-row {
+    gap: 14px;
+  }
+  .cmp-row + .cmp-row {
+    margin-top: 20px;
+  }
+  .cmp-row__head {
+    margin-bottom: 7px;
+  }
+  .cmp-row__label {
+    font-size: 13.5px;
+  }
+  .cmp-row__value {
+    font-size: var(--size-base);
+  }
+  .cmp-row__value--lead {
+    font-size: 19px;
+  }
+  .cmp-row__unit {
+    font-size: 12px;
+  }
+  .cmp-bar {
+    height: 10px;
+  }
+
+  .pill-list {
+    gap: var(--space-3);
+  }
+  .pill {
+    font-size: 14px;
+    padding: 9px 18px;
+  }
+
+  .waitlist-band {
+    padding: 96px var(--space-8);
+  }
+  .waitlist-band__heading {
+    font-size: 30px;
+    line-height: 1.5;
+    margin-bottom: var(--space-3);
+  }
+  .waitlist-band__lede {
+    font-size: 15px;
+    margin-bottom: 36px;
+  }
+  .waitlist,
+  .waitlist__done {
+    padding: 36px;
+    border-radius: var(--radius-lg);
+  }
+  .field {
+    margin-bottom: var(--space-6);
+  }
+  .field__label {
+    font-size: 13px;
+  }
+  .waitlist input[type='email'] {
+    padding: var(--space-3) 14px;
+  }
+  .check-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .check {
+    font-size: 13.5px;
+  }
+  .form-note {
+    font-size: 12px;
+    margin-top: 14px;
+  }
+
+  .site-foot {
+    padding: var(--space-16) var(--space-8) 40px;
+  }
+  .site-foot__inner {
+    grid-template-columns: 1.2fr 1fr;
+    gap: 56px;
+  }
+  .site-foot .brand__name {
+    font-size: 18px;
+  }
+  .site-foot__text {
+    font-size: 14px;
+  }
+  .site-foot__copyright {
+    font-size: 12px;
+  }
+  .disclosure__heading {
+    font-size: 14px;
+    margin-bottom: 14px;
+  }
+  .disclosure__list {
+    margin-bottom: 20px;
+    gap: 10px;
+  }
+  .disclosure__list li {
+    font-size: 13.5px;
+  }
+  .disclosure__fine {
+    font-size: 11.5px;
+  }
 }

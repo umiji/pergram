@@ -48,10 +48,10 @@ await writeFile(
     locale: 'ja',
     currency: market.currency,
     displayUnit: 'g',
-    topRows: rows.slice(0, 5),
+    topRows: rows.slice(0, 3),
     totalCount: rows.length,
-    rulerRows: rows,
-    filters: [],
+    nutrientName: 'タンパク質',
+    updatedAt: '2026-08-06',
     disclosureKey: market.disclosureKey,
     gaMeasurementId: null,
   }),
@@ -62,6 +62,17 @@ for (const file of ['tokens.css', 'site.css', 'lp.css']) {
 }
 await cp('src/assets/lp.js', path.join(OUT, 'assets', 'lp.js'));
 
-console.log(`${OUT}/ja/protein/index.html`);
-console.log(`${OUT}/ja/lp/index.html`);
+// file:// で開くと /assets/... がドライブのルートを指してしまい、CSS も JS も当たらない。
+// 本番と同じくルートを持つサーバから配る。--build-only で書き出しだけにできる。
+if (process.argv.includes('--build-only')) {
+  console.log(`${OUT}/ja/protein/index.html`);
+  console.log(`${OUT}/ja/lp/index.html`);
+} else {
+  const { serve, HOST } = await import('./serve.js');
+  const server = await serve(OUT);
+  console.log(`http://${HOST}:${server.port}/ja/lp/`);
+  console.log(`http://${HOST}:${server.port}/ja/protein/`);
+  console.log('Ctrl+C で停止');
+}
+
 console.log('⚠️ サンプルデータです。デプロイしないでください。');

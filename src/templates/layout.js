@@ -38,6 +38,9 @@ ${canonicalPath ? `<link rel="canonical" href="${escapeHtml(canonicalPath)}">` :
 <meta property="og:title" content="${escapeHtml(title)}">
 <meta property="og:description" content="${escapeHtml(description)}">
 <meta property="og:type" content="website">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="/assets/tokens.css">
 <link rel="stylesheet" href="/assets/site.css">
 ${head}
@@ -50,11 +53,16 @@ ${content}
 `;
 }
 
-/** ワードマーク。初回接触ではタグラインと必ずセットで出す。 */
-export function wordmark(t, { withTagline = false, href = '/' } = {}) {
-  return `<a class="brand" href="${escapeHtml(href)}">
-  <span class="brand__ticks" aria-hidden="true"></span>
-  <span class="brand__name">${escapeHtml(t('brand.name'))}</span>
-  ${withTagline ? `<span class="brand__tagline">${escapeHtml(t('brand.tagline'))}</span>` : ''}
-</a>`;
+/**
+ * ワードマーク。
+ * 🔒 初回接触（LP・OGP・広告）ではタグラインと必ずセットで出す。
+ *    `-gram` が Instagram / Telegram の連想を呼ぶため、単体では SNS アプリに見える。
+ */
+export function wordmark(t, { withTagline = false, href = '/', as = 'a' } = {}) {
+  const inner = `<span class="brand__name">${escapeHtml(t('brand.name'))}</span>${
+    withTagline ? `<span class="brand__tagline">${escapeHtml(t('brand.tagline'))}</span>` : ''
+  }`;
+
+  if (as === 'div') return `<div class="brand">${inner}</div>`;
+  return `<a class="brand" href="${escapeHtml(href)}">${inner}</a>`;
 }

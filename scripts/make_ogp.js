@@ -22,10 +22,11 @@ const DATA = 'data';
 const OUT = path.join('dist', 'assets', 'ogp.svg');
 const readJson = async (name) => JSON.parse(await readFile(path.join(DATA, name), 'utf8'));
 
-const INK = '#14161A';
-const PAPER = '#FBFAF7';
+// src/styles/tokens.css と同じ値。片方だけ変えるとカードだけ別サービスに見える
+const INK = '#16181D';
+const PAPER = '#FAFAF7';
 const MUTED = '#6B6F76';
-const SIGNAL = '#1B44C8';
+const SIGNAL = '#2454E6';
 
 const t = await loadTranslator('ja');
 const markets = JSON.parse(await readFile(path.join('config', 'markets.json'), 'utf8'));

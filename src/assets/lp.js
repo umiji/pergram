@@ -1,13 +1,14 @@
 /**
- * LP のインタラクション。design/ad-lp.md §5「JS は物差しのインタラクションのみ」
- * フレームワークを使わない。計測は research/validation-plan.md §7。
+ * LP のインタラクション。フレームワークを使わない。
+ * 計測要件は docs/research/validation-plan.md §7 と design.md §12。
  *
  * 🔒 GA4 に個人識別情報を送らない。メールアドレスをイベントパラメータに含めない。
  */
 (function () {
   'use strict';
 
-  var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  /** 送信中の状態を明示するための待ち時間の上限（ms） */
+  var REQUEST_TIMEOUT_MS = 10000;
 
   function track(name, params) {
     if (typeof window.gtag === 'function') {
@@ -29,6 +30,7 @@
   function onScroll() {
     var scrolled = window.scrollY + window.innerHeight;
     var height = document.body.scrollHeight;
+    if (height <= 0) return;
     var percent = Math.round((scrolled / height) * 100);
     [25, 50, 75, 100].forEach(function (mark) {
       if (percent >= mark && !depthsSeen[mark]) {
@@ -40,86 +42,29 @@
   window.addEventListener('scroll', onScroll, { passive: true });
   onScroll();
 
-  /* ---- ランキング行のタップ ------------------------------------------- */
+  /* ---- デモ的な要素に触れたか ----------------------------------------- */
 
-  document.querySelectorAll('.lp-row').forEach(function (row) {
+  // ヒーローのランキング行。価値が伝わったかの中間指標
+  document.querySelectorAll('.rank-row').forEach(function (row) {
     row.addEventListener('click', function () {
       track('demo_interact', { nutrient_id: 'protein', action: 'row_tap' });
     });
   });
 
-  /* ---- コストの物差し ------------------------------------------------- */
-
-  var ruler = document.querySelector('.ruler');
-  if (ruler) {
-    var track_ = ruler.querySelector('.ruler__track');
-    var dots = Array.prototype.slice.call(ruler.querySelectorAll('.ruler__dot'));
-    var gapEl = ruler.querySelector('.ruler__gap');
-    var min = parseFloat(ruler.dataset.min);
-    var max = parseFloat(ruler.dataset.max);
-    var activeFilters = [];
-
-    // 🔒 数値は Intl で書式化する。文字列連結で組み立てない
-    var money = new Intl.NumberFormat(ruler.dataset.locale, {
-      style: 'currency',
-      currency: ruler.dataset.currency,
-      minimumFractionDigits: 1,
-      maximumFractionDigits: 1,
-      signDisplay: 'always',
-    });
-
-    // 対数スケールで配置する。線形だと外れ値で潰れる
-    function positionOf(cost) {
-      if (!(max > min)) return 50;
-      var ratio = (Math.log(cost) - Math.log(min)) / (Math.log(max) - Math.log(min));
-      return 2 + ratio * 96; // 端のドットが切れないよう内側に寄せる
-    }
-
-    dots.forEach(function (dot) {
-      dot.style.left = positionOf(parseFloat(dot.dataset.cost)) + '%';
-      if (!reduceMotion) dot.style.transition = 'opacity 160ms ease';
-    });
-
-    function matches(dot) {
-      if (activeFilters.length === 0) return true;
-      var attrs = JSON.parse(dot.dataset.attrs || '[]');
-      return activeFilters.every(function (f) {
-        return attrs.indexOf(f) !== -1;
-      });
-    }
-
-    function apply() {
-      var visibleCosts = [];
-      dots.forEach(function (dot) {
-        var ok = matches(dot);
-        dot.classList.toggle('is-dimmed', !ok);
-        if (ok) visibleCosts.push(parseFloat(dot.dataset.cost));
-      });
-
-      if (visibleCosts.length === 0) {
-        gapEl.textContent = gapEl.dataset.emptyText;
-        return;
-      }
-      if (activeFilters.length === 0) {
-        gapEl.textContent = '';
-        return;
-      }
-      var filteredMin = Math.min.apply(null, visibleCosts);
-      var gap = filteredMin - min;
-      gapEl.textContent = gapEl.dataset.gapTemplate.replace('{amount}', money.format(gap));
-    }
-
-    ruler.querySelectorAll('[data-filter]').forEach(function (chip) {
-      chip.addEventListener('click', function () {
-        var key = chip.dataset.filter;
-        var index = activeFilters.indexOf(key);
-        if (index === -1) activeFilters.push(key);
-        else activeFilters.splice(index, 1);
-        chip.classList.toggle('is-active', index === -1);
-        apply();
-        track('ruler_filter', { filter_key: key });
-      });
-    });
+  // 「袋の値段 → 1gあたり」の図が画面に入ったか
+  var flip = document.querySelector('.flip');
+  if (flip && 'IntersectionObserver' in window) {
+    var observer = new IntersectionObserver(
+      function (entries) {
+        entries.forEach(function (entry) {
+          if (!entry.isIntersecting) return;
+          track('demo_interact', { nutrient_id: 'protein', action: 'flip_view' });
+          observer.disconnect();
+        });
+      },
+      { threshold: 0.5 },
+    );
+    observer.observe(flip);
   }
 
   /* ---- 待機リスト ----------------------------------------------------- */
@@ -130,6 +75,7 @@
   var emailInput = form.querySelector('input[name="email"]');
   var errorEl = form.querySelector('.form-error');
   var doneEl = document.querySelector('.waitlist__done');
+  var button = form.querySelector('button[type="submit"]');
   var started = false;
 
   emailInput.addEventListener('focus', function () {
@@ -143,6 +89,14 @@
     errorEl.hidden = false;
   }
 
+  function checkedValues(name) {
+    return Array.prototype.slice
+      .call(form.querySelectorAll('input[name="' + name + '"]:checked'))
+      .map(function (input) {
+        return input.value;
+      });
+  }
+
   form.addEventListener('submit', function (event) {
     event.preventDefault();
     errorEl.hidden = true;
@@ -154,21 +108,25 @@
       return;
     }
 
-    var nutrients = Array.prototype.slice
-      .call(form.querySelectorAll('input[name="nutrients"]:checked'))
-      .map(function (i) {
-        return i.value;
-      });
-    var channelInput = form.querySelector('input[name="channel"]:checked');
-    var channel = channelInput ? channelInput.value : null;
+    var nutrients = checkedValues('nutrients');
+    // 🔒 普段の購入先は単一選択。配列にしない
+    var channel = checkedValues('channel')[0] || null;
 
-    var button = form.querySelector('button[type="submit"]');
     button.disabled = true;
+
+    // ネットワークが返らないまま押せない状態が続くのを避ける
+    var controller = typeof AbortController === 'function' ? new AbortController() : null;
+    var timer = controller
+      ? window.setTimeout(function () {
+          controller.abort();
+        }, REQUEST_TIMEOUT_MS)
+      : null;
 
     fetch('/api/waitlist', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: email, nutrients: nutrients, channel: channel }),
+      signal: controller ? controller.signal : undefined,
     })
       .then(function (res) {
         if (!res.ok) throw new Error('request_failed');
@@ -184,6 +142,9 @@
       .catch(function () {
         button.disabled = false;
         showError(form.dataset.errorSend);
+      })
+      .finally(function () {
+        if (timer !== null) window.clearTimeout(timer);
       });
   });
 })();

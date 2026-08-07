@@ -24,8 +24,8 @@ const CONFIG = 'config';
 
 /** LP を公開してよい最小製品数。これを下回るなら「市販N製品」と名乗れない */
 const MIN_LP_PRODUCTS = 20;
-/** ヒーローに出す件数 */
-const HERO_ROWS = 5;
+/** ヒーローのランキングカードに出す件数 */
+const HERO_ROWS = 3;
 
 const strict = process.argv.includes('--strict');
 const readJson = async (...p) => JSON.parse(await readFile(path.join(...p), 'utf8'));
@@ -79,20 +79,6 @@ function buildRows({ nutrientId, market, targetIntake, locale, data }) {
 
   // 🔒 並び順は主指標のみ
   return { rows: sortByUnitCost(rows), nutrient };
-}
-
-/** 翻訳のあるファセットだけを物差しのチップにする */
-function resolveFilters(rows, t) {
-  const keys = [...new Set(rows.flatMap((r) => r.attributeKeys))];
-  const filters = [];
-  for (const key of keys) {
-    try {
-      filters.push({ key, label: t(`attribute.${key}`) });
-    } catch {
-      process.stderr.write(`スキップ: attribute.${key} の翻訳がないためチップに出しません\n`);
-    }
-  }
-  return filters;
 }
 
 async function main() {
@@ -165,8 +151,8 @@ async function main() {
         displayUnit: category.displayUnit,
         topRows: rows.slice(0, HERO_ROWS),
         totalCount: rows.length,
-        rulerRows: rows,
-        filters: resolveFilters(rows, t),
+        nutrientName,
+        updatedAt,
         disclosureKey: market.disclosureKey,
         gaMeasurementId,
       }),
