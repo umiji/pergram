@@ -58,7 +58,7 @@ pergram は、ラベル表示の含有量を**元素量に換算**したうえ�
 Node 22 以上。**依存パッケージなし**（テストは `node:test`、ビルドは素の Node）。
 
 ```bash
-npm test              # 92 テスト。導出計算・正規化・バリデーション・描画の不変条件
+npm test              # 98 テスト。導出計算・正規化・バリデーション・描画の不変条件
 npm run build         # dist/ を生成
 npm run preview       # サンプルデータで .preview/ に描画（デプロイ禁止）
 npm run validate      # data/ のバリデーションのみ
@@ -93,15 +93,33 @@ LP は実データが **20 製品以上** ないと出力されない。ヒー�
 | `src/lib/cost.js` | **導出計算の唯一の置き場** |
 | `src/lib/normalize_protein.js` | 唯一のカテゴリ固有処理（抽出時の正規化） |
 | `src/lib/validate.js` | V-01〜V-06 |
+| `src/lib/waitlist.js` | **待機リストの判断の唯一の置き場**（検証・D1・スプレッドシート転記） |
 | `src/templates/` | ランキングページ / LP |
-| `functions/` | Cloudflare Pages Functions（待機リスト → D1 + Google スプレッドシート）と D1 スキーマ |
+| `functions/` | Cloudflare Pages Functions のアダプタと D1 スキーマ |
+| `api/` | Vercel Functions のアダプタ |
 | `scripts/` | 収集・取り込み・価格更新・OGP |
+
+`functions/api/waitlist.js` と `api/waitlist.js` はどちらも `src/lib/waitlist.js` を呼ぶだけ。**アダプタにロジックを持たせない**（挙動が2つに分かれる）。
 
 ### 検証段階の設定
 
 - `dist/robots.txt` は全面 `Disallow`。広告と計測にだけ使い、インデックスさせない。公開時に外す
 - LP にアフィリエイトリンクを置かない（広告審査でアフィリエイトサイト判定を避けるため）
 - GA4 は `GA4_MEASUREMENT_ID` を渡したときだけ埋め込まれる
+
+### デプロイ先
+
+**Cloudflare Pages と Vercel の両対応。** 静的ファイルは同じ `dist/` で、待機リストの API だけホスティングごとにアダプタを置いている。
+
+| | Cloudflare Pages | Vercel |
+|---|---|---|
+| ビルド | `npm run build` → `dist/` | `vercel.json`（`buildCommand` / `outputDirectory`）で同じ |
+| API | `functions/api/waitlist.js` | `api/waitlist.js` |
+| ルート `/` の転送 | `dist/_redirects`（ビルドが生成） | `vercel.json` の `redirects` |
+| 待機リストの保存先 | D1 + スプレッドシート | **スプレッドシートのみ**（D1 は Cloudflare 専用） |
+
+Vercel には D1 が無いため、`GOOGLE_SHEETS_*` を設定しないと `/api/waitlist` は 500（`not_configured`）を返す。
+ルートの転送先を変えるときは `dist/_redirects`（`src/build/build.js`）と `vercel.json` の両方を直す。`dist/index.html` の meta refresh は両方の保険。
 
 ### 待機リストの保存先
 
@@ -119,7 +137,7 @@ LP は実データが **20 製品以上** ないと出力されない。ヒー�
 
 同じメールアドレスの再送信は既存行を書き換える。シートに重複行は作らない。
 
-**Cloudflare Pages の環境変数**（3つ揃ったときだけスプレッドシートに書く）
+**環境変数**（3つ揃ったときだけスプレッドシートに書く。Cloudflare Pages / Vercel とも同じ名前）
 
 | 変数 | 中身 |
 |---|---|
@@ -133,7 +151,7 @@ LP は実データが **20 製品以上** ないと出力されない。ヒー�
 1. Google Cloud でプロジェクトを作り、**Google Sheets API** を有効化する
 2. サービスアカウントを作り、JSON キーを発行する
 3. 転記先のスプレッドシートを、そのサービスアカウントのメールアドレスに**編集者**で共有する
-4. 上の環境変数を Pages の Production / Preview 双方に設定する
+4. 上の環境変数を Production / Preview 双方に設定する（Cloudflare Pages なら Settings → Environment variables、Vercel なら Settings → Environment Variables）
 
 見出し行は空のシートに最初の1件が入るときだけ自動で書かれる。列の並びを手で入れ替えないこと。
 
@@ -188,7 +206,7 @@ NutrientContent.amount_elemental  1 serving あたりの有効成分量（換算
 
 | 層 | 採用 |
 |---|---|
-| ホスティング | Cloudflare Pages（静的・`/ja/` `/en/` サブパス） |
+| ホスティング | Cloudflare Pages または Vercel（静的・`/ja/` `/en/` サブパス） |
 | バッチ実行 | GitHub Actions (cron) |
 | データ配信 | リポジトリ内の静的 JSON |
 | DB | Cloudflare D1（待機リスト・価格アラート） |
@@ -205,7 +223,7 @@ NutrientContent.amount_elemental  1 serving あたりの有効成分量（換算
               ↓ commit
 [ データ ]  リポジトリ内 JSON ─── Cloudflare D1（価格アラートのみ）
               ↓ build
-[ 配信 ]    Cloudflare Pages (静的)
+[ 配信 ]    Cloudflare Pages / Vercel (静的)
 ```
 
 **LLM はバッチ抽出時のみ使用する。リクエストパスでは使用しない。** 🔒

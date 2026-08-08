@@ -188,6 +188,8 @@ async function main() {
 </html>
 `,
   );
+  // _redirects は Cloudflare Pages 用。Vercel は vercel.json の redirects を読む。
+  // 飛び先を変えるときは vercel.json も直す（index.html の meta refresh は両方の保険）
   await writeFile(path.join(DIST, '_redirects'), `/  /ja/${nutrientId}/  302\n`, 'utf8');
 
   // 検証段階ではインデックスさせない。広告の審査と計測だけに使う。

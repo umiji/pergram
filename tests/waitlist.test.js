@@ -1,13 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { Readable } from 'node:stream';
 
 import {
   SHEET_HEADER,
-  onRequestPost,
   sanitizeSubmission,
   sheetsConfig,
   toSheetRow,
-} from '../functions/api/waitlist.js';
+} from '../src/lib/waitlist.js';
+import { onRequestPost } from '../functions/api/waitlist.js';
+import vercelHandler from '../api/waitlist.js';
 
 /* ---- テスト用の秘密鍵と env ------------------------------------------- */
 
@@ -83,21 +85,70 @@ function makeEnv({
   return { env, calls, fetchStub };
 }
 
-const post = async (payload, options) => {
-  const { env, calls, fetchStub } = makeEnv(options);
+const withFetch = async (fetchStub, run) => {
   const original = globalThis.fetch;
   globalThis.fetch = fetchStub;
   try {
+    return await run();
+  } finally {
+    globalThis.fetch = original;
+  }
+};
+
+/** Cloudflare Pages Functions 経由で1件送る */
+const post = async (payload, options) => {
+  const { env, calls, fetchStub } = makeEnv(options);
+  return withFetch(fetchStub, async () => {
     const request = new Request('https://pergram.example/api/waitlist', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
     const res = await onRequestPost({ request, env });
-    return { res, body: await res.json(), calls };
-  } finally {
-    globalThis.fetch = original;
+    return { res, status: res.status, body: await res.json(), calls };
+  });
+};
+
+/** Vercel Functions 経由で1件送る。body の解析済み / 未解析の両方を試せる */
+const postVercel = async (payload, { parsedBody = true, method = 'POST', ...options } = {}) => {
+  const { env, calls, fetchStub } = makeEnv(options);
+  const raw = typeof payload === 'string' ? payload : JSON.stringify(payload);
+
+  const req = Object.assign(Readable.from(parsedBody ? [] : [Buffer.from(raw)]), {
+    method,
+    headers: { 'content-type': 'application/json' },
+    body: parsedBody ? JSON.parse(raw) : undefined,
+  });
+
+  const res = {
+    statusCode: 0,
+    headers: {},
+    payload: null,
+    setHeader(name, value) {
+      this.headers[name.toLowerCase()] = value;
+    },
+    end(text) {
+      this.payload = text;
+    },
+  };
+
+  // Vercel 側は process.env から読む
+  const saved = {};
+  for (const [key, value] of Object.entries(env)) {
+    saved[key] = process.env[key];
+    if (typeof value === 'string') process.env[key] = value;
   }
+
+  try {
+    await withFetch(fetchStub, () => vercelHandler(req, res));
+  } finally {
+    for (const [key, value] of Object.entries(saved)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+
+  return { res, status: res.statusCode, body: JSON.parse(res.payload), calls };
 };
 
 /* ---- 入力の検証 ------------------------------------------------------- */
@@ -160,12 +211,12 @@ test('環境変数が欠けていればスプレッドシートには書かな�
 /* ---- 転記 ------------------------------------------------------------- */
 
 test('新規は D1 とスプレッドシートの両方に書く', async () => {
-  const { res, body, calls } = await post(
+  const { status, body, calls } = await post(
     { email: 'new@example.com', nutrients: ['creatine'], channel: 'amazon' },
     { existingEmails: ['old@example.com'] },
   );
 
-  assert.equal(res.status, 200);
+  assert.equal(status, 200);
   assert.deepEqual(body, { ok: true });
   assert.equal(calls.d1.length, 1);
 
@@ -211,38 +262,97 @@ test('空白を含むシート名は A1 記法で引用する', async () => {
 /* ---- 失敗したとき ----------------------------------------------------- */
 
 test('スプレッドシートに書けなくても D1 に書けていれば登録は成立する', async () => {
-  const { res, body, calls } = await post({ email: 'a@example.com' }, { failSheets: true });
-  assert.equal(res.status, 200);
+  const { status, body, calls } = await post({ email: 'a@example.com' }, { failSheets: true });
+  assert.equal(status, 200);
   assert.deepEqual(body, { ok: true });
   assert.equal(calls.d1.length, 1);
 });
 
 test('D1 が無くてもスプレッドシートに書けていれば成立する', async () => {
-  const { res, body, calls } = await post({ email: 'a@example.com' }, { withDb: false });
-  assert.equal(res.status, 200);
+  const { status, body, calls } = await post({ email: 'a@example.com' }, { withDb: false });
+  assert.equal(status, 200);
   assert.equal(calls.d1.length, 0);
   assert.deepEqual(body, { ok: true });
 });
 
 test('全ての保存先で失敗したら 500', async () => {
-  const { res, body } = await post({ email: 'a@example.com' }, { withDb: false, failSheets: true });
-  assert.equal(res.status, 500);
+  const { status, body } = await post({ email: 'a@example.com' }, { withDb: false, failSheets: true });
+  assert.equal(status, 500);
   assert.deepEqual(body, { error: 'storage_failed' });
 });
 
 test('保存先が1つも設定されていなければ 500', async () => {
-  const { res, body } = await post(
+  const { status, body } = await post(
     { email: 'a@example.com' },
     { withDb: false, withSheets: false },
   );
-  assert.equal(res.status, 500);
+  assert.equal(status, 500);
   assert.deepEqual(body, { error: 'not_configured' });
 });
 
 test('不正なメールアドレスならどこにも書かない', async () => {
-  const { res, body, calls } = await post({ email: 'nope' });
-  assert.equal(res.status, 400);
+  const { status, body, calls } = await post({ email: 'nope' });
+  assert.equal(status, 400);
   assert.deepEqual(body, { error: 'invalid_email' });
   assert.equal(calls.d1.length, 0);
   assert.equal(calls.sheets.length, 0);
+});
+
+/* ---- Vercel アダプタ --------------------------------------------------- */
+
+test('Vercel でもスプレッドシートに転記する', async () => {
+  const { status, body, calls } = await postVercel(
+    { email: 'new@example.com', nutrients: ['hmb'], channel: 'rakuten' },
+    { withDb: false, existingEmails: ['old@example.com'] },
+  );
+
+  assert.equal(status, 200);
+  assert.deepEqual(body, { ok: true });
+  const append = calls.sheets.find((call) => call.href.includes(':append'));
+  assert.deepEqual(append.body.values[0].slice(0, 3), ['new@example.com', 'hmb', 'rakuten']);
+});
+
+test('Vercel は body が未解析でも読む', async () => {
+  const { status, calls } = await postVercel(
+    { email: 'new@example.com' },
+    { withDb: false, parsedBody: false, existingEmails: ['old@example.com'] },
+  );
+  assert.equal(status, 200);
+  assert.ok(calls.sheets.some((call) => call.href.includes(':append')));
+});
+
+test('Vercel でも壊れた JSON は 400', async () => {
+  const { status, body } = await postVercel('{"email":', { withDb: false, parsedBody: false });
+  assert.equal(status, 400);
+  assert.deepEqual(body, { error: 'invalid_json' });
+});
+
+test('Vercel は POST 以外を受け付けない', async () => {
+  const { status, body, res, calls } = await postVercel(
+    { email: 'a@example.com' },
+    { method: 'GET', withDb: false },
+  );
+  assert.equal(status, 405);
+  assert.deepEqual(body, { error: 'method_not_allowed' });
+  assert.equal(res.headers.allow, 'POST');
+  assert.equal(calls.sheets.length, 0);
+});
+
+test('Vercel は D1 の束縛を持たない。設定が無ければ 500', async () => {
+  const { status, body } = await postVercel(
+    { email: 'a@example.com' },
+    { withDb: false, withSheets: false },
+  );
+  assert.equal(status, 500);
+  assert.deepEqual(body, { error: 'not_configured' });
+});
+
+test('DB という名前の環境変数を D1 と取り違えない', async () => {
+  const { env, fetchStub } = makeEnv({ withDb: false, withSheets: false });
+  env.DB = 'postgres://example';
+  const { handleSubmission } = await import('../src/lib/waitlist.js');
+  const result = await withFetch(fetchStub, () =>
+    handleSubmission({ email: 'a@example.com' }, env),
+  );
+  assert.deepEqual(result, { status: 500, body: { error: 'not_configured' } });
 });
