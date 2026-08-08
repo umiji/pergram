@@ -8,7 +8,11 @@
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-/** 受け付ける選択肢。想定外の値は保存しない */
+/**
+ * 受け付ける選択肢。想定外の値は保存しない。
+ * LP のチップと対応する（src/templates/lp/sections.js の ROADMAP_NUTRIENTS）。
+ * protein / other は LP から外したが、過去の登録が残っているので受け付け続ける。
+ */
 const ALLOWED_NUTRIENTS = new Set([
   'protein',
   'creatine',
@@ -16,6 +20,7 @@ const ALLOWED_NUTRIENTS = new Set([
   'hmb',
   'iron_zinc',
   'vitamins',
+  'multivitamin',
   'other',
 ]);
 const ALLOWED_CHANNELS = new Set(['rakuten', 'amazon', 'iherb', 'myprotein', 'store']);

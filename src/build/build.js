@@ -15,8 +15,8 @@ import path from 'node:path';
 
 import { buildRow, sortByUnitCost } from '../lib/cost.js';
 import { loadTranslator } from '../lib/i18n.js';
-import { rankingPage } from '../templates/ranking.js';
-import { lpPage } from '../templates/lp.js';
+import { productsPage } from '../templates/products.js';
+import { lpPage, ROADMAP_NUTRIENTS } from '../templates/lp.js';
 
 const DIST = 'dist';
 const DATA = 'data';
@@ -24,8 +24,8 @@ const CONFIG = 'config';
 
 /** LP を公開してよい最小製品数。これを下回るなら「市販N製品」と名乗れない */
 const MIN_LP_PRODUCTS = 20;
-/** ヒーローに出す件数 */
-const HERO_ROWS = 5;
+/** ヒーローのランキングカードに出す件数 */
+const HERO_ROWS = 3;
 
 const strict = process.argv.includes('--strict');
 const readJson = async (...p) => JSON.parse(await readFile(path.join(...p), 'utf8'));
@@ -81,20 +81,6 @@ function buildRows({ nutrientId, market, targetIntake, locale, data }) {
   return { rows: sortByUnitCost(rows), nutrient };
 }
 
-/** 翻訳のあるファセットだけを物差しのチップにする */
-function resolveFilters(rows, t) {
-  const keys = [...new Set(rows.flatMap((r) => r.attributeKeys))];
-  const filters = [];
-  for (const key of keys) {
-    try {
-      filters.push({ key, label: t(`attribute.${key}`) });
-    } catch {
-      process.stderr.write(`スキップ: attribute.${key} の翻訳がないためチップに出しません\n`);
-    }
-  }
-  return filters;
-}
-
 async function main() {
   await rm(DIST, { recursive: true, force: true });
   await mkdir(DIST, { recursive: true });
@@ -135,27 +121,40 @@ async function main() {
     data.priceSnapshots.map((s) => s.fetched_at).sort().at(-1) ??
     new Date().toISOString().slice(0, 10);
 
-  // --- 成分ランキング -------------------------------------------------
+  // 🔒 ダミーを入れない。実データが足りないなら LP を出力しない。
+  // 製品一覧から Waitlist へ戻す導線は、LP が実在するときだけ出す。
+  const lpEmitted = rows.length >= MIN_LP_PRODUCTS;
+  const lpPath = `/${locale}/lp/`;
+  const productsPath = `/${locale}/${nutrientId}/`;
+
+  // 絞り込みの成分欄。掲載中の成分と、ロードマップ上の成分（件数0）を並べる
+  const nutrients = [
+    { id: nutrientId, count: rows.length },
+    ...ROADMAP_NUTRIENTS.filter((id) => id !== nutrientId).map((id) => ({ id, count: 0 })),
+  ];
+
+  // --- 製品一覧 -------------------------------------------------------
   await emit(
     path.join(locale, nutrientId, 'index.html'),
-    rankingPage({
+    productsPage({
       t,
       locale,
       market,
       rows,
+      nutrientId,
       nutrientName,
       updatedAt,
       targetIntake,
-      displayUnit: category.displayUnit,
+      category,
+      nutrients,
       disclosureKey: market.disclosureKey,
+      waitlistPath: lpEmitted ? `${lpPath}#waitlist` : null,
       gaMeasurementId,
     }),
   );
 
   // --- LP -------------------------------------------------------------
-  // 🔒 ダミーを入れない。実データが足りないなら出力しない。
-  let lpEmitted = false;
-  if (rows.length >= MIN_LP_PRODUCTS) {
+  if (lpEmitted) {
     await emit(
       path.join(locale, 'lp', 'index.html'),
       lpPage({
@@ -165,13 +164,13 @@ async function main() {
         displayUnit: category.displayUnit,
         topRows: rows.slice(0, HERO_ROWS),
         totalCount: rows.length,
-        rulerRows: rows,
-        filters: resolveFilters(rows, t),
+        nutrientName,
+        updatedAt,
         disclosureKey: market.disclosureKey,
+        betaPath: productsPath,
         gaMeasurementId,
       }),
     );
-    lpEmitted = true;
   }
 
   // --- ルートのリダイレクトと配信設定 ---------------------------------
@@ -199,10 +198,12 @@ async function main() {
   await cp('src/styles/tokens.css', path.join(DIST, 'assets', 'tokens.css'));
   await cp('src/styles/site.css', path.join(DIST, 'assets', 'site.css'));
   await cp('src/styles/lp.css', path.join(DIST, 'assets', 'lp.css'));
+  await cp('src/styles/products.css', path.join(DIST, 'assets', 'products.css'));
   await cp('src/assets/lp.js', path.join(DIST, 'assets', 'lp.js'));
+  await cp('src/assets/products.js', path.join(DIST, 'assets', 'products.js'));
 
   // --- 結果 ------------------------------------------------------------
-  console.log(`ランキング  /ja/${nutrientId}/  — ${rows.length} 製品`);
+  console.log(`製品一覧    /ja/${nutrientId}/  — ${rows.length} 製品`);
   if (lpEmitted) {
     console.log(`LP          /ja/lp/`);
   } else {

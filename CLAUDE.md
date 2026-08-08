@@ -22,15 +22,20 @@ npm run validate  # data/ のバリデーションのみ
 |---|---|
 | `src/lib/cost.js` | 導出計算はここだけ。`data/` に導出値を保存しない |
 | `src/lib/normalize_protein.js` | 唯一のカテゴリ固有処理。他所にカテゴリ分岐を持ち出さない |
-| `config/categories.json` | 新カテゴリはここに1ブロック足すだけで済む状態を保つ |
+| `config/categories.json` | 新カテゴリはここに1ブロック足すだけで済む状態を保つ。`facets` / `secondaryMetrics` / `explainerKey` もここ。UI 側に成分名の分岐を書かない |
 | `config/markets.json` | merchant は配列を回して描画する。UI に `if (locale === ...)` を書かない |
 | `locales/*.json` | 未定義キーはビルドを落とす。文言をテンプレートに直書きしない |
 | `src/build/build.js` | LP は実データ20件未満なら出力しない。この門を緩めない |
+| `src/styles/tokens.css` | 色・寸法の唯一の出所。`scripts/make_ogp.js` の定数もここと同じ値に保つ |
+| `src/templates/lp/` | LP のセクション。`ROADMAP_NUTRIENTS` と `functions/api/waitlist.js` の許可リストは対応させる |
+| `src/templates/products/` | 製品一覧（`/ja/protein/`）。カード表示とリスト表示は**同じマークアップ**を CSS のグリッドだけで組み替える。2つ描き分けない |
+| `src/assets/products.js` | 絞り込みは `hidden` の付け外しだけ。並べ替えを足さない。状態は URL にだけ持ち、localStorage を使わない |
 
 | ドキュメント | 役割 |
 |---|---|
 | [docs/product/requirements.md](docs/product/requirements.md) | 要件定義。**迷ったらここが正** |
 | [docs/design/design.md](docs/design/design.md) | **デザイン要件書。Claude Design への受け渡しはこれ** |
+| `docs/design/*_mock*/` | Claude Design のモック。**`.gitignore` 済みでリポジトリには入っていない**。実装との差分は design.md に記録する |
 | [docs/design/service.md](docs/design/service.md) | 本体サービスの UI/UX 定義 |
 | ~~[docs/design/ad-lp.md](docs/design/ad-lp.md)~~ | design.md に置き換え済み。検討過程の記録 |
 | [docs/research/validation-plan.md](docs/research/validation-plan.md) | 先行需要検証プラン |
@@ -175,10 +180,14 @@ market.merchants.map(m => <MerchantButton merchant={m} />)
 
 ## UI 実装の下限
 
+見た目の基準は [src/styles/tokens.css](src/styles/tokens.css)。**色・寸法をコンポーネントに直書きしない。**
+
 - **数値には `font-variant-numeric: tabular-nums` を必ず適用する。** 桁が揃わない比較表は機能しない
-- `--signal`（`#1B44C8`）は「今見ている指標」の意味でのみ使う。色を増やしたくなったら情報設計が間違っている合図
-- border-radius は 0（ボタンとバッジのみ 2px）
-- UL 超過・認証の有無を**色だけで表現しない**（アイコン + テキストを併記）
+- 色は2つしか意味を持たない。**増やしたくなったら情報設計が間違っている合図**
+  - `--signal`（`#2454E6`）= ブランドと操作（CTA・リンク・セクションの目印）
+  - `--verified`（`#1F9254`）= **主指標の最安値のみ**。全行に使うと意味が消える
+- border-radius はトークン経由（カード 14px / 面 16px / 操作 8-10px / チップは丸）。個別に数値を書かない
+- UL 超過・認証の有無・最安を**色だけで表現しない**（順位番号・アイコン・テキストを併記）
 - ランキングは `<ol>`、成分表は `<table>` + `scope`。div で組まない
 - `prefers-reduced-motion: reduce` を尊重する
 - モバイルを主とする。タップ領域 44px 以上、本文 16px 未満にしない

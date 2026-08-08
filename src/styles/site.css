@@ -87,31 +87,20 @@ table th {
   flex-direction: column;
   gap: var(--space-1);
   text-decoration: none;
-}
-.brand__ticks {
-  display: block;
-  height: 8px;
-  width: 88px;
-  /* ルーラーティック。6px / 1px の交互は罫線階層と同じ規則から導く */
-  background-image: repeating-linear-gradient(
-    to right,
-    var(--ink) 0 1px,
-    transparent 1px 11px
-  );
-  background-size: 100% 8px;
-  background-repeat: no-repeat;
+  color: inherit;
 }
 .brand__name {
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-size: var(--size-md);
-  letter-spacing: -0.03em;
+  /* 名前を単位表記（mg / g / mcg）と同じ字面の世界に置く */
+  font-family: var(--font-data);
+  font-weight: 700;
+  font-size: 17px;
+  letter-spacing: -0.02em;
   /* 🔒 全て小文字。Pergram / PerGram は不可 */
   text-transform: lowercase;
 }
 .brand__tagline {
   font-size: var(--size-sm);
-  color: var(--muted);
+  color: var(--muted-weak);
 }
 
 /* ---- ページヘッダ ---------------------------------------------------- */

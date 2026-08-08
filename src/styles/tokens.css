@@ -1,33 +1,62 @@
-/* デザイントークン。design/service.md §3
-   LP と本体で必ず同じものを使う。見た目が変わると別サービスに見える。 */
+/* デザイントークン。docs/design/design.md
+   LP と本体で必ず同じものを使う。見た目が変わると別サービスに見える。
+
+   値は LP_mockup/ の Claude Design 版に合わせてある。
+   トークン「名」は変更していない（site.css / ranking.js がそのまま動く）。 */
 
 :root {
-  /* 色 — 増やさない。--signal を2つ目の意味に使いたくなったら情報設計が間違っている */
-  --ink: #14161a;
-  --paper: #fbfaf7;
-  --muted: #6b6f76;
-  --line: #dcd9d2;
-  --signal: #1b44c8;
-  --warn: #b3261e;
-  --verified: #1f6f4a;
+  /* --- 色 -----------------------------------------------------------
+     増やさない。色を足したくなったら情報設計が間違っている合図。 */
+  --ink: #16181d;
+  --paper: #fafaf7;
+  --surface: #ffffff;
 
-  /* 書体 — Archivo / IBM Plex はサブセット化して self-host する（未実施）。
-     それまではフォールバックで組む。CDN からは読み込まない。 */
-  --font-display: 'Archivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-body: 'IBM Plex Sans JP', system-ui, -apple-system, 'Hiragino Sans',
-    'Noto Sans JP', sans-serif;
-  --font-data: 'IBM Plex Mono', ui-monospace, 'SF Mono', 'Consolas', monospace;
+  /* 操作とブランドの色。CTA・リンク・見出しのアイキャッチ */
+  --signal: #2454e6;
+  --signal-hover: #173ba8;
+  --signal-tint: rgba(36, 84, 230, 0.06);
+  --signal-edge: rgba(36, 84, 230, 0.25);
+  --signal-band: #f1f4fe;
 
-  /* 型スケール (rem) */
-  --size-xs: 0.75rem;
-  --size-sm: 0.875rem;
-  --size-base: 1rem;
-  --size-md: 1.25rem;
-  --size-lg: 1.75rem;
-  --size-xl: 2.5rem;
-  --size-2xl: 3.5rem;
+  /* 主指標の最安値だけに使う。全行に使うと意味が消える */
+  --verified: #1f9254;
+  --verified-tint: rgba(31, 146, 84, 0.05);
+  --verified-chip: rgba(31, 146, 84, 0.12);
 
-  /* スペーシング — 4px ベース */
+  /* 注意喚起。上限量の超過と「判断を誤る」側の提示のみ */
+  --warn: #b4451f;
+  --warn-tint: rgba(180, 69, 31, 0.1);
+
+  /* ink からの派生。個別に色を定義しない */
+  --muted: rgba(22, 24, 29, 0.65);
+  --muted-strong: rgba(22, 24, 29, 0.7);
+  --muted-weak: rgba(22, 24, 29, 0.5);
+  --muted-faint: rgba(22, 24, 29, 0.45);
+  --line: rgba(22, 24, 29, 0.1);
+  --line-soft: rgba(22, 24, 29, 0.06);
+  --fill-weak: rgba(22, 24, 29, 0.07);
+  --fill-panel: rgba(22, 24, 29, 0.03);
+
+  /* --- 書体 ---------------------------------------------------------
+     ⚠️ Noto Sans JP / JetBrains Mono は Google Fonts から読み込んでいる。
+        design.md §8 の self-host 要件は未達。サブセット化して
+        src/assets/fonts/ に置き換えるまでの暫定。 */
+  --font-display: 'Noto Sans JP', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-body: 'Noto Sans JP', system-ui, -apple-system, 'Hiragino Sans', 'Noto Sans JP',
+    sans-serif;
+  --font-data: 'JetBrains Mono', ui-monospace, 'SF Mono', 'Consolas', monospace;
+
+  /* --- 型スケール (rem) ---------------------------------------------
+     モバイルの値。900px 以上は各コンポーネント側で上書きする。 */
+  --size-xs: 0.6875rem; /* 11px */
+  --size-sm: 0.78125rem; /* 12.5px */
+  --size-base: 1rem; /* 16px — 本文はこれを下回らない */
+  --size-md: 1.125rem; /* 18px */
+  --size-lg: 1.375rem; /* 22px — h2 (SP) */
+  --size-xl: 1.6875rem; /* 27px — h1 (SP) */
+  --size-2xl: 2.875rem; /* 46px — h1 (PC) */
+
+  /* --- スペーシング — 4px ベース ------------------------------------ */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -37,15 +66,26 @@
   --space-12: 48px;
   --space-16: 64px;
 
-  /* 罫線階層 — Supplement Facts パネル由来 */
-  --rule-section: 6px solid var(--ink);
-  --rule-major: 3px solid var(--ink);
-  --rule-row: 1px solid var(--ink);
-  --rule-minor: 1px solid var(--line);
+  /* --- 罫線階層 ------------------------------------------------------ */
+  --rule-section: 1px solid var(--line);
+  --rule-major: 1px solid var(--line);
+  --rule-row: 1px solid var(--line-soft);
+  --rule-minor: 1px solid var(--line-soft);
 
-  /* 角丸は 0。触れる要素だけ 2px */
-  --radius: 0;
-  --radius-interactive: 2px;
+  /* --- 角丸 ----------------------------------------------------------
+     0 ではなくなった。カード 14px / 面 16px / 操作 8-10px / チップは丸。 */
+  --radius: 14px;
+  --radius-lg: 16px;
+  --radius-interactive: 8px;
+  --radius-cta: 10px;
+  --radius-thumb: 10px;
+  --radius-pill: 999px;
+
+  /* --- 影 ------------------------------------------------------------
+     浮かせるのはヒーローのランキングカードだけ。 */
+  --shadow-card: 0 8px 24px rgba(22, 24, 29, 0.06);
+  --shadow-card-lg: 0 10px 34px rgba(22, 24, 29, 0.07);
 
   --tap-target: 44px;
+  --page-max: 1240px;
 }
