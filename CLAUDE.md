@@ -28,6 +28,7 @@ npm run validate  # data/ のバリデーションのみ
 | `src/build/build.js` | LP は実データ20件未満なら出力しない。この門を緩めない |
 | `src/styles/tokens.css` | 色・寸法の唯一の出所。`scripts/make_ogp.js` の定数もここと同じ値に保つ |
 | `src/templates/lp/` | LP のセクション。`ROADMAP_NUTRIENTS` と `functions/api/waitlist.js` の許可リストは対応させる |
+| `functions/api/waitlist.js` | 保存する列は `email` / `nutrients` / `channel` / `created_at` の4つだけ。転記先（D1・スプレッドシート）を増やしても列は増やさない。Sheets は `valueInputOption=RAW` 固定（`USER_ENTERED` は `=` 始まりの入力を数式にする） |
 | `src/templates/products/` | 製品一覧（`/ja/protein/`）。カード表示とリスト表示は**同じマークアップ**を CSS のグリッドだけで組み替える。2つ描き分けない |
 | `src/assets/products.js` | 絞り込みは `hidden` の付け外しだけ。並べ替えを足さない。状態は URL にだけ持ち、localStorage を使わない |
 

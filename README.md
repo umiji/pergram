@@ -58,7 +58,7 @@ pergram は、ラベル表示の含有量を**元素量に換算**したうえ�
 Node 22 以上。**依存パッケージなし**（テストは `node:test`、ビルドは素の Node）。
 
 ```bash
-npm test              # 60 テスト。導出計算・正規化・バリデーション・描画の不変条件
+npm test              # 92 テスト。導出計算・正規化・バリデーション・描画の不変条件
 npm run build         # dist/ を生成
 npm run preview       # サンプルデータで .preview/ に描画（デプロイ禁止）
 npm run validate      # data/ のバリデーションのみ
@@ -94,7 +94,7 @@ LP は実データが **20 製品以上** ないと出力されない。ヒー�
 | `src/lib/normalize_protein.js` | 唯一のカテゴリ固有処理（抽出時の正規化） |
 | `src/lib/validate.js` | V-01〜V-06 |
 | `src/templates/` | ランキングページ / LP |
-| `functions/` | Cloudflare Pages Functions（待機リスト）と D1 スキーマ |
+| `functions/` | Cloudflare Pages Functions（待機リスト → D1 + Google スプレッドシート）と D1 スキーマ |
 | `scripts/` | 収集・取り込み・価格更新・OGP |
 
 ### 検証段階の設定
@@ -102,6 +102,40 @@ LP は実データが **20 製品以上** ないと出力されない。ヒー�
 - `dist/robots.txt` は全面 `Disallow`。広告と計測にだけ使い、インデックスさせない。公開時に外す
 - LP にアフィリエイトリンクを置かない（広告審査でアフィリエイトサイト判定を避けるため）
 - GA4 は `GA4_MEASUREMENT_ID` を渡したときだけ埋め込まれる
+
+### 待機リストの保存先
+
+`POST /api/waitlist` は Cloudflare D1 と Google スプレッドシートの**両方**に書く。
+どちらも任意で、設定されている保存先にだけ書く。片方が落ちても、もう片方に書けていれば登録は成立する（全滅したときだけ 500）。
+
+保存する列は D1 の `waitlist` テーブルと同じ4つだけ。転記先を増やしても列は増やさない 🔒
+
+| 列 | 中身 |
+|---|---|
+| `email` | メールアドレス |
+| `nutrients` | 見たい成分。カンマ区切り。許可リスト外は捨てる |
+| `channel` | 普段の購入先。許可リスト外は捨てる |
+| `created_at` | 初回登録の ISO8601。再送信でも書き換えない |
+
+同じメールアドレスの再送信は既存行を書き換える。シートに重複行は作らない。
+
+**Cloudflare Pages の環境変数**（3つ揃ったときだけスプレッドシートに書く）
+
+| 変数 | 中身 |
+|---|---|
+| `GOOGLE_SHEETS_ID` | スプレッドシート URL の `/d/` と `/edit` の間の ID |
+| `GOOGLE_SERVICE_ACCOUNT_EMAIL` | サービスアカウントのメールアドレス |
+| `GOOGLE_PRIVATE_KEY` | サービスアカウント JSON の `private_key`。**Secret にする**。`\n` のままでもよい |
+| `GOOGLE_SHEETS_TAB` | 任意。シート名。既定は `waitlist` |
+
+準備手順:
+
+1. Google Cloud でプロジェクトを作り、**Google Sheets API** を有効化する
+2. サービスアカウントを作り、JSON キーを発行する
+3. 転記先のスプレッドシートを、そのサービスアカウントのメールアドレスに**編集者**で共有する
+4. 上の環境変数を Pages の Production / Preview 双方に設定する
+
+見出し行は空のシートに最初の1件が入るときだけ自動で書かれる。列の並びを手で入れ替えないこと。
 
 ---
 
@@ -157,7 +191,8 @@ NutrientContent.amount_elemental  1 serving あたりの有効成分量（換算
 | ホスティング | Cloudflare Pages（静的・`/ja/` `/en/` サブパス） |
 | バッチ実行 | GitHub Actions (cron) |
 | データ配信 | リポジトリ内の静的 JSON |
-| DB | Cloudflare D1（価格アラートのみ） |
+| DB | Cloudflare D1（待機リスト・価格アラート） |
+| 待機リスト転記先 | Google スプレッドシート（サービスアカウント） |
 | メール送信 | Resend |
 | OCR | PaddleOCR (Apache-2.0) |
 | 解析 | GA4 |

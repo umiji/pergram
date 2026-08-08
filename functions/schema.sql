@@ -4,6 +4,9 @@
 --    年齢・性別・服用中サプリ・体調は localStorage / IndexedDB のみで、サーバへ送らない。
 --
 --   npx wrangler d1 execute pergram --file functions/schema.sql
+--
+-- waitlist は Google スプレッドシートにも同じ4列で転記する（README「待機リストの保存先」）。
+-- 列を足すときは両方に足す。
 
 CREATE TABLE IF NOT EXISTS waitlist (
   email      TEXT PRIMARY KEY,
