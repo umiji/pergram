@@ -5,7 +5,10 @@ dist/
 .wrangler/
 data/_drafts/
 data/_review/
+# 🔒 API キーの類。`.env` だけでは `.env.local` が漏れる
 .env
+.env.*
+!.env.example
 # Claude Design のモック。実装との差分は docs/design/design.md に文章で記録する。
 # バイナリ同然の HTML が数 MB あり、git 履歴に永久に残るため入れない。
 docs/design/mockups

@@ -122,23 +122,67 @@ test('🔒 最安を色だけで示さない。順位番号とテキストを併
   assert.equal((html.match(/class="p-item__best"/g) ?? []).length, 1);
 });
 
-test('免責と広告表示が常時出ている', () => {
+test('免責が常時出ている', () => {
   const html = renderProducts();
-  assert.ok(html.includes('本サイトはアフィリエイト広告を利用しています'));
-  assert.ok(html.includes('順位は表示中の指標のみで決定され、報酬額は影響しません'));
   assert.ok(html.includes('医療上の助言を行うものではありません'));
   assert.ok(html.includes('ラベル表示に基づきます'));
   // 折りたたまない
   assert.ok(!html.includes('<details'));
 });
 
-test('アフィリエイトリンクに rel が付いている', () => {
+// 🔒 アフィリエイトを利用している。書かないとステマ規制に触れる。
+// 折りたたまず常時出す。market に紐づく（locale ではない）。
+test('🔒 アフィリエイトの広告表示を常時出す', () => {
+  const products = renderProducts();
+  assert.ok(products.includes('アフィリエイトリンクを含みます'), '製品一覧の広告表示がありません');
+  assert.ok(products.includes('アフィリエイト広告を利用'), '製品一覧フッタの開示がありません');
+  assert.ok(renderLp().includes('アフィリエイト広告を利用'), 'LP フッタの開示がありません');
+  // 折りたたまない
+  assert.ok(!products.includes('<details'));
+});
+
+// 報酬額で順位が動くと比較そのものが嘘になる。開示文でもそれを明言する。
+test('🔒 広告表示は「報酬は順位に影響しない」と明言する', () => {
+  for (const html of [renderProducts(), renderLp()]) {
+    assert.ok(html.includes('報酬額は影響しません'), '報酬が順位に影響しない旨がありません');
+  }
+});
+
+// sponsored は報酬付きリンクを表す。報酬を受けている以上、付けないと事実と違う。
+test('🔒 外部リンクに rel="nofollow sponsored noopener" が付いている', () => {
   const html = renderProducts();
   const links = html.match(/<a class="merchant-button[^>]*>/g) ?? [];
   assert.ok(links.length > 0);
   for (const link of links) {
     assert.match(link, /rel="nofollow sponsored noopener"/);
   }
+});
+
+// 広告表示を戻したあとも、順位を決めるのは単価だけであること。
+test('🔒 広告表示があっても並び順は単価の昇順のまま', () => {
+  const html = renderProducts();
+  const costs = [...html.matchAll(/class="cost__value">¥([\d,.]+)</g)].map((m) =>
+    Number.parseFloat(m[1].replace(/,/g, '')),
+  );
+  assert.deepEqual(costs, [...costs].sort((a, b) => a - b));
+  // 報酬率・PR・スポンサー枠のような、価格以外で順位を動かす手掛かりを置かない
+  for (const banned of ['報酬率', 'PR枠', 'スポンサー', 'おすすめ順', '広告枠']) {
+    assert.ok(!html.includes(banned), `順位を歪める表示「${banned}」があります`);
+  }
+});
+
+// 製品一覧と LP のヒーローが別の場所を見ていると、片方だけ画像が出ない状態になる。
+// 参照先は product.image_url ひとつに固定する。
+test('製品画像は一覧と LP のヒーローで同じ場所から読む', () => {
+  const url = 'https://thumbnail.image.rakuten.co.jp/@0_mall/example/p1.jpg';
+  for (const html of [renderProducts(), renderLp()]) {
+    assert.ok(html.includes(`<img class="thumb" src="${url}"`));
+  }
+});
+
+test('画像の無い製品は代替表現に落ちる', () => {
+  const html = renderProducts();
+  assert.ok(html.includes('thumb thumb--empty'));
 });
 
 test('🔒 merchant ボタンは market 設定にある販売元だけ', () => {
@@ -222,6 +266,14 @@ test('🔒 LP にアフィリエイトリンクを置かない', () => {
   const html = renderLp();
   assert.ok(!html.includes('sponsored'));
   assert.ok(!html.includes('merchant-button'));
+});
+
+// 利用しているのに「誘導を行わない」と書くと、開示文と真っ向から矛盾する。
+test('🔒 アフィリエイトを利用している以上「誘導を行わない」と書かない', () => {
+  for (const html of [renderLp(), renderProducts()]) {
+    assert.ok(!html.includes('アフィリエイト誘導を行わない'));
+    assert.ok(!html.includes('アフィリエイト広告を利用する予定'));
+  }
 });
 
 test('ベータ版への導線はヘッダとヒーローの両方に出る', () => {
@@ -342,7 +394,6 @@ test('🔒 免責と参照値の出典が常時表示される', () => {
   const html = renderLp();
   assert.ok(html.includes('日本人の食事摂取基準(2025年版)'));
   assert.ok(html.includes('医療上の助言を行うものではありません'));
-  assert.ok(html.includes('アフィリエイト広告を利用する予定です'));
   assert.ok(html.includes('ラベル表示に基づきます'));
   // 折りたたまない
   assert.ok(!html.includes('<details'));

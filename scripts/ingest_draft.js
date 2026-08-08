@@ -10,6 +10,7 @@
 
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 import { normalizeProtein } from '../src/lib/normalize_protein.js';
 import { validateDataset, hasBlockingIssue } from '../src/lib/validate.js';
@@ -20,17 +21,14 @@ const NUTRIENT_ID = 'protein';
 const readJson = async (p) => JSON.parse(await readFile(p, 'utf8'));
 const writeJson = async (p, v) => writeFile(p, `${JSON.stringify(v, null, 2)}\n`, 'utf8');
 
-async function main() {
-  const draftPath = process.argv[2];
-  if (!draftPath) {
-    console.error('使い方: node scripts/ingest_draft.js <下書きJSON>');
-    process.exit(1);
-  }
-
-  const draft = await readJson(draftPath);
-  const nutrients = await readJson(path.join(DATA_DIR, 'nutrients.json'));
-  const previousPrices = await readJson(path.join(DATA_DIR, 'price_snapshots.json'));
-
+/**
+ * 下書きの各行を、保存してよい形の4つの表に展開する。
+ *
+ * 🔒 保存する独立変数は serving_size_g / servings_per_unit / amount_elemental の3つだけ。
+ *    含有率・100gあたり含有量・1食あたり価格は導出値なので書かない。
+ * 🔒 読めなかった行は推測で埋めず skipped に落とす。
+ */
+export function toRecords(draft) {
   const products = [];
   const productI18n = [];
   const nutrientContents = [];
@@ -63,7 +61,7 @@ async function main() {
       serving_size_g: normalized.serving_size_g,
       servings_per_unit: normalized.servings_per_unit,
       serving_size: row.serving_size_g ? `${row.serving_size_g}g` : null,
-      flavor: row.flavor ?? null,
+      image_url: row.image_url ?? null,
       jan_code: null,
       source_type: 'manual',
       source_url: row.url,
@@ -93,11 +91,29 @@ async function main() {
       merchant: 'rakuten',
       price: row.price,
       currency: row.currency ?? 'JPY',
+      // 収集時にアフィリエイト URL が取れていればそれが購入リンクになる。
+      // 取れていない店舗は素の商品 URL のまま（広告表示は「含みます」で正しい）。
       url: row.url,
       in_stock: true,
       fetched_at: row.fetched_at,
     });
   }
+
+  return { products, productI18n, nutrientContents, priceSnapshots, skipped };
+}
+
+async function main() {
+  const draftPath = process.argv[2];
+  if (!draftPath) {
+    console.error('使い方: node scripts/ingest_draft.js <下書きJSON>');
+    process.exit(1);
+  }
+
+  const draft = await readJson(draftPath);
+  const nutrients = await readJson(path.join(DATA_DIR, 'nutrients.json'));
+  const previousPrices = await readJson(path.join(DATA_DIR, 'price_snapshots.json'));
+
+  const { products, productI18n, nutrientContents, priceSnapshots, skipped } = toRecords(draft);
 
   const issues = validateDataset({
     products,
@@ -131,7 +147,10 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  console.error(err.message);
-  process.exit(1);
-});
+// テストから toRecords を読むため、直接実行されたときだけ走らせる。
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((err) => {
+    console.error(err.message);
+    process.exit(1);
+  });
+}

@@ -34,6 +34,7 @@ const specs = [
     weight: 3000,
     price: 7800,
     attrs: ['third_party_cert', 'whey_wpc'],
+    image: 'https://thumbnail.image.rakuten.co.jp/@0_mall/example/p1.jpg',
     others: [{ merchant: 'amazon_jp', price: 8200 }, { merchant: 'iherb', price: 8600 }],
   },
   {
@@ -77,6 +78,8 @@ export function makeRows({ targetIntake = 60 } = {}) {
       serving_size_g: 30,
       servings_per_unit: spec.weight / 30,
       flavor: 'プレーン',
+      // 画像は任意。無い製品は代替表現に落ちる（design.md §6）
+      image_url: spec.image ?? null,
       confidence: 'high',
       source_url: `https://example.test/${spec.id}`,
       verified_at: '2026-08-06',

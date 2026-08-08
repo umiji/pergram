@@ -21,7 +21,7 @@ npm run validate  # data/ のバリデーションのみ
 | 場所 | 不変条件 |
 |---|---|
 | `src/lib/cost.js` | 導出計算はここだけ。`data/` に導出値を保存しない |
-| `src/lib/normalize_protein.js` | 唯一のカテゴリ固有処理。他所にカテゴリ分岐を持ち出さない |
+| `src/lib/normalize_protein.js` | 唯一のカテゴリ固有処理。他所にカテゴリ分岐を持ち出さない。商品説明文からの含有量読み取り（`extractProteinFromCaption`）もここ。**読めなければ null。推測で埋めない** |
 | `config/categories.json` | 新カテゴリはここに1ブロック足すだけで済む状態を保つ。`facets` / `secondaryMetrics` / `explainerKey` もここ。UI 側に成分名の分岐を書かない |
 | `config/markets.json` | merchant は配列を回して描画する。UI に `if (locale === ...)` を書かない |
 | `locales/*.json` | 未定義キーはビルドを落とす。文言をテンプレートに直書きしない |
@@ -74,6 +74,28 @@ N-09 / N-10 は**成分の除外ではなく文脈の除外**。亜鉛は筋ト�
 - 栄養機能食品の規格基準に定められた定型文
 - 消費者庁「機能性表示食品」届出データベースの届出表示
 - 厚生労働省「日本人の食事摂取基準(2025年版)」の数値
+
+### アフィリエイトは利用する。ただし順位に影響させない 🔒
+
+**アフィリエイトリンクを利用している。**収集時に `RAKUTEN_AFFILIATE_ID` を渡し、
+楽天が返すアフィリエイト URL を購入リンクとして保存する。参加していない店舗では
+素の商品 URL のままになる（`is_affiliate: false`）。
+
+**広告表示は3箇所すべてで常時出す。折りたたまない。** 外すとステマ規制に触れる。
+
+| 場所 | 文言キー |
+|---|---|
+| 製品一覧の本文（常時表示） | `products.affiliate` |
+| 製品一覧フッタ | `disclosure.{jp,us}.affiliate` |
+| LP フッタ | `disclosure.{jp,us}.affiliate` |
+
+リンクの `rel` は `nofollow sponsored noopener`。`sponsored` は報酬付きリンクを表すので外さない。
+
+**🔒 報酬額を順位に影響させない。** 並び順を決めるのは常に有効成分1単位あたりの価格。
+そのために報酬率（`affiliateRate`）を**そもそも下書きに保存しない** — 持たなければ
+「報酬の高い順」を作れない。目印は `tests/collect.test.js` の
+「🔒 報酬率を下書きに残さない」と `tests/render.test.js` の
+「🔒 広告表示があっても並び順は単価の昇順のまま」。
 
 ### 推定値で埋めない
 

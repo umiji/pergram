@@ -91,8 +91,8 @@ export function siteFooter(t, { disclosureKey }) {
       </ul>
       <p class="disclosure__fine">${escapeHtml(t(`${disclosureKey}.dataSource`))}</p>
       <p class="disclosure__fine">${escapeHtml(t(`${disclosureKey}.referenceSource`))}</p>
+      <p class="disclosure__fine">${escapeHtml(t(`${disclosureKey}.affiliate`))}</p>
       <p class="disclosure__fine">${escapeHtml(t(`${disclosureKey}.medical`))}</p>
-      <p class="disclosure__fine">${escapeHtml(t(`${disclosureKey}.affiliatePlanned`))}</p>
     </div>
   </div>
 </footer>`;

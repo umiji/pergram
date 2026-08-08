@@ -64,7 +64,7 @@ function rankRow(row, index, { t, locale, currency, displayUnit }) {
   return `<li class="rank-row${isTop ? ' rank-row--top' : ''}" data-product-id="${escapeHtml(row.product.id)}">
   <span class="rank-row__num num" aria-hidden="true">${index + 1}</span>
   ${packageThumb({
-    imageUrl: row.imageUrl,
+    imageUrl: row.product.image_url,
     brand: row.product.brand,
     noImageLabel: t('lp.hero.noImage'),
   })}

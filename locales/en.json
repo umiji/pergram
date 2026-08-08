@@ -117,8 +117,7 @@
   "reference.none": "No official recommended or upper intake level has been established.",
 
   "disclosure.us.affiliate": "This site uses affiliate links. Ranking is determined solely by the metric shown; commission does not affect it.",
-  "disclosure.us.affiliatePlanned": "This site plans to use affiliate links.",
-  "disclosure.us.medical": "This site does not provide medical advice. These products are dietary supplements, not drugs, and are not intended to diagnose, treat, cure, or prevent any disease. Consult a physician or pharmacist before use.",
+  "disclosure.us.medical":"This site does not provide medical advice. These products are dietary supplements, not drugs, and are not intended to diagnose, treat, cure, or prevent any disease. Consult a physician or pharmacist before use.",
   "disclosure.us.dataSource": "Figures are based on label values published by the manufacturer.",
   "disclosure.us.referenceSource": "Reference values: U.S. Dietary Reference Intakes",
 
@@ -191,7 +190,7 @@
   "lp.form.errorEmail": "Check the email address format.",
   "lp.form.errorSend": "Could not send. Try again later.",
 
-  "lp.foot.about": "pergram is a neutral calculator that ranks products by price per unit of active ingredient. It does not recommend products or route you through affiliate offers.",
+  "lp.foot.about": "pergram is a calculator that ranks products by price per unit of active ingredient. It does not recommend specific products. Links to stores are affiliate links, but rank is determined by the price calculation alone.",
   "lp.foot.copyright": "© 2026 pergram",
 
   "lp.section5.heading": "What this site does not do",
