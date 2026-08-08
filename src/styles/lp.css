@@ -88,11 +88,28 @@
   color: #fff;
 }
 
+/* ベータ版（製品一覧）への副次 CTA。
+   主 CTA は Waitlist 登録なので、こちらは輪郭だけにして強さを一段落とす。 */
+.btn--quiet {
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-cta);
+}
+.btn--quiet:hover {
+  border-color: var(--signal);
+  color: var(--signal);
+}
+
 .btn--block {
   display: flex;
   width: 100%;
   padding: var(--space-4);
   font-size: 15px;
+}
+
+.hero__beta {
+  margin-top: var(--space-2);
 }
 
 /* ---- ヘッダ ---------------------------------------------------------- */
@@ -116,6 +133,10 @@
   gap: var(--space-4);
 }
 
+.site-head .brand {
+  min-height: var(--tap-target);
+  justify-content: center;
+}
 .site-head .brand__name {
   font-size: 17px;
 }
@@ -137,7 +158,8 @@
 }
 
 .site-head .btn {
-  min-height: 38px;
+  /* 🔒 タップ領域 44px 以上。ヘッダだけ 38px にしていたのを揃えた */
+  min-height: var(--tap-target);
   font-size: 12px;
   padding: 0 14px;
 }

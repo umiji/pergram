@@ -25,12 +25,13 @@ export function lpPage(ctx) {
     updatedAt,
     disclosureKey,
     gaMeasurementId,
+    betaPath = null,
   } = ctx;
 
-  const content = `${siteHeader(t, { locale })}
+  const content = `${siteHeader(t, { locale, betaPath })}
 
 <main class="lp">
-${hero({ t, locale, currency, displayUnit, topRows, totalCount, nutrientName, updatedAt })}
+${hero({ t, locale, currency, displayUnit, topRows, totalCount, nutrientName, updatedAt, betaPath })}
 
 ${features(t)}
 

@@ -14,10 +14,24 @@ import { packageThumb } from './parts.js';
 /** ヘッダのアンカー。順序がそのままナビの並び */
 const NAV_SECTIONS = ['features', 'howitworks', 'roadmap'];
 
-export function siteHeader(t, { locale }) {
+/**
+ * @param {object} opts
+ * @param {string} opts.locale
+ * @param {string|null} [opts.betaPath] 公開済みの製品一覧ページ。null なら導線を出さない
+ */
+export function siteHeader(t, { locale, betaPath = null }) {
   const links = NAV_SECTIONS.map(
     (id) => `<a href="#${id}">${escapeHtml(t(`lp.nav.${id}`))}</a>`,
   ).join('\n      ');
+
+  // 🔒 LP 自体にアフィリエイトリンクは置かない。これは内部リンク。
+  //    リンク先の製品一覧には購入リンクがあるので、ここを主 CTA にしない。
+  const beta = betaPath
+    ? `<a class="btn btn--quiet" href="${escapeHtml(betaPath)}">
+      <span class="u-desktop">${escapeHtml(t('lp.nav.beta'))}</span>
+      <span class="u-mobile">${escapeHtml(t('lp.nav.betaShort'))}</span>
+    </a>`
+    : '';
 
   return `<header class="site-head">
   <div class="site-head__inner">
@@ -25,6 +39,7 @@ export function siteHeader(t, { locale }) {
     <nav class="site-nav" aria-label="${escapeHtml(t('lp.nav.label'))}">
       ${links}
     </nav>
+    ${beta}
     <a class="btn btn--dark" href="#waitlist">
       <span class="u-desktop">${escapeHtml(t('lp.nav.cta'))}</span>
       <span class="u-mobile">${escapeHtml(t('lp.nav.ctaShort'))}</span>
@@ -101,7 +116,14 @@ ${rows}
 }
 
 export function hero(ctx) {
-  const { t } = ctx;
+  const { t, betaPath, nutrientName } = ctx;
+
+  // 副次 CTA。主 CTA（Waitlist 登録）より弱い見た目にしておく
+  const beta = betaPath
+    ? `<a class="btn btn--quiet btn--block hero__beta" href="${escapeHtml(betaPath)}">${escapeHtml(
+        t('lp.hero.beta', { nutrient: nutrientName }),
+      )}</a>`
+    : '';
 
   return `<section class="hero">
   <div class="hero__grid">
@@ -110,6 +132,7 @@ export function hero(ctx) {
       <h1>${escapeHtml(t('lp.h1'))}</h1>
       <p class="hero__lede">${escapeHtml(t('lp.lede'))}</p>
       <a class="btn btn--signal btn--block" href="#waitlist">${escapeHtml(t('lp.cta'))}</a>
+      ${beta}
       <p class="hero__note">${escapeHtml(t('lp.ctaNote'))}</p>
     </div>
     ${rankCard(ctx)}
