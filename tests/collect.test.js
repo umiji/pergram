@@ -11,7 +11,8 @@ import assert from 'node:assert/strict';
 
 import { buildSearchUrl, toDraftRow } from '../scripts/collect_rakuten.js';
 
-const APP_ID = '1000000000000000000';
+const APP_ID = 'dc5bdc72-0000-0000-0000-000000000000';
+const ACCESS_KEY = 'pk_testkey';
 const AFFILIATE_ID = '11111111.22222222.33333333.44444444';
 
 /** API が返す1件の最小形。実際のレスポンスから必要な項目だけ抜いたもの */
@@ -28,15 +29,25 @@ const item = (over = {}) => ({
 
 /* ---- 検索 URL --------------------------------------------------------- */
 
+// 2026-02-10 の認証基盤刷新で、ドメイン・ID 形式・必須パラメータがすべて変わった。
+// 旧 app.rakuten.co.jp / 19桁の applicationId 単独では 400 になる。
+test('🔒 新しい認証基盤のエンドポイントに applicationId と accessKey を載せる', () => {
+  const url = buildSearchUrl({ appId: APP_ID, accessKey: ACCESS_KEY, keyword: 'プロテイン', page: 1 });
+
+  assert.equal(url.origin, 'https://openapi.rakuten.co.jp');
+  assert.ok(url.pathname.startsWith('/ichibams/api/IchibaItem/Search/'), url.pathname);
+  assert.equal(url.searchParams.get('applicationId'), APP_ID);
+  assert.equal(url.searchParams.get('accessKey'), ACCESS_KEY);
+});
+
 test('アフィリエイト ID を渡すと検索 URL に載る', () => {
-  const url = buildSearchUrl({ appId: APP_ID, affiliateId: AFFILIATE_ID, keyword: 'プロテイン', page: 1 });
+  const url = buildSearchUrl({ appId: APP_ID, accessKey: ACCESS_KEY, affiliateId: AFFILIATE_ID, keyword: 'プロテイン', page: 1 });
 
   assert.equal(url.searchParams.get('affiliateId'), AFFILIATE_ID);
-  assert.equal(url.searchParams.get('applicationId'), APP_ID);
 });
 
 test('アフィリエイト ID が無いときは affiliateId を付けない', () => {
-  const url = buildSearchUrl({ appId: APP_ID, affiliateId: null, keyword: 'プロテイン', page: 1 });
+  const url = buildSearchUrl({ appId: APP_ID, accessKey: ACCESS_KEY, affiliateId: null, keyword: 'プロテイン', page: 1 });
 
   assert.ok(!url.searchParams.has('affiliateId'));
 });

@@ -26,7 +26,12 @@ import { pathToFileURL } from 'node:url';
 
 import { extractProteinFromCaption, parseNetWeightFromName } from '../src/lib/normalize_protein.js';
 
-const ENDPOINT = 'https://app.rakuten.co.jp/services/api/IchibaItem/Search/20220601';
+/**
+ * 🔒 2026-02-10 の認証基盤刷新でドメインと認証方式が変わった。
+ *    旧 `app.rakuten.co.jp/services/api/` + 19桁の applicationId 単独では 400 になる。
+ *    現行は openapi ドメイン + UUID の applicationId + accessKey + Referer ヘッダ。
+ */
+const ENDPOINT = 'https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20220601';
 const REQUEST_INTERVAL_MS = 1100;
 const HITS_PER_PAGE = 30;
 
@@ -56,22 +61,32 @@ function shouldExclude(itemName) {
  *    掲載順は取り込み後に有効成分1単位あたりの価格で決まる。
  * affiliateId を渡すと、返ってくる itemUrl / affiliateUrl がアフィリエイト URL になる。
  */
-export function buildSearchUrl({ appId, affiliateId, keyword, page }) {
+export function buildSearchUrl({ appId, accessKey, affiliateId, keyword, page }) {
   const url = new URL(ENDPOINT);
   url.searchParams.set('applicationId', appId);
+  url.searchParams.set('accessKey', accessKey);
   if (affiliateId) url.searchParams.set('affiliateId', affiliateId);
   url.searchParams.set('keyword', keyword);
   url.searchParams.set('hits', String(HITS_PER_PAGE));
   url.searchParams.set('page', String(page));
   url.searchParams.set('sort', '+itemPrice');
   url.searchParams.set('availability', '1');
+  url.searchParams.set('format', 'json');
   return url;
 }
 
-async function fetchPage({ appId, affiliateId, keyword, page }) {
-  const url = buildSearchUrl({ appId, affiliateId, keyword, page });
+async function fetchPage({ appId, accessKey, affiliateId, appUrl, keyword, page }) {
+  const url = buildSearchUrl({ appId, accessKey, affiliateId, keyword, page });
 
-  const res = await fetch(url, { headers: { 'User-Agent': 'pergram/0.1 (data collection)' } });
+  // 🔒 Referer が無いと 403 REQUEST_CONTEXT_BODY_HTTP_REFERRER_MISSING。
+  //    楽天に登録したアプリ URL を送る。
+  const res = await fetch(url, {
+    headers: {
+      'User-Agent': 'pergram/0.1 (data collection)',
+      Referer: appUrl,
+      Origin: new URL(appUrl).origin,
+    },
+  });
   if (!res.ok) {
     throw new Error(`楽天 API が ${res.status} を返しました: ${await res.text()}`);
   }
@@ -142,9 +157,18 @@ async function main() {
     },
   });
 
+  // 🔒 2026-02-10 の刷新以降、この3つが揃わないと 400 / 403 になる。
   const appId = process.env.RAKUTEN_APP_ID;
-  if (!appId) {
-    console.error('RAKUTEN_APP_ID が未設定です。https://webservice.rakuten.co.jp/ で取得してください。');
+  const accessKey = process.env.RAKUTEN_ACCESS_KEY;
+  const appUrl = process.env.RAKUTEN_APP_URL;
+  const missing = [
+    !appId && 'RAKUTEN_APP_ID（UUID 形式）',
+    !accessKey && 'RAKUTEN_ACCESS_KEY',
+    !appUrl && 'RAKUTEN_APP_URL（Referer に使う。楽天に登録したアプリ URL）',
+  ].filter(Boolean);
+  if (missing.length > 0) {
+    console.error(`未設定: ${missing.join(' / ')}`);
+    console.error('https://webservice.rakuten.co.jp/ のアプリ情報から取得してください。');
     process.exit(1);
   }
 
@@ -162,7 +186,7 @@ async function main() {
   let excluded = 0;
 
   for (let page = 1; page <= pages; page += 1) {
-    const json = await fetchPage({ appId, affiliateId, keyword: values.keyword, page });
+    const json = await fetchPage({ appId, accessKey, affiliateId, appUrl, keyword: values.keyword, page });
     const items = (json.Items ?? []).map((wrapper) => wrapper.Item ?? wrapper);
     if (items.length === 0) break;
 
