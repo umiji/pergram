@@ -15,7 +15,7 @@ compatibility_date = "2026-08-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "pergram"
-database_id = "REPLACE_WITH_PRODUCTION_D1_ID"
+database_id = "0ec066b9-1a91-4b53-8519-3f58583fb6f9"
 
 # --- プレビュー（Production 以外のブランチのデプロイ） --------------------
 # 本番と同じ DB を指すと、動作確認の投稿が実際の待機リストに混ざる。必ず別 DB にする。
@@ -24,4 +24,4 @@ database_id = "REPLACE_WITH_PRODUCTION_D1_ID"
 [[env.preview.d1_databases]]
 binding = "DB"
 database_name = "pergram-preview"
-database_id = "REPLACE_WITH_PREVIEW_D1_ID"
+database_id = "a5343e9e-9f79-44b0-b71a-5d951294e3b7"
