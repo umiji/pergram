@@ -148,14 +148,46 @@ export function toDraftRow(item, fetchedAt) {
   };
 }
 
-async function main() {
-  const { values } = parseArgs({
+/**
+ * 引数を解く。名前付き（`--keyword X --pages 4`）が本則。
+ *
+ * Windows PowerShell 経由の `npm run collect:rakuten -- --keyword X --pages 4` は
+ * フラグ名だけが落ちて値が位置引数として届くため、位置引数でも受ける。
+ * 取りこぼすと既定のキーワードで黙って収集してしまう。
+ */
+export function resolveOptions(argv) {
+  const { values, positionals } = parseArgs({
+    args: argv,
+    allowPositionals: true,
     options: {
-      keyword: { type: 'string', default: 'ホエイプロテイン' },
-      pages: { type: 'string', default: '3' },
+      keyword: { type: 'string' },
+      pages: { type: 'string' },
       out: { type: 'string' },
     },
   });
+
+  // 名前付きで埋まっていない枠を、位置引数が [キーワード, ページ数] の順に埋める。
+  // 🔒 余った位置引数は黙って捨てない。何を指したかったのか決められないため止める。
+  const slots = [];
+  if (values.keyword === undefined) slots.push('keyword');
+  if (values.pages === undefined) slots.push('pages');
+  if (positionals.length > slots.length) {
+    throw new Error(`引数が多すぎます: ${positionals.join(' ')}`);
+  }
+  const filled = Object.fromEntries(positionals.map((v, i) => [slots[i], v]));
+
+  const keyword = values.keyword ?? filled.keyword ?? 'ホエイプロテイン';
+  const rawPages = values.pages ?? filled.pages ?? '3';
+  const pages = Number.parseInt(rawPages, 10);
+  if (!Number.isFinite(pages) || pages < 1) {
+    throw new Error(`ページ数として読めません: ${rawPages}`);
+  }
+
+  return { keyword, pages, out: values.out };
+}
+
+async function main() {
+  const options = resolveOptions(process.argv.slice(2));
 
   // 🔒 2026-02-10 の刷新以降、この3つが揃わないと 400 / 403 になる。
   const appId = process.env.RAKUTEN_APP_ID;
@@ -179,14 +211,14 @@ async function main() {
     console.error('RAKUTEN_AFFILIATE_ID が未設定です。素の商品 URL で収集します。');
   }
 
-  const pages = Number.parseInt(values.pages, 10);
+  const { keyword, pages } = options;
   const fetchedAt = new Date().toISOString().slice(0, 10);
   const rows = [];
   const seen = new Set();
   let excluded = 0;
 
   for (let page = 1; page <= pages; page += 1) {
-    const json = await fetchPage({ appId, accessKey, affiliateId, appUrl, keyword: values.keyword, page });
+    const json = await fetchPage({ appId, accessKey, affiliateId, appUrl, keyword, page });
     const items = (json.Items ?? []).map((wrapper) => wrapper.Item ?? wrapper);
     if (items.length === 0) break;
 
@@ -205,7 +237,7 @@ async function main() {
   }
 
   const outPath =
-    values.out ?? path.join('data', '_drafts', `rakuten_${values.keyword}_${fetchedAt}.json`);
+    options.out ?? path.join('data', '_drafts', `rakuten_${keyword}_${fetchedAt}.json`);
   await mkdir(path.dirname(outPath), { recursive: true });
   await writeFile(outPath, `${JSON.stringify(rows, null, 2)}\n`, 'utf8');
 

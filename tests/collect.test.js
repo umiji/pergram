@@ -9,7 +9,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildSearchUrl, toDraftRow } from '../scripts/collect_rakuten.js';
+import { buildSearchUrl, resolveOptions, toDraftRow } from '../scripts/collect_rakuten.js';
 
 const APP_ID = 'dc5bdc72-0000-0000-0000-000000000000';
 const ACCESS_KEY = 'pk_testkey';
@@ -25,6 +25,43 @@ const item = (over = {}) => ({
   itemCaption: '【栄養成分表示】1食(30g)あたり エネルギー 117kcal、たんぱく質 24.0g、脂質 1.5g',
   mediumImageUrls: [{ imageUrl: 'https://thumbnail.image.rakuten.co.jp/@0_mall/shop/i.jpg?_ex=128x128' }],
   ...over,
+});
+
+/* ---- 引数 ------------------------------------------------------------- */
+
+// Windows PowerShell 経由の `npm run collect:rakuten -- --keyword X --pages 4` は
+// `--keyword` `--pages` というフラグ名だけが落ち、値だけが位置引数として届く。
+// 値を取りこぼすと既定のキーワードで収集してしまうので、位置引数でも受ける。
+test('位置引数だけでもキーワードとページ数を受け取る', () => {
+  const got = resolveOptions(['ホエイプロテイン', '4']);
+
+  assert.equal(got.keyword, 'ホエイプロテイン');
+  assert.equal(got.pages, 4);
+});
+
+test('名前付きの引数が本則', () => {
+  const got = resolveOptions(['--keyword', 'ソイプロテイン', '--pages', '2']);
+
+  assert.equal(got.keyword, 'ソイプロテイン');
+  assert.equal(got.pages, 2);
+});
+
+// 🔒 余った位置引数を黙って捨てると、指定したつもりの条件で収集していないことに気付けない。
+test('🔒 名前付きと位置引数が食い違ったら止める', () => {
+  assert.throws(() => resolveOptions(['--keyword', 'ソイプロテイン', 'ホエイプロテイン']), /ページ数/);
+  assert.throws(() => resolveOptions(['プロテイン', '4', '余分']), /引数が多すぎます/);
+});
+
+test('引数が無ければ既定値', () => {
+  const got = resolveOptions([]);
+
+  assert.equal(got.keyword, 'ホエイプロテイン');
+  assert.equal(got.pages, 3);
+});
+
+test('🔒 ページ数が数値として読めなければ止める', () => {
+  assert.throws(() => resolveOptions(['プロテイン', 'たくさん']), /ページ数/);
+  assert.throws(() => resolveOptions(['--pages', '0']), /ページ数/);
 });
 
 /* ---- 検索 URL --------------------------------------------------------- */
