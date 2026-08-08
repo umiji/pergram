@@ -894,6 +894,11 @@
     gap: var(--space-16);
     align-items: center;
   }
+  /* 実データがまだ無くランキングカードを出せないとき。
+     2カラムのままだと右半分が空いた面になる */
+  .hero__grid--solo {
+    grid-template-columns: minmax(0, 720px);
+  }
 
   .hero__tagline {
     font-size: 14px;

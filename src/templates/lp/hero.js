@@ -83,10 +83,16 @@ function rankRow(row, index, { t, locale, currency, displayUnit }) {
 
 /**
  * ヒーローのランキングカード。
+ *
  * 🔒 順位は ol でマークアップする。div で組まない。
+ * 🔒 ここに出す製品は実データだけ。ダミーを入れない（design.md §7 禁止⑧）。
+ *    禁止されているのは「嘘の数字を置くこと」であって「LP を出さないこと」ではない。
+ *    実データが無いときはカードごと出さず、LP 自体は必ず出す。
  */
 function rankCard(ctx) {
   const { t, locale, currency, displayUnit, topRows, totalCount, nutrientName, updatedAt } = ctx;
+
+  if (!topRows || topRows.length === 0) return '';
 
   const rows = topRows
     .map((row, i) => rankRow(row, i, { t, locale, currency, displayUnit }))
@@ -118,6 +124,8 @@ ${rows}
 export function hero(ctx) {
   const { t, betaPath, nutrientName } = ctx;
 
+  const card = rankCard(ctx);
+
   // 副次 CTA。主 CTA（Waitlist 登録）より弱い見た目にしておく
   const beta = betaPath
     ? `<a class="btn btn--quiet btn--block hero__beta" href="${escapeHtml(betaPath)}">${escapeHtml(
@@ -125,8 +133,9 @@ export function hero(ctx) {
       )}</a>`
     : '';
 
+  // カードが無いときは 2 カラムに割らない。左半分だけ埋まった空白の面になる
   return `<section class="hero">
-  <div class="hero__grid">
+  <div class="hero__grid${card ? '' : ' hero__grid--solo'}">
     <div class="hero__copy">
       <p class="hero__tagline">${escapeHtml(t('brand.tagline'))}</p>
       <h1>${escapeHtml(t('lp.h1'))}</h1>
@@ -135,7 +144,7 @@ export function hero(ctx) {
       ${beta}
       <p class="hero__note">${escapeHtml(t('lp.ctaNote'))}</p>
     </div>
-    ${rankCard(ctx)}
+    ${card}
   </div>
 </section>`;
 }

@@ -1,0 +1,27 @@
+# Cloudflare Pages の設定。
+#
+# このファイルが存在すると、Pages ダッシュボードで設定したバインディングは**無視され**、
+# ここの記述が唯一の出所になる。バインディングを足すときは必ずここに書く。
+#
+# 手順は docs/ops/deploy.md を見ること。database_id は `wrangler d1 create` の出力を貼る。
+
+name = "pergram"
+pages_build_output_dir = "dist"
+compatibility_date = "2026-08-01"
+
+# --- 本番（Production ブランチのデプロイ） -------------------------------
+# functions/api/waitlist.js が env.DB として使う。
+# 🔒 保存してよいのは email / nutrients / channel / created_at の4列だけ。
+[[d1_databases]]
+binding = "DB"
+database_name = "pergram"
+database_id = "REPLACE_WITH_PRODUCTION_D1_ID"
+
+# --- プレビュー（Production 以外のブランチのデプロイ） --------------------
+# 本番と同じ DB を指すと、動作確認の投稿が実際の待機リストに混ざる。必ず別 DB にする。
+[env.preview]
+
+[[env.preview.d1_databases]]
+binding = "DB"
+database_name = "pergram-preview"
+database_id = "REPLACE_WITH_PREVIEW_D1_ID"
