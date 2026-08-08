@@ -44,7 +44,7 @@ function renderProducts(overrides = {}) {
     category,
     nutrients,
     disclosureKey: market.disclosureKey,
-    waitlistPath: '/ja/lp/#waitlist',
+    waitlistPath: '/ja/#waitlist',
     gaMeasurementId: null,
     ...overrides,
   });
@@ -183,9 +183,10 @@ test('該当が0件のファセットは押せない状態で件数0を出す', 
 });
 
 test('Waitlist への導線は LP が存在するときだけ出る', () => {
-  assert.ok(renderProducts().includes('/ja/lp/#waitlist'));
+  assert.ok(renderProducts().includes('/ja/#waitlist'));
   const without = renderProducts({ waitlistPath: null });
-  assert.ok(!without.includes('/ja/lp/'));
+  // ワードマークの href は常に /ja/ なので、判定は #waitlist の有無で行う
+  assert.ok(!without.includes('#waitlist'));
   assert.ok(!without.includes('waitlist-banner'));
 });
 
@@ -245,6 +246,21 @@ test('🔒 ヒーローのランキングは実データで、ol でマークア
   for (const row of rows.slice(0, HERO_ROWS)) {
     assert.ok(html.includes(row.name), `${row.name} がヒーローに出ていません`);
   }
+});
+
+test('🔒 実データが無いときはランキングカードを出さないが、LP の他は全部出る', () => {
+  const html = renderLp({ topRows: [], totalCount: 0 });
+  // 禁止されているのはダミーの数字であって、LP を出さないことではない
+  assert.ok(!html.includes('rank-list'));
+  assert.ok(!html.includes('rank-row'));
+  // Waitlist を測るのが LP の仕事。ここが消えたら検証フェーズが成立しない
+  for (const id of ['features', 'howitworks', 'roadmap', 'waitlist']) {
+    assert.ok(html.includes(`id="${id}"`), `セクション #${id} がありません`);
+  }
+  assert.ok(html.includes('class="hero"'));
+  assert.ok(html.includes('href="#waitlist"'));
+  // 2カラムのまま右半分が空くのを避ける
+  assert.ok(html.includes('hero__grid--solo'));
 });
 
 test('🔒 ヒーローの並び順は単価の昇順', () => {

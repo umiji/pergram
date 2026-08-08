@@ -5,9 +5,13 @@
  *   node src/build/build.js [--strict]
  *
  * 🔒 URL は最初から /ja/ のサブパス。後付けは全 URL 変更 = SEO 大損。
+ *    /ja/           … LP（トップページ）
+ *    /ja/protein/   … 製品一覧
  * 🔒 /ja/ と /en/ は翻訳関係にない。掲載製品・参照値・免責文がすべて異なる。
  *    成分ランキングページに hreflang を相互指定しない。
- * 🔒 LP のヒーローは実データのみ。製品が足りなければ LP を出力しない。
+ * 🔒 LP のヒーローは実データのみ。足りなければ**ランキングカードを出さない**。
+ *    禁止されているのはダミーの数字であって、LP を出さないことではない
+ *    （design.md §7 禁止⑧ / ad-lp.md）。LP は常に出力する。
  */
 
 import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
@@ -22,8 +26,12 @@ const DIST = 'dist';
 const DATA = 'data';
 const CONFIG = 'config';
 
-/** LP を公開してよい最小製品数。これを下回るなら「市販N製品」と名乗れない */
-const MIN_LP_PRODUCTS = 20;
+/**
+ * ヒーローにランキングカードを出してよい最小製品数。
+ * これを下回るなら「市販N製品」と名乗れないのでカードを出さない。
+ * 🔒 LP そのものは件数に関わらず出力する。Waitlist を測れなくなるため。
+ */
+const MIN_HERO_PRODUCTS = 20;
 /** ヒーローのランキングカードに出す件数 */
 const HERO_ROWS = 3;
 
@@ -121,10 +129,11 @@ async function main() {
     data.priceSnapshots.map((s) => s.fetched_at).sort().at(-1) ??
     new Date().toISOString().slice(0, 10);
 
-  // 🔒 ダミーを入れない。実データが足りないなら LP を出力しない。
-  // 製品一覧から Waitlist へ戻す導線は、LP が実在するときだけ出す。
-  const lpEmitted = rows.length >= MIN_LP_PRODUCTS;
-  const lpPath = `/${locale}/lp/`;
+  // 🔒 ダミーを入れない。実データが足りないならヒーローのカードを出さない。
+  //    LP 自体は常に出力する（Waitlist の登録を測るのがこのページの仕事）。
+  const heroReady = rows.length >= MIN_HERO_PRODUCTS;
+  // LP はロケールのトップページ。ヘッダのワードマークの飛び先（/ja/）と一致させる
+  const lpPath = `/${locale}/`;
   const productsPath = `/${locale}/${nutrientId}/`;
 
   // 絞り込みの成分欄。掲載中の成分と、ロードマップ上の成分（件数0）を並べる
@@ -148,21 +157,21 @@ async function main() {
       category,
       nutrients,
       disclosureKey: market.disclosureKey,
-      waitlistPath: lpEmitted ? `${lpPath}#waitlist` : null,
+      waitlistPath: `${lpPath}#waitlist`,
       gaMeasurementId,
     }),
   );
 
-  // --- LP -------------------------------------------------------------
-  if (lpEmitted) {
+  // --- LP（ロケールのトップページ） -----------------------------------
+  {
     await emit(
-      path.join(locale, 'lp', 'index.html'),
+      path.join(locale, 'index.html'),
       lpPage({
         t,
         locale,
         currency: market.currency,
         displayUnit: category.displayUnit,
-        topRows: rows.slice(0, HERO_ROWS),
+        topRows: heroReady ? rows.slice(0, HERO_ROWS) : [],
         totalCount: rows.length,
         nutrientName,
         updatedAt,
@@ -174,24 +183,43 @@ async function main() {
   }
 
   // --- ルートのリダイレクトと配信設定 ---------------------------------
+  // ルートは既定のロケールのトップ（= LP）へ送る。
+  // _redirects が効かない配信先でも動くよう meta refresh も置く。
   await emit(
     'index.html',
     `<!doctype html>
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="refresh" content="0; url=/ja/${nutrientId}/">
-<link rel="canonical" href="/ja/${nutrientId}/">
+<meta http-equiv="refresh" content="0; url=${lpPath}">
+<link rel="canonical" href="${lpPath}">
 <title>pergram</title>
 </head>
-<body><a href="/ja/${nutrientId}/">/ja/${nutrientId}/</a></body>
+<body><a href="${lpPath}">${lpPath}</a></body>
 </html>
 `,
   );
-  await writeFile(path.join(DIST, '_redirects'), `/  /ja/${nutrientId}/  302\n`, 'utf8');
+  await writeFile(path.join(DIST, '_redirects'), `/  ${lpPath}  302\n`, 'utf8');
 
   // 検証段階ではインデックスさせない。広告の審査と計測だけに使う。
   await writeFile(path.join(DIST, 'robots.txt'), 'User-agent: *\nDisallow: /\n', 'utf8');
+
+  // Cloudflare のレスポンスヘッダ（Workers の静的アセットが _headers を読む）。
+  // script-src に 'unsafe-inline' が要るのは GA4 の初期化スニペットがインライン
+  // だから（layout.js）。静的ビルドなのでリクエストごとの nonce を発行できない。
+  // self-host（design.md §8 未達）が済めば fonts.* の許可は外せる。
+  await writeFile(
+    path.join(DIST, '_headers'),
+    `/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com; form-action 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'
+`,
+    'utf8',
+  );
 
   // --- アセット --------------------------------------------------------
   await mkdir(path.join(DIST, 'assets'), { recursive: true });
@@ -203,14 +231,13 @@ async function main() {
   await cp('src/assets/products.js', path.join(DIST, 'assets', 'products.js'));
 
   // --- 結果 ------------------------------------------------------------
-  console.log(`製品一覧    /ja/${nutrientId}/  — ${rows.length} 製品`);
-  if (lpEmitted) {
-    console.log(`LP          /ja/lp/`);
-  } else {
+  console.log(`LP          ${lpPath}`);
+  console.log(`製品一覧    ${productsPath}  — ${rows.length} 製品`);
+  if (!heroReady) {
     console.log(
-      `LP          未出力 — 実データが ${rows.length} 件しかありません（最低 ${MIN_LP_PRODUCTS} 件）。`,
+      `            ヒーローのランキングカードは未出力 — 実データが ${rows.length} 件しかありません（最低 ${MIN_HERO_PRODUCTS} 件）。`,
     );
-    console.log(`            ヒーローにダミーを置かない決まりのため、データを揃えてから再ビルドしてください。`);
+    console.log(`            ダミーを置かない決まりのため、データを揃えると自動でカードが出ます。`);
     if (strict) process.exit(1);
   }
   if (!gaMeasurementId) {

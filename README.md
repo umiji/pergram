@@ -58,10 +58,17 @@ pergram は、ラベル表示の含有量を**元素量に換算**したうえ�
 Node 22 以上。**依存パッケージなし**（テストは `node:test`、ビルドは素の Node）。
 
 ```bash
-npm test              # 60 テスト。導出計算・正規化・バリデーション・描画の不変条件
+npm test              # 導出計算・正規化・バリデーション・描画の不変条件
 npm run build         # dist/ を生成
 npm run preview       # サンプルデータで .preview/ に描画（デプロイ禁止）
 npm run validate      # data/ のバリデーションのみ
+```
+
+待機リストの API ごと動かすなら。手順は [docs/ops/deploy.md](docs/ops/deploy.md)。
+
+```bash
+npm run d1:schema:local   # 初回だけ。ローカル D1 にテーブルを作る
+npm run cf:dev            # http://127.0.0.1:8787 — 実データ + Worker
 ```
 
 ### データを入れる手順
@@ -80,7 +87,9 @@ npm run ingest -- data/_drafts/rakuten_ホエイプロテイン_2026-08-06.json
 npm run build
 ```
 
-LP は実データが **20 製品以上** ないと出力されない。ヒーローにダミーを置かない決まり（`docs/design/design.md` §7 🔒）をビルドで強制している。
+**LP（`/ja/`）は掲載件数に関わらず必ず出力される。**実データが **20 製品未満**のとき出さないのは
+ヒーローのランキングカードだけで、LP 本体と Waitlist フォームは出る。
+ヒーローにダミーを置かない決まり（`docs/design/design.md` §7 禁止⑧ 🔒）をビルドで強制している。
 
 ### ディレクトリ
 
@@ -94,7 +103,7 @@ LP は実データが **20 製品以上** ないと出力されない。ヒー�
 | `src/lib/normalize_protein.js` | 唯一のカテゴリ固有処理（抽出時の正規化） |
 | `src/lib/validate.js` | V-01〜V-06 |
 | `src/templates/` | ランキングページ / LP |
-| `functions/` | Cloudflare Pages Functions（待機リスト）と D1 スキーマ |
+| `worker/` | Cloudflare Worker（待機リストの受け口）と D1 スキーマ |
 | `scripts/` | 収集・取り込み・価格更新・OGP |
 
 ### 検証段階の設定
@@ -114,6 +123,7 @@ LP は実データが **20 製品以上** ないと出力されない。ヒー�
 | [docs/design/service.md](docs/design/service.md) | **UI/UX 定義書 v0.3** — デザイントークン、画面構成、シグネチャ要素「コストの物差し」 |
 | ~~[docs/design/ad-lp.md](docs/design/ad-lp.md)~~ | design.md に置き換え済み。競合調査とベンチマークの記録として残す |
 | [docs/research/validation-plan.md](docs/research/validation-plan.md) | **先行需要検証プラン v0.3** — 3段階の検証設計、判定基準、計測設計 |
+| [docs/ops/deploy.md](docs/ops/deploy.md) | **デプロイ手順** — Cloudflare Workers + D1 のセットアップ、Waitlist の疎通確認 |
 
 読む順序: `validation-plan`（なぜ作るか）→ `requirements`（何を作るか）→ `design/design`（デザイン要件）→ `design/service`（本体の画面）
 
@@ -154,7 +164,7 @@ NutrientContent.amount_elemental  1 serving あたりの有効成分量（換算
 
 | 層 | 採用 |
 |---|---|
-| ホスティング | Cloudflare Pages（静的・`/ja/` `/en/` サブパス） |
+| ホスティング | Cloudflare Workers（静的アセット・`/ja/` `/en/` サブパス） |
 | バッチ実行 | GitHub Actions (cron) |
 | データ配信 | リポジトリ内の静的 JSON |
 | DB | Cloudflare D1（価格アラートのみ） |
@@ -170,7 +180,7 @@ NutrientContent.amount_elemental  1 serving あたりの有効成分量（換算
               ↓ commit
 [ データ ]  リポジトリ内 JSON ─── Cloudflare D1（価格アラートのみ）
               ↓ build
-[ 配信 ]    Cloudflare Pages (静的)
+[ 配信 ]    Cloudflare Workers (静的アセット)
 ```
 
 **LLM はバッチ抽出時のみ使用する。リクエストパスでは使用しない。** 🔒

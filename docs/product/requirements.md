@@ -553,7 +553,7 @@ Product に国フラグを持たせると、複数市場で流通する製品（
 ### 10.1 無料構成（原則）
 | 層 | 採用 | 無料枠 |
 |---|---|---|
-| ホスティング | Cloudflare Pages | 無料。帯域無制限 |
+| ホスティング | Cloudflare Workers（静的アセット） | 無料枠。Pages は新規が Workers に一本化されたため |
 | バッチ実行 | GitHub Actions (cron) | public repo は無制限 / private は月2,000分 |
 | データ配信 | リポジトリ内 静的 JSON | 無料 |
 | DB（価格アラートのみ） | Cloudflare D1 | 無料枠あり。Supabase 無料枠は非アクティブで一時停止するため避ける |
@@ -594,7 +594,7 @@ Product に国フラグを持たせると、複数市場で流通する製品（
               ↓ commit
 [ データ ]  リポジトリ内 JSON  ─── Cloudflare D1（価格アラートのみ）
               ↓ build
-[ 配信 ]    Cloudflare Pages (静的, /ja/ /en/)
+[ 配信 ]    Cloudflare Workers (静的アセット, /ja/ /en/)
               ↓
 [ 計測 ]    GA4
 ```

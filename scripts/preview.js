@@ -25,7 +25,6 @@ const category = categories[NUTRIENT_ID];
 
 await rm(OUT, { recursive: true, force: true });
 await mkdir(path.join(OUT, 'ja', NUTRIENT_ID), { recursive: true });
-await mkdir(path.join(OUT, 'ja', 'lp'), { recursive: true });
 await mkdir(path.join(OUT, 'assets'), { recursive: true });
 
 const nutrients = [
@@ -48,20 +47,24 @@ await writeFile(
     nutrients,
     disclosureKey: market.disclosureKey,
     // プレビューでは LP も必ず描くので、Waitlist への導線も出す
-    waitlistPath: '/ja/lp/#waitlist',
+    waitlistPath: '/ja/#waitlist',
     gaMeasurementId: null,
   }),
 );
 
+// 実データが 0 件のときの見え方（ヒーローのランキングカードが出ない状態）も確認できるようにする。
+// 本番では data/ が空ならこの見た目になる。
+const emptyHero = process.argv.includes('--empty-hero');
+
 await writeFile(
-  path.join(OUT, 'ja', 'lp', 'index.html'),
+  path.join(OUT, 'ja', 'index.html'),
   lpPage({
     t,
     locale: 'ja',
     currency: market.currency,
     displayUnit: category.displayUnit,
-    topRows: rows.slice(0, 3),
-    totalCount: rows.length,
+    topRows: emptyHero ? [] : rows.slice(0, 3),
+    totalCount: emptyHero ? 0 : rows.length,
     nutrientName: 'タンパク質',
     updatedAt: '2026-08-06',
     disclosureKey: market.disclosureKey,
@@ -80,14 +83,17 @@ for (const file of ['lp.js', 'products.js']) {
 // file:// で開くと /assets/... がドライブのルートを指してしまい、CSS も JS も当たらない。
 // 本番と同じくルートを持つサーバから配る。--build-only で書き出しだけにできる。
 if (process.argv.includes('--build-only')) {
+  console.log(`${OUT}/ja/index.html`);
   console.log(`${OUT}/ja/${NUTRIENT_ID}/index.html`);
-  console.log(`${OUT}/ja/lp/index.html`);
 } else {
   const { serve, HOST } = await import('./serve.js');
   const server = await serve(OUT);
-  console.log(`http://${HOST}:${server.port}/ja/lp/`);
+  console.log(`http://${HOST}:${server.port}/ja/`);
   console.log(`http://${HOST}:${server.port}/ja/${NUTRIENT_ID}/`);
   console.log('Ctrl+C で停止');
 }
 
+if (emptyHero) {
+  console.log('--empty-hero: ヒーローのランキングカードを外した状態で描いています。');
+}
 console.log('⚠️ サンプルデータです。デプロイしないでください。');

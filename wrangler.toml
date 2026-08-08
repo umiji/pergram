@@ -1,0 +1,41 @@
+# Cloudflare Workers の設定。
+#
+# 配信方式は Pages ではなく **Workers（静的アセット）**。
+# dist/ の中身は Workers 側が先に探して返し、該当が無いパスだけ worker/index.js が受ける。
+# だから /api/waitlist だけが Worker に届く。
+#
+# このファイルが唯一の出所。ダッシュボードでバインディングを足しても効かない。
+# 手順は docs/ops/deploy.md を見ること。
+
+name = "pergram"
+main = "worker/index.js"
+compatibility_date = "2026-08-01"
+
+# npm run build が書き出す先。binding があると Worker から env.ASSETS で引ける。
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+
+# --- 本番 -----------------------------------------------------------------
+# worker/waitlist.js が env.DB として使う。
+# 🔒 保存してよいのは email / nutrients / channel / created_at の4列だけ。
+[[d1_databases]]
+binding = "DB"
+database_name = "pergram"
+database_id = "0ec066b9-1a91-4b53-8519-3f58583fb6f9"
+
+# --- プレビュー -----------------------------------------------------------
+# 既定では非本番ブランチのプレビューも**本番の D1 を使う**。
+# 別 DB に分けたいときだけ、ダッシュボードの非本番ブランチの Deploy command を
+#   npx wrangler deploy --env preview
+# に変える。そうすると pergram-preview という別の Worker として配信される。
+[env.preview]
+
+[[env.preview.d1_databases]]
+binding = "DB"
+database_name = "pergram-preview"
+database_id = "a5343e9e-9f79-44b0-b71a-5d951294e3b7"
+
+[env.preview.assets]
+directory = "./dist"
+binding = "ASSETS"

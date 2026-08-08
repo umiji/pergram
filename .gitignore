@@ -1,7 +1,14 @@
 node_modules/
 dist/
 .preview/
+# wrangler のローカル状態（ローカル D1 の SQLite 実体を含む）
+.wrangler/
 data/_drafts/
 data/_review/
 .env
+# Claude Design のモック。実装との差分は docs/design/design.md に文章で記録する。
+# バイナリ同然の HTML が数 MB あり、git 履歴に永久に残るため入れない。
 docs/design/mockups
+docs/design/LP_mockups/
+docs/design/Product_page_pc_mock/
+docs/design/Product_page_sp_mock/
