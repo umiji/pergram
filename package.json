@@ -16,10 +16,10 @@
     "prices:refresh": "node scripts/refresh_prices.js",
     "ogp": "node scripts/make_ogp.js",
     "validate": "node scripts/validate_data.js",
-    "cf:dev": "npm run build && npx wrangler pages dev",
-    "cf:deploy": "npm run build && npx wrangler pages deploy",
-    "d1:schema": "npx wrangler d1 execute pergram --remote --file functions/schema.sql",
-    "d1:schema:local": "npx wrangler d1 execute pergram --local --file functions/schema.sql",
+    "cf:dev": "npm run build && npx wrangler dev",
+    "cf:deploy": "npm run build && npx wrangler deploy",
+    "d1:schema": "npx wrangler d1 execute pergram --remote --file worker/schema.sql",
+    "d1:schema:local": "npx wrangler d1 execute pergram --local --file worker/schema.sql",
     "d1:waitlist": "npx wrangler d1 execute pergram --remote --command \"SELECT * FROM waitlist ORDER BY created_at DESC LIMIT 50\""
   }
 }

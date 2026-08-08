@@ -204,7 +204,7 @@ async function main() {
   // 検証段階ではインデックスさせない。広告の審査と計測だけに使う。
   await writeFile(path.join(DIST, 'robots.txt'), 'User-agent: *\nDisallow: /\n', 'utf8');
 
-  // Cloudflare Pages のレスポンスヘッダ。
+  // Cloudflare のレスポンスヘッダ（Workers の静的アセットが _headers を読む）。
   // script-src に 'unsafe-inline' が要るのは GA4 の初期化スニペットがインライン
   // だから（layout.js）。静的ビルドなのでリクエストごとの nonce を発行できない。
   // self-host（design.md §8 未達）が済めば fonts.* の許可は外せる。

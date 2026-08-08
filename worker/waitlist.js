@@ -1,12 +1,14 @@
 /**
- * 待機リストの登録。Cloudflare Pages Functions。
+ * 待機リストの登録。
  *
  * 🔒 サーバが保持してよいのは requirements.md §3.4 と validation-plan.md §6 の範囲だけ。
  *    年齢・性別・体調・服薬情報は受け取らないし、送られてきても保存しない。
+ *    保存先の列は worker/schema.sql にあるものが全て。列を足さない。
  * 🔒 GA4 への送信はクライアント側で行い、メールアドレスを含めない。
  */
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const EMAIL_MAX_LENGTH = 254;
 
 /**
  * 受け付ける選択肢。想定外の値は保存しない。
@@ -31,7 +33,14 @@ const json = (body, status = 200) =>
     headers: { 'Content-Type': 'application/json' },
   });
 
-export async function onRequestPost({ request, env }) {
+/**
+ * POST /api/waitlist
+ *
+ * @param {Request} request
+ * @param {{ DB: D1Database }} env
+ * @returns {Promise<Response>}
+ */
+export async function handleWaitlist(request, env) {
   let payload;
   try {
     payload = await request.json();
@@ -40,7 +49,7 @@ export async function onRequestPost({ request, env }) {
   }
 
   const email = typeof payload.email === 'string' ? payload.email.trim() : '';
-  if (!EMAIL_RE.test(email) || email.length > 254) {
+  if (!EMAIL_RE.test(email) || email.length > EMAIL_MAX_LENGTH) {
     return json({ error: 'invalid_email' }, 400);
   }
 
@@ -49,16 +58,23 @@ export async function onRequestPost({ request, env }) {
     : [];
   const channel = ALLOWED_CHANNELS.has(payload.channel) ? payload.channel : null;
 
-  // 同じメールアドレスの再送信は上書きする（重複行を作らない）
-  await env.DB.prepare(
-    `INSERT INTO waitlist (email, nutrients, channel, created_at)
-     VALUES (?1, ?2, ?3, ?4)
-     ON CONFLICT(email) DO UPDATE SET
-       nutrients = excluded.nutrients,
-       channel   = excluded.channel`,
-  )
-    .bind(email, nutrients.join(','), channel, new Date().toISOString())
-    .run();
+  try {
+    // 同じメールアドレスの再送信は上書きする（重複行を作らない）
+    await env.DB.prepare(
+      `INSERT INTO waitlist (email, nutrients, channel, created_at)
+       VALUES (?1, ?2, ?3, ?4)
+       ON CONFLICT(email) DO UPDATE SET
+         nutrients = excluded.nutrients,
+         channel   = excluded.channel`,
+    )
+      .bind(email, nutrients.join(','), channel, new Date().toISOString())
+      .run();
+  } catch (err) {
+    // 🔒 応答に原因を書かない（メールアドレスや DB の構造が漏れる）。
+    //    詳細はサーバ側のログにだけ残す。
+    console.error('waitlist insert failed', err);
+    return json({ error: 'storage_unavailable' }, 503);
+  }
 
   return json({ ok: true });
 }

@@ -64,11 +64,11 @@ npm run preview       # サンプルデータで .preview/ に描画（デプロ
 npm run validate      # data/ のバリデーションのみ
 ```
 
-Cloudflare Pages Functions（待機リスト）ごと動かすなら。手順は [docs/ops/deploy.md](docs/ops/deploy.md)。
+待機リストの API ごと動かすなら。手順は [docs/ops/deploy.md](docs/ops/deploy.md)。
 
 ```bash
 npm run d1:schema:local   # 初回だけ。ローカル D1 にテーブルを作る
-npm run cf:dev            # http://127.0.0.1:8788 — 実データ + Functions
+npm run cf:dev            # http://127.0.0.1:8787 — 実データ + Worker
 ```
 
 ### データを入れる手順
@@ -103,7 +103,7 @@ npm run build
 | `src/lib/normalize_protein.js` | 唯一のカテゴリ固有処理（抽出時の正規化） |
 | `src/lib/validate.js` | V-01〜V-06 |
 | `src/templates/` | ランキングページ / LP |
-| `functions/` | Cloudflare Pages Functions（待機リスト）と D1 スキーマ |
+| `worker/` | Cloudflare Worker（待機リストの受け口）と D1 スキーマ |
 | `scripts/` | 収集・取り込み・価格更新・OGP |
 
 ### 検証段階の設定
@@ -123,7 +123,7 @@ npm run build
 | [docs/design/service.md](docs/design/service.md) | **UI/UX 定義書 v0.3** — デザイントークン、画面構成、シグネチャ要素「コストの物差し」 |
 | ~~[docs/design/ad-lp.md](docs/design/ad-lp.md)~~ | design.md に置き換え済み。競合調査とベンチマークの記録として残す |
 | [docs/research/validation-plan.md](docs/research/validation-plan.md) | **先行需要検証プラン v0.3** — 3段階の検証設計、判定基準、計測設計 |
-| [docs/ops/deploy.md](docs/ops/deploy.md) | **デプロイ手順** — Cloudflare Pages + D1 のセットアップ、Waitlist の疎通確認 |
+| [docs/ops/deploy.md](docs/ops/deploy.md) | **デプロイ手順** — Cloudflare Workers + D1 のセットアップ、Waitlist の疎通確認 |
 
 読む順序: `validation-plan`（なぜ作るか）→ `requirements`（何を作るか）→ `design/design`（デザイン要件）→ `design/service`（本体の画面）
 
@@ -164,7 +164,7 @@ NutrientContent.amount_elemental  1 serving あたりの有効成分量（換算
 
 | 層 | 採用 |
 |---|---|
-| ホスティング | Cloudflare Pages（静的・`/ja/` `/en/` サブパス） |
+| ホスティング | Cloudflare Workers（静的アセット・`/ja/` `/en/` サブパス） |
 | バッチ実行 | GitHub Actions (cron) |
 | データ配信 | リポジトリ内の静的 JSON |
 | DB | Cloudflare D1（価格アラートのみ） |
@@ -180,7 +180,7 @@ NutrientContent.amount_elemental  1 serving あたりの有効成分量（換算
               ↓ commit
 [ データ ]  リポジトリ内 JSON ─── Cloudflare D1（価格アラートのみ）
               ↓ build
-[ 配信 ]    Cloudflare Pages (静的)
+[ 配信 ]    Cloudflare Workers (静的アセット)
 ```
 
 **LLM はバッチ抽出時のみ使用する。リクエストパスでは使用しない。** 🔒

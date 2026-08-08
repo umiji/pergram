@@ -27,10 +27,11 @@ npm run validate  # data/ のバリデーションのみ
 | `locales/*.json` | 未定義キーはビルドを落とす。文言をテンプレートに直書きしない |
 | `src/build/build.js` | **LP は掲載件数に関わらず常に出力する**（`/ja/`）。実データが20件未満のとき出さないのは**ヒーローのランキングカードだけ**（出典: [design.md](docs/design/design.md) §7 禁止⑧「ヒーローにダミーデータを置く」）。この門をカード以外に広げない |
 | `src/styles/tokens.css` | 色・寸法の唯一の出所。`scripts/make_ogp.js` の定数もここと同じ値に保つ |
-| `src/templates/lp/` | LP のセクション。`ROADMAP_NUTRIENTS` と `functions/api/waitlist.js` の許可リストは対応させる |
+| `src/templates/lp/` | LP のセクション。`ROADMAP_NUTRIENTS` と `worker/waitlist.js` の許可リストは対応させる |
+| `worker/index.js` | Worker の入り口。配信は **Pages ではなく Workers**。`functions/` は使えない。ルートは `ROUTES` に足す |
 | `src/templates/products/` | 製品一覧（`/ja/protein/`）。カード表示とリスト表示は**同じマークアップ**を CSS のグリッドだけで組み替える。2つ描き分けない |
 | `src/assets/products.js` | 絞り込みは `hidden` の付け外しだけ。並べ替えを足さない。状態は URL にだけ持ち、localStorage を使わない |
-| `wrangler.toml` | Cloudflare のバインディングの唯一の出所。**このファイルがあるとダッシュボードの設定は無視される。**プレビュー用 D1 を本番と同じにしない |
+| `wrangler.toml` | Cloudflare のバインディングの唯一の出所。**このファイルがあるとダッシュボードの設定は無視される。**配信は Workers（`main` + `[assets]`）。`pages_build_output_dir` に戻さない |
 
 | ドキュメント | 役割 |
 |---|---|
@@ -40,7 +41,7 @@ npm run validate  # data/ のバリデーションのみ
 | [docs/design/service.md](docs/design/service.md) | 本体サービスの UI/UX 定義 |
 | ~~[docs/design/ad-lp.md](docs/design/ad-lp.md)~~ | design.md に置き換え済み。検討過程の記録 |
 | [docs/research/validation-plan.md](docs/research/validation-plan.md) | 先行需要検証プラン |
-| [docs/ops/deploy.md](docs/ops/deploy.md) | Cloudflare Pages + D1 のデプロイ手順。バインディングの出所は `wrangler.toml` ひとつ |
+| [docs/ops/deploy.md](docs/ops/deploy.md) | Cloudflare Workers + D1 のデプロイ手順。バインディングの出所は `wrangler.toml` ひとつ |
 
 ドキュメント間は相対リンクで相互参照している。**ファイルを移動・改名する場合は全参照を更新すること。**
 
