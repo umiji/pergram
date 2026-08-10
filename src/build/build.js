@@ -38,6 +38,7 @@ import { applyDisplayOverrides } from '../lib/display_overrides.js';
 import { loadTranslator } from '../lib/i18n.js';
 import { productsPage } from '../templates/products.js';
 import { lpPage, ROADMAP_NUTRIENTS } from '../templates/lp.js';
+import { headersFile, supportOriginOf } from './headers.js';
 
 const DIST = 'dist';
 const DATA = 'data';
@@ -252,6 +253,7 @@ async function main() {
         disclosureKey: market.disclosureKey,
         betaPath: productsPath,
         gaMeasurementId,
+        support: market.support ?? null,
       }),
     );
   }
@@ -278,20 +280,10 @@ async function main() {
   // 検証段階ではインデックスさせない。広告の審査と計測だけに使う。
   await writeFile(path.join(DIST, 'robots.txt'), 'User-agent: *\nDisallow: /\n', 'utf8');
 
-  // Cloudflare のレスポンスヘッダ（Workers の静的アセットが _headers を読む）。
-  // script-src に 'unsafe-inline' が要るのは GA4 の初期化スニペットがインライン
-  // だから（layout.js）。静的ビルドなのでリクエストごとの nonce を発行できない。
-  // self-host（design.md §8 未達）が済めば fonts.* の許可は外せる。
+  // Cloudflare のレスポンスヘッダ。中身と理由は src/build/headers.js を見る。
   await writeFile(
     path.join(DIST, '_headers'),
-    `/*
-  X-Content-Type-Options: nosniff
-  X-Frame-Options: DENY
-  Referrer-Policy: strict-origin-when-cross-origin
-  Permissions-Policy: camera=(), microphone=(), geolocation=()
-  Strict-Transport-Security: max-age=31536000; includeSubDomains
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://www.google-analytics.com; form-action 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'
-`,
+    headersFile({ supportOrigin: supportOriginOf(market.support) }),
     'utf8',
   );
 
@@ -326,11 +318,6 @@ async function main() {
     console.log('GA4         未設定 — GA4_MEASUREMENT_ID を渡すと計測タグが入ります。');
   }
 }
-
-main().catch((err) => {
-  console.error(err.message);
-  process.exit(1);
-});
 
 main().catch((err) => {
   console.error(err.message);

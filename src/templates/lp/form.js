@@ -10,33 +10,70 @@
 import { escapeHtml } from '../../lib/i18n.js';
 import {
   CHANNEL_CHIPS,
+  NUTRIENT_CHIPS,
+  NUTRIENT_OTHER,
   NUTRIENTS_OTHER_MAX,
   REQUESTS_MAX,
-  ROADMAP_NUTRIENTS,
 } from '../../lib/waitlist_fields.js';
 import { wordmark } from '../layout.js';
 import { optionChips } from './parts.js';
+import { supportEmbed } from './support.js';
 
 /**
- * 自由記述の1行入力。
+ * 自由記述の複数行入力。
  *
  * 🔒 N-01 / N-05。自由記述は症状や服薬の書き込み口になりうる。
  *    ラベルと placeholder で書いてよいものを限定し、注記でも明示する。
  *    最終的な防波堤は worker 側の長さ制限と、保存列を増やさないこと。
  */
-function freeText({ name, label, placeholder, maxLength, multiline = false }) {
-  const attrs = `name="${escapeHtml(name)}" maxlength="${maxLength}" placeholder="${escapeHtml(placeholder)}"`;
-  const control = multiline
-    ? `<textarea class="field__textarea" rows="3" ${attrs}></textarea>`
-    : `<input class="field__text" type="text" ${attrs}>`;
-
+function freeTextArea({ name, label, placeholder, maxLength }) {
   return `<label class="field">
         <span class="field__label">${escapeHtml(label)}</span>
-        ${control}
+        <textarea class="field__textarea" rows="3"
+                  name="${escapeHtml(name)}" maxlength="${maxLength}"
+                  placeholder="${escapeHtml(placeholder)}"></textarea>
       </label>`;
 }
 
-export function waitlist(t) {
+/**
+ * 「見たい成分」の選択肢。
+ *
+ * 🔒 「その他」はチップの1つであり、自由記述欄はその**横**に並べる。
+ *    独立した欄にすると、チップを1つも選ばずに書かれた要望が
+ *    「成分の希望」なのか判別できなくなる。
+ * 🔒 チップと自由記述は別々の値として送る（`nutrients` に `other` /
+ *    `nutrients_other` に本文）。片方だけでも成立する。
+ */
+function nutrientChoices(t) {
+  const chips = NUTRIENT_CHIPS.filter((key) => key !== NUTRIENT_OTHER);
+
+  return `<div class="check-grid">
+${optionChips({
+  name: 'nutrients',
+  keys: chips,
+  prefix: 'nutrient',
+  t,
+  multiple: true,
+  className: 'check',
+})}
+          <div class="check-other">
+${optionChips({
+  name: 'nutrients',
+  keys: [NUTRIENT_OTHER],
+  prefix: 'nutrient',
+  t,
+  multiple: true,
+  className: 'check',
+})}
+            <input class="field__text check-other__text" type="text"
+                   name="nutrients_other" maxlength="${NUTRIENTS_OTHER_MAX}"
+                   aria-label="${escapeHtml(t('lp.form.nutrientsOther'))}"
+                   placeholder="${escapeHtml(t('lp.form.nutrientsOtherPlaceholder'))}">
+          </div>
+        </div>`;
+}
+
+export function waitlist(t, { support = null } = {}) {
   return `<section class="waitlist-band" id="waitlist">
   <div class="waitlist-band__inner">
     <h2 class="waitlist-band__heading">${escapeHtml(t('lp.form.heading'))}</h2>
@@ -53,24 +90,8 @@ export function waitlist(t) {
 
       <fieldset class="field">
         <legend class="field__label">${escapeHtml(t('lp.form.nutrients'))}</legend>
-        <div class="check-grid">
-${optionChips({
-  name: 'nutrients',
-  keys: ROADMAP_NUTRIENTS,
-  prefix: 'nutrient',
-  t,
-  multiple: true,
-  className: 'check',
-})}
-        </div>
+        ${nutrientChoices(t)}
       </fieldset>
-
-      ${freeText({
-        name: 'nutrients_other',
-        label: t('lp.form.nutrientsOther'),
-        placeholder: t('lp.form.nutrientsOtherPlaceholder'),
-        maxLength: NUTRIENTS_OTHER_MAX,
-      })}
 
       <fieldset class="field">
         <legend class="field__label">${escapeHtml(t('lp.form.channel'))}</legend>
@@ -80,18 +101,17 @@ ${optionChips({
   keys: CHANNEL_CHIPS,
   prefix: 'channel',
   t,
-  multiple: false,
+  multiple: true,
   className: 'pill-choice',
 })}
         </div>
       </fieldset>
 
-      ${freeText({
+      ${freeTextArea({
         name: 'requests',
         label: t('lp.form.requests'),
         placeholder: t('lp.form.requestsPlaceholder'),
         maxLength: REQUESTS_MAX,
-        multiline: true,
       })}
       <p class="form-note form-note--caution">${escapeHtml(t('lp.form.freeTextNote'))}</p>
 
@@ -104,9 +124,10 @@ ${optionChips({
       <p class="form-note">${escapeHtml(t('lp.form.noteRelease'))}</p>
     </form>
 
-    <p class="waitlist__done" role="status" tabindex="-1" hidden>${escapeHtml(
-      t('lp.form.done'),
-    )}</p>
+    <div class="waitlist__done" role="status" tabindex="-1" hidden>
+      <p class="waitlist__done-text">${escapeHtml(t('lp.form.done'))}</p>
+      ${supportEmbed(t, support)}
+    </div>
   </div>
 </section>`;
 }

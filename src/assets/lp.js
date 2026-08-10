@@ -93,6 +93,19 @@
     track('waitlist_start', {});
   });
 
+  // 「その他」の自由記述に書いたのにチップを選び忘れる、を防ぐ。
+  // 逆（チップを外したら本文を消す）はやらない — 書いたものを勝手に捨てない。
+  var otherText = form.querySelector('[name="nutrients_other"]');
+  var otherCheck = form.querySelector('input[name="nutrients"][value="other"]');
+  if (otherText && otherCheck) {
+    otherText.addEventListener('input', function () {
+      if (otherText.value.trim() !== '') otherCheck.checked = true;
+    });
+    otherCheck.addEventListener('change', function () {
+      if (otherCheck.checked) otherText.focus();
+    });
+  }
+
   function showError(message) {
     errorEl.textContent = message;
     errorEl.hidden = false;
@@ -126,8 +139,8 @@
     }
 
     var nutrients = checkedValues('nutrients');
-    // 🔒 普段の購入先は単一選択。配列にしない
-    var channel = checkedValues('channel')[0] || null;
+    // 購入先は掛け持ちが普通なので複数選択。1つに丸めない
+    var channels = checkedValues('channel');
     var nutrientsOther = fieldValue('nutrients_other');
     var requests = fieldValue('requests');
 
@@ -147,7 +160,7 @@
       body: JSON.stringify({
         email: email,
         nutrients: nutrients,
-        channel: channel,
+        channel: channels,
         nutrients_other: nutrientsOther,
         requests: requests,
       }),
@@ -160,7 +173,7 @@
         //    （症状や固有名詞が GA4 に流れる経路を作らない）。
         track('waitlist_submit', {
           selected_nutrients: nutrients.join(','),
-          purchase_channel: channel || '(none)',
+          purchase_channel: channels.join(',') || '(none)',
           has_nutrients_other: nutrientsOther ? 1 : 0,
           has_requests: requests ? 1 : 0,
         });

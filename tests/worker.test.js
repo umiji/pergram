@@ -59,7 +59,7 @@ test('待機リストの登録は 200 を返し、決まった数の値だけを
     post({
       email: 'a@example.com',
       nutrients: ['creatine'],
-      channel: 'yahoo',
+      channel: ['yahoo', 'rakuten'],
       nutrients_other: 'グルタミン',
       requests: '送料込みで並べたい',
     }),
@@ -73,10 +73,35 @@ test('待機リストの登録は 200 を返し、決まった数の値だけを
   assert.deepEqual(writes[0].args.slice(0, 5), [
     'a@example.com',
     'creatine',
-    'yahoo',
+    // 購入先も複数選択。成分と同じくカンマ区切りの1列に収める（列は増やさない）
+    'yahoo,rakuten',
     'グルタミン',
     '送料込みで並べたい',
   ]);
+});
+
+// 配信済みの LP がブラウザにキャッシュされている間、channel は文字列で届く。
+// 黙って捨てると「登録できたのに購入先だけ空」になる。
+test('購入先が単一の文字列で届いても受け取る', async () => {
+  const { env, writes } = makeEnv();
+  await worker.fetch(post({ email: 'a@example.com', channel: 'yahoo' }), env);
+
+  assert.equal(writes[0].args[2], 'yahoo');
+});
+
+test('同じ選択肢を2度送っても1度しか保存しない', async () => {
+  const { env, writes } = makeEnv();
+  await worker.fetch(
+    post({
+      email: 'a@example.com',
+      nutrients: ['creatine', 'creatine'],
+      channel: ['yahoo', 'yahoo', 'rakuten'],
+    }),
+    env,
+  );
+
+  assert.equal(writes[0].args[1], 'creatine');
+  assert.equal(writes[0].args[2], 'yahoo,rakuten');
 });
 
 test('自由記述は空欄なら null で保存し、上限を超えたら切る', async () => {
@@ -115,12 +140,16 @@ test('🔒 年齢・体調など許可していない項目は保存しない', 
 test('🔒 許可リストにない成分と購入先は落とす', async () => {
   const { env, writes } = makeEnv();
   await worker.fetch(
-    post({ email: 'a@example.com', nutrients: ['creatine', 'aga_hair', 'hmb'], channel: 'unknown_shop' }),
+    post({
+      email: 'a@example.com',
+      nutrients: ['creatine', 'aga_hair', 'hmb'],
+      channel: ['unknown_shop', 'rakuten'],
+    }),
     env,
   );
 
   assert.equal(writes[0].args[1], 'creatine,hmb');
-  assert.equal(writes[0].args[2], null);
+  assert.equal(writes[0].args[2], 'rakuten');
 });
 
 test('不正なメールアドレスは 400 で、DB に触らない', async () => {

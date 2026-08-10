@@ -5,7 +5,11 @@ import { readFile } from 'node:fs/promises';
 import { loadTranslator } from '../src/lib/i18n.js';
 import { productsPage } from '../src/templates/products.js';
 import { lpPage, ROADMAP_NUTRIENTS } from '../src/templates/lp.js';
-import { CHANNEL_CHIPS } from '../src/lib/waitlist_fields.js';
+import {
+  ALLOWED_NUTRIENTS,
+  CHANNEL_CHIPS,
+  NUTRIENT_CHIPS,
+} from '../src/lib/waitlist_fields.js';
 import { makeRows, market } from './fixtures.js';
 
 const t = await loadTranslator('ja');
@@ -101,6 +105,7 @@ function renderLp(overrides = {}) {
     disclosureKey: market.disclosureKey,
     betaPath: '/ja/protein/',
     gaMeasurementId: null,
+    support: market.support,
     ...overrides,
   });
 }
@@ -531,11 +536,12 @@ test('🔒 入力項目は3つまで。年齢・性別・体調を取らない',
   }
 });
 
-test('🔒 見たい成分は複数選択、普段の購入先は単一選択', () => {
+// 見たい成分も購入先も掛け持ちが普通。どちらも1つに絞らせない
+test('見たい成分も普段の購入先も複数選択できる', () => {
   const html = renderLp();
   assert.ok(html.includes('type="checkbox" name="nutrients"'));
-  assert.ok(html.includes('type="radio" name="channel"'));
-  assert.ok(!html.includes('type="checkbox" name="channel"'));
+  assert.ok(html.includes('type="checkbox" name="channel"'));
+  assert.ok(!html.includes('type="radio"'), '単一選択の項目が残っています');
 });
 
 test('LP に禁止語が入っていない', () => {
@@ -558,6 +564,40 @@ test('フォームは選択肢に無い成分と、その他の要望を自由�
   assert.ok(html.includes(t('lp.form.freeTextNote')), '自由記述の注記がありません');
 });
 
+test('「その他」は成分チップの1つで、自由記述欄がその横に並ぶ', () => {
+  const html = renderLp();
+
+  // チップとして選べる（= nutrients に other が入る）
+  assert.match(
+    html,
+    /type="checkbox" name="nutrients" value="other"/,
+    '「その他」が成分チップになっていません',
+  );
+  assert.ok(html.includes(t('nutrient.other')), '「その他」の文言がありません');
+
+  // 自由記述欄は同じ枠の中。独立した欄として離して置かない
+  const group = html.match(/<div class="check-other">([\s\S]*?)<\/div>/);
+  assert.ok(group, '「その他」と自由記述欄をまとめる枠がありません');
+  assert.match(group[1], /name="nutrients" value="other"/);
+  assert.match(group[1], /name="nutrients_other"/);
+
+  // チップの並びは waitlist_fields.js が唯一の出所
+  for (const key of NUTRIENT_CHIPS) {
+    assert.ok(html.includes(`value="${key}"`), `成分チップ「${key}」が出ていません`);
+  }
+});
+
+// 「その他」は成分ではないので、製品一覧の成分ナビに出してはならない。
+// ROADMAP_NUTRIENTS は build.js のナビにも使われる。
+test('🔒 「その他」はフォームだけの選択肢で、成分の一覧には混ぜない', () => {
+  assert.ok(!ROADMAP_NUTRIENTS.includes('other'), '成分の並びに「その他」が混ざっています');
+  assert.deepEqual(NUTRIENT_CHIPS, [...ROADMAP_NUTRIENTS, 'other']);
+  // Worker が受け付ける値はチップの並びから導く（二重に持たない）
+  for (const key of NUTRIENT_CHIPS) {
+    assert.ok(ALLOWED_NUTRIENTS.has(key), `Worker が「${key}」を受け付けません`);
+  }
+});
+
 test('普段使っているショップに Yahoo!ショッピングとその他が並ぶ', () => {
   const html = renderLp();
   for (const key of CHANNEL_CHIPS) {
@@ -567,8 +607,9 @@ test('普段使っているショップに Yahoo!ショッピングとその他�
     );
     assert.ok(html.includes(t(`channel.${key}`)), `購入先「${key}」の文言がありません`);
   }
-  // 🔒 単一選択。チェックボックスにしない
-  assert.ok(!/name="channel"[^>]*type="checkbox"/.test(html));
+  // 複数選択。ラジオに戻さない
+  assert.ok(!/name="channel"[^>]*type="radio"/.test(html));
+  assert.ok(!/type="radio"[^>]*name="channel"/.test(html));
 });
 
 test('🔒 できないことを書かない。利用目的と、リリースしない場合の扱いを明示する', () => {
@@ -586,6 +627,36 @@ test('🔒 LP のフォームは同一ページ内で完了状態に切り替わ
   const html = renderLp();
   assert.ok(html.includes('class="waitlist__done"'));
   assert.ok(!html.includes('action='));
+});
+
+/* ---- 任意支援のウィジェット ------------------------------------------- */
+
+/**
+ * 🔒 1ページに1つだけ。Codoc の cms-core.js は要素の id から
+ *    `#codoc-entry-<code>` を組み立てて mount 先を引き直すので、同じ id を
+ *    2箇所に置くと後ろ側は空のまま死ぬ（HTML としても id の重複は不正）。
+ */
+test('🔒 支援ウィジェットは1ページに1つしか出ない', () => {
+  const html = renderLp();
+  const entries = html.match(/id="codoc-entry-[^"]+"/g) ?? [];
+  assert.equal(entries.length, 1, `支援ウィジェットが ${entries.length} 個あります`);
+  assert.equal((html.match(/class="codoc-entries"/g) ?? []).length, 1);
+  assert.equal((html.match(/cms\.js/g) ?? []).length, 1, '読み込みタグが1つではありません');
+});
+
+test('支援ウィジェットは登録完了ブロックの中に出る', () => {
+  const html = renderLp();
+  const done = html.match(/<div class="waitlist__done"[\s\S]*?<\/div>\s*<\/div>/);
+  assert.ok(done, '登録完了ブロックがありません');
+  assert.match(done[0], /id="codoc-entry-ENTRYCODE"/);
+  assert.ok(html.includes(t('lp.support.message')), '支援メッセージがありません');
+});
+
+// 🔒 出し分けは条件分岐ではなくデータで。support を持たない市場では何も出ない
+test('🔒 支援の設定が無い市場では何も出ない', () => {
+  const html = renderLp({ support: null });
+  assert.ok(!html.includes('codoc'), '支援ウィジェットが漏れています');
+  assert.ok(html.includes('class="waitlist__done"'), '完了ブロックまで消えています');
 });
 
 test('🔒 免責と参照値の出典が常時表示される', () => {

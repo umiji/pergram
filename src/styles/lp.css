@@ -714,6 +714,29 @@
   gap: var(--space-2);
 }
 
+/*
+ * 「その他」だけはチップの横に自由記述欄を並べる。
+ * チップが1つ増えただけに見えるよう、行を1つ使い切って入力欄を伸ばす。
+ */
+.check-other {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  grid-column: 1 / -1;
+}
+
+.check-other .check {
+  flex: none;
+}
+
+.waitlist .check-other__text {
+  flex: 1;
+  /* flex 項目の既定の min-width: auto を切らないと placeholder で押し広げられる */
+  min-width: 0;
+  min-height: var(--tap-target);
+  padding: var(--space-2) 14px;
+}
+
 .check,
 .pill-choice {
   display: flex;
@@ -798,7 +821,17 @@
   border-radius: var(--radius);
   padding: 22px;
   text-align: center;
+}
+
+.waitlist__done-text {
+  margin: 0;
   font-weight: 500;
+}
+
+/* 任意支援（Codoc）。見た目はウィジェット側が持つので余白だけ整える */
+.waitlist__done .codoc-entries {
+  margin-top: var(--space-6);
+  text-align: left;
 }
 
 /* ---- フッタ ---------------------------------------------------------- */

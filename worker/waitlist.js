@@ -23,6 +23,21 @@ import {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+/**
+ * 選択肢。許可リストに無い値は捨て、重複は畳む。
+ *
+ * 単一の文字列も受ける。ブラウザにキャッシュされた旧版の LP が
+ * `channel` を文字列で送ってくる間、黙って捨てないため。
+ *
+ * @param {unknown} value
+ * @param {Set<string>} allowed
+ * @returns {string[]}
+ */
+function allowedValues(value, allowed) {
+  const list = Array.isArray(value) ? value : [value];
+  return [...new Set(list.filter((item) => allowed.has(item)))];
+}
+
 /** 自由記述。文字列でなければ捨て、長すぎれば切る。空文字は null にして列を汚さない */
 function freeText(value, maxLength) {
   if (typeof value !== 'string') return null;
@@ -56,10 +71,8 @@ export async function handleWaitlist(request, env) {
     return json({ error: 'invalid_email' }, 400);
   }
 
-  const nutrients = Array.isArray(payload.nutrients)
-    ? payload.nutrients.filter((n) => ALLOWED_NUTRIENTS.has(n))
-    : [];
-  const channel = ALLOWED_CHANNELS.has(payload.channel) ? payload.channel : null;
+  const nutrients = allowedValues(payload.nutrients, ALLOWED_NUTRIENTS);
+  const channels = allowedValues(payload.channel, ALLOWED_CHANNELS);
   const nutrientsOther = freeText(payload.nutrients_other, NUTRIENTS_OTHER_MAX);
   const requests = freeText(payload.requests, REQUESTS_MAX);
 
@@ -77,7 +90,7 @@ export async function handleWaitlist(request, env) {
       .bind(
         email,
         nutrients.join(','),
-        channel,
+        channels.join(','),
         nutrientsOther,
         requests,
         new Date().toISOString(),

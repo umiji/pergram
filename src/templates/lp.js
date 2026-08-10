@@ -12,6 +12,7 @@ import { layout } from './layout.js';
 import { hero, siteHeader } from './lp/hero.js';
 import { features, howItWorks, roadmap, ROADMAP_NUTRIENTS } from './lp/sections.js';
 import { siteFooter, waitlist, CHANNEL_CHIPS } from './lp/form.js';
+import { supportScript } from './lp/support.js';
 
 export function lpPage(ctx) {
   const {
@@ -25,6 +26,7 @@ export function lpPage(ctx) {
     disclosureKey,
     gaMeasurementId,
     betaPath = null,
+    support = null,
   } = ctx;
 
   const content = `${siteHeader(t, { locale, betaPath })}
@@ -38,12 +40,13 @@ ${howItWorks(t, { locale, currency, displayUnit })}
 
 ${roadmap(t)}
 
-${waitlist(t)}
+${waitlist(t, { support })}
 </main>
 
 ${siteFooter(t, { disclosureKey })}
 
-<script src="/assets/lp.js" defer></script>`;
+<script src="/assets/lp.js" defer></script>
+${supportScript(support)}`;
 
   return layout({
     locale,

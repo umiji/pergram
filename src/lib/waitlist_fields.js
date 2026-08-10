@@ -10,7 +10,11 @@
  * このモジュールは Worker からも読むので、テンプレートや i18n に依存させない。
  */
 
-/** LP のロードマップに出す成分。表示順そのもの */
+/**
+ * LP のロードマップに出す成分。表示順そのもの。
+ * 🔒 製品一覧の成分ナビ（src/build/build.js）もこの並びを使う。
+ *    「その他」のような実在しない成分をここに混ぜるとナビに出てしまう。
+ */
 export const ROADMAP_NUTRIENTS = [
   'creatine',
   'eaa_bcaa',
@@ -20,13 +24,27 @@ export const ROADMAP_NUTRIENTS = [
   'multivitamin',
 ];
 
+/** 「その他」の値。チップの値であり、自由記述欄と対になる */
+export const NUTRIENT_OTHER = 'other';
+
+/**
+ * 待機リストのフォームに出す選択肢。表示順そのもの。
+ * ロードマップの成分に「その他」を足したもので、**最後に置く**
+ * （自由記述欄を横に並べるため）。
+ */
+export const NUTRIENT_CHIPS = [...ROADMAP_NUTRIENTS, NUTRIENT_OTHER];
+
 /**
  * 受け付ける成分。想定外の値は保存しない。
- * protein / other は LP のチップから外したが、過去の登録が残っているので受け付け続ける。
+ * protein はチップから外したが、過去の登録が残っているので受け付け続ける。
  */
-export const ALLOWED_NUTRIENTS = new Set([...ROADMAP_NUTRIENTS, 'protein', 'other']);
+export const ALLOWED_NUTRIENTS = new Set([...NUTRIENT_CHIPS, 'protein']);
 
-/** 普段の購入先。🔒 単一選択（design.md §4.3）。表示順そのもの */
+/**
+ * 普段の購入先。複数選択（design.md §4.3）。表示順そのもの。
+ * 掛け持ちが普通なので1つに絞らせない。提携の優先順位を決めるための項目であり、
+ * 「どれか1つ」に丸めると実態が消える。
+ */
 export const CHANNEL_CHIPS = [
   'rakuten',
   'amazon',
