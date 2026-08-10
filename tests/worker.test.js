@@ -66,10 +66,17 @@ test('🔒 年齢・体調など許可していない項目は保存しない', 
     env,
   );
 
-  const stored = JSON.stringify(writes[0].args);
+  // 4つ目は created_at のタイムスタンプ。時計から作られる文字列に部分一致をかけると、
+  // 秒が 30 の瞬間に年齢「30」と一致して落ちる。検査するのは入力由来の3つに限る。
+  const [email, nutrients, channel, createdAt] = writes[0].args;
+
+  const stored = JSON.stringify([email, nutrients, channel]);
   for (const leaked of ['30', 'male', '疲れやすい', 'なし']) {
     assert.ok(!stored.includes(leaked), `保存してはいけない値「${leaked}」がバインドされています`);
   }
+  // 保存されるのは4つだけ。4つ目が時刻であることも確かめ、項目が増えていないことを見る
+  assert.equal(writes[0].args.length, 4);
+  assert.match(createdAt, /^\d{4}-\d{2}-\d{2}T/);
 });
 
 test('🔒 許可リストにない成分と購入先は落とす', async () => {
