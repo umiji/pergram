@@ -7,31 +7,31 @@
 :root {
   /* --- 色 -----------------------------------------------------------
      増やさない。色を足したくなったら情報設計が間違っている合図。 */
-  --ink: #16181d;
-  --paper: #fafaf7;
+  --ink: #0f172a;
+  --paper: #fafaf9;
   --surface: #ffffff;
 
-  /* 操作とブランドの色。CTA・リンク・見出しのアイキャッチ */
-  --signal: #2454e6;
-  --signal-hover: #173ba8;
-  --signal-tint: rgba(36, 84, 230, 0.06);
-  --signal-edge: rgba(36, 84, 230, 0.25);
-  --signal-band: #f1f4fe;
+  /* 操作とブランドの色。CTA・リンク・見出しのアイキャッチ (インパルス・オレンジ) */
+  --signal: #ea580c;
+  --signal-hover: #c2410c;
+  --signal-tint: rgba(234, 88, 12, 0.08);
+  --signal-edge: rgba(234, 88, 12, 0.25);
+  --signal-band: #fff7ed;
 
-  /* 主指標の最安値だけに使う。全行に使うと意味が消える */
-  --verified: #1f9254;
-  --verified-tint: rgba(31, 146, 84, 0.05);
-  --verified-chip: rgba(31, 146, 84, 0.12);
+  /* 主指標の最安値だけに使う。ブランドアクセントと同系統で視線を引きつける */
+  --verified: #ea580c;
+  --verified-tint: rgba(234, 88, 12, 0.08);
+  --verified-chip: rgba(234, 88, 12, 0.15);
 
   /* 注意喚起。上限量の超過と「判断を誤る」側の提示のみ */
   --warn: #b4451f;
   --warn-tint: rgba(180, 69, 31, 0.1);
 
   /* ink からの派生。個別に色を定義しない */
-  --muted: rgba(22, 24, 29, 0.65);
-  --muted-strong: rgba(22, 24, 29, 0.7);
-  --muted-weak: rgba(22, 24, 29, 0.5);
-  --muted-faint: rgba(22, 24, 29, 0.45);
+  --muted: rgba(22, 24, 29, 0.85);
+  --muted-strong: rgba(22, 24, 29, 0.9);
+  --muted-weak: rgba(22, 24, 29, 0.72);
+  --muted-faint: rgba(22, 24, 29, 0.65);
   --line: rgba(22, 24, 29, 0.1);
   --line-soft: rgba(22, 24, 29, 0.06);
   --fill-weak: rgba(22, 24, 29, 0.07);
@@ -87,5 +87,5 @@
   --shadow-card-lg: 0 10px 34px rgba(22, 24, 29, 0.07);
 
   --tap-target: 44px;
-  --page-max: 1240px;
+  --page-max: 1400px;
 }

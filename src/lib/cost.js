@@ -133,6 +133,9 @@ export function buildRow({ product, content, nutrient, snapshots, market, target
     url: best.url,
     inStock: best.in_stock,
     fetchedAt: best.fetched_at,
+    // 🔒 送料は「込み / 別」の2値しか取れない。金額が無いので単価には足さない。
+    //    判別できないものは null のままにして、画面には何も出さない。
+    postageIncluded: best.postage_included ?? null,
 
     // 導出値。保存しない。
     costPerNutrientUnit: costPerUnit,

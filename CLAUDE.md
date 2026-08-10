@@ -21,15 +21,20 @@ npm run validate  # data/ のバリデーションのみ
 | 場所 | 不変条件 |
 |---|---|
 | `src/lib/cost.js` | 導出計算はここだけ。`data/` に導出値を保存しない |
-| `src/lib/normalize_protein.js` | 唯一のカテゴリ固有処理。他所にカテゴリ分岐を持ち出さない |
+| `src/lib/normalize_protein.js` | 唯一のカテゴリ固有処理。他所にカテゴリ分岐を持ち出さない。商品説明文からの含有量読み取り（`extractProteinFromCaption`）もここ。**読めなければ null。推測で埋めない**。読み取りの罠は全部テストで固定してある — 「タンパク質100gあたり」は基準であって値ではない / 「ホエイたんぱく質100%」は原材料の表示 / 「無水換算・乾物換算」は製品そのままの値ではない |
+| `scripts/rakuten_api.js` | 楽天 API のエンドポイント・認証・レスポンスの読み方の**唯一の出所**。収集と価格更新で二重に持たない。2026-02-10 の認証基盤刷新で片方だけ移行し、`refresh_prices.js` が旧エンドポイントのまま放置された |
+| `scripts/refresh_prices.js` | 公開中の `price_snapshots.json` を**下書きを経由せず直接上書きする**。購入リンク（アフィリエイト URL）と送料区分を落とさない。`RAKUTEN_AFFILIATE_ID` が無ければ実行させない（警告では足りない。素の URL で全上書きになる） |
+| `scripts/enrich_draft.js` | 説明文からの LLM 後処理。**下書き→下書き**。ビルドにも Worker にも組み込まない（N-04）。受け取るのは `ENRICHABLE_FIELDS` の数値と固有名詞だけ（N-02）。**根拠の抜粋が原文に文字列として実在しなければ値を捨てる。**モデルの呼び出し口は未接続 |
+| `scripts/ingest_draft.js` | ⚠️ **モック限定の暫定措置が入っている。** 同一商品を「内容量＋含有率が一致すれば同じ」とみなして最安1件に絞る（`sameProductKey`）。**これは名寄せキー Q-07 の決定ではない。**2つ目のソースを足す前に Q-07 を確定させ、この処理は捨てる。落とした出品は `merged` で必ず報告する |
 | `config/categories.json` | 新カテゴリはここに1ブロック足すだけで済む状態を保つ。`facets` / `secondaryMetrics` / `explainerKey` もここ。UI 側に成分名の分岐を書かない |
 | `config/markets.json` | merchant は配列を回して描画する。UI に `if (locale === ...)` を書かない |
 | `locales/*.json` | 未定義キーはビルドを落とす。文言をテンプレートに直書きしない |
-| `src/build/build.js` | **LP は掲載件数に関わらず常に出力する**（`/ja/`）。実データが20件未満のとき出さないのは**ヒーローのランキングカードだけ**（出典: [design.md](docs/design/design.md) §7 禁止⑧「ヒーローにダミーデータを置く」）。この門をカード以外に広げない |
+| `src/build/build.js` | **LP は掲載件数に関わらず常に出力する**（`/ja/`）。実データが20件未満のとき出さないのは**ヒーローのランキングカードだけ**（出典: [design.md](docs/design/design.md) §7 禁止⑧「ヒーローにダミーデータを置く」）。この門をカード以外に広げない。⚠️ **`HERO_PRODUCT_IDS` にβ版限定の暫定措置が入っている** — ヒーローに出す3件を手動指定しており、行番号が実際の順位と食い違う。経緯と解消条件は design.md「ヒーローのランキングカードの例外」。**空配列に戻せば単価順に戻る** |
 | `src/styles/tokens.css` | 色・寸法の唯一の出所。`scripts/make_ogp.js` の定数もここと同じ値に保つ |
 | `src/templates/lp/` | LP のセクション。`ROADMAP_NUTRIENTS` と `worker/waitlist.js` の許可リストは対応させる |
 | `worker/index.js` | Worker の入り口。配信は **Pages ではなく Workers**。`functions/` は使えない。ルートは `ROUTES` に足す |
 | `src/templates/products/` | 製品一覧（`/ja/protein/`）。カード表示とリスト表示は**同じマークアップ**を CSS のグリッドだけで組み替える。2つ描き分けない |
+| `src/templates/products/item.js` | ⚠️ **β版限定の暫定措置が入っている。** 他ストアの価格表に `PLACEHOLDER_MERCHANTS`（Amazon / Yahoo! / 公式）の行を必ず足す。**🔒 金額は作らない** — 実データが無い欄は `¥X` / `¥XXXX` を出し、リンクも張らない。表示例であることは `products.betaNoData` で画面に明示する。楽天以外の実データが入ったら定数ごと削り、`market.merchants` を回すだけに戻す |
 | `src/assets/products.js` | 絞り込みは `hidden` の付け外しだけ。並べ替えを足さない。状態は URL にだけ持ち、localStorage を使わない |
 | `wrangler.toml` | Cloudflare のバインディングの唯一の出所。**このファイルがあるとダッシュボードの設定は無視される。**配信は Workers（`main` + `[assets]`）。`pages_build_output_dir` に戻さない |
 
@@ -74,6 +79,28 @@ N-09 / N-10 は**成分の除外ではなく文脈の除外**。亜鉛は筋ト�
 - 栄養機能食品の規格基準に定められた定型文
 - 消費者庁「機能性表示食品」届出データベースの届出表示
 - 厚生労働省「日本人の食事摂取基準(2025年版)」の数値
+
+### アフィリエイトは利用する。ただし順位に影響させない 🔒
+
+**アフィリエイトリンクを利用している。**収集時に `RAKUTEN_AFFILIATE_ID` を渡し、
+楽天が返すアフィリエイト URL を購入リンクとして保存する。参加していない店舗では
+素の商品 URL のままになる（`is_affiliate: false`）。
+
+**広告表示は3箇所すべてで常時出す。折りたたまない。** 外すとステマ規制に触れる。
+
+| 場所 | 文言キー |
+|---|---|
+| 製品一覧の本文（常時表示） | `products.affiliate` |
+| 製品一覧フッタ | `disclosure.{jp,us}.affiliate` |
+| LP フッタ | `disclosure.{jp,us}.affiliate` |
+
+リンクの `rel` は `nofollow sponsored noopener`。`sponsored` は報酬付きリンクを表すので外さない。
+
+**🔒 報酬額を順位に影響させない。** 並び順を決めるのは常に有効成分1単位あたりの価格。
+そのために報酬率（`affiliateRate`）を**そもそも下書きに保存しない** — 持たなければ
+「報酬の高い順」を作れない。目印は `tests/collect.test.js` の
+「🔒 報酬率を下書きに残さない」と `tests/render.test.js` の
+「🔒 広告表示があっても並び順は単価の昇順のまま」。
 
 ### 推定値で埋めない
 

@@ -8,18 +8,19 @@
     "node": ">=22"
   },
   "scripts": {
-    "build": "node src/build/build.js",
+    "build": "node --env-file-if-exists=.env.local src/build/build.js",
     "test": "node --test \"tests/**/*.test.js\"",
     "preview": "node scripts/preview.js",
-    "collect:rakuten": "node scripts/collect_rakuten.js",
+    "collect:rakuten": "node --env-file-if-exists=.env.local scripts/collect_rakuten.js",
     "ingest": "node scripts/ingest_draft.js",
-    "prices:refresh": "node scripts/refresh_prices.js",
+    "prices:refresh": "node --env-file-if-exists=.env.local scripts/refresh_prices.js",
     "ogp": "node scripts/make_ogp.js",
     "validate": "node scripts/validate_data.js",
     "cf:dev": "npm run build && npx wrangler dev",
     "cf:deploy": "npm run build && npx wrangler deploy",
     "d1:schema": "npx wrangler d1 execute pergram --remote --file worker/schema.sql",
     "d1:schema:local": "npx wrangler d1 execute pergram --local --file worker/schema.sql",
-    "d1:waitlist": "npx wrangler d1 execute pergram --remote --command \"SELECT * FROM waitlist ORDER BY created_at DESC LIMIT 50\""
+    "d1:waitlist": "npx wrangler d1 execute pergram --remote --command \"SELECT * FROM waitlist ORDER BY created_at DESC LIMIT 50\"",
+    "preview:dist": "node scripts/serve_dist.js"
   }
 }

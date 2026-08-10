@@ -57,12 +57,23 @@ pergram は、ラベル表示の含有量を**元素量に換算**したうえ�
 
 Node 22 以上。**依存パッケージなし**（テストは `node:test`、ビルドは素の Node）。
 
-```bash
-npm test              # 導出計算・正規化・バリデーション・描画の不変条件
-npm run build         # dist/ を生成
-npm run preview       # サンプルデータで .preview/ に描画（デプロイ禁止）
-npm run validate      # data/ のバリデーションのみ
-```
+### 主要コマンド一覧
+
+| コマンド | 役割・説明 |
+| :--- | :--- |
+| `npm test` | 導出計算・正規化・バリデーション・描画の不変条件テスト |
+| `npm run build` | `data/*.json`（実データ）を読み込み `dist/` にWebサイトを出力 |
+| `npm run preview` | サンプルデータ（6件）を使って `.preview/` に描画し、プレビュー用サーバー（port:4173）を立ち上げる |
+| `npm run cf:dev` | ビルド後に Cloudflare Workers のローカルサーバー（http://127.0.0.1:8787）を立ち上げる（**実データ確認用**） |
+| `npm run cf:deploy` | ビルド後に Cloudflare Workers へ本番デプロイ |
+| `npm run collect:rakuten` | 楽天APIから製品情報を検索・取得し `data/_drafts/` に下書き作成 |
+| `npm run ingest` | `data/_drafts/` の下書きデータを検証・正規化して正式な `data/*.json` に取り込む |
+| `npm run prices:refresh` | 掲載商品の価格情報を最新化 |
+| `npm run ogp` | SNSシェア用の OGP 画像を生成 |
+| `npm run validate` | `data/` のバリデーション（データ整合性チェック） |
+| `npm run d1:schema:local` | 初回のみ。ローカル D1 データベースにテーブルを作成 |
+| `npm run d1:schema` | リモート D1 データベースにテーブルを作成 |
+| `npm run d1:waitlist` | Waitlist（ウェイトリスト）登録データを確認 |
 
 待機リストの API ごと動かすなら。手順は [docs/ops/deploy.md](docs/ops/deploy.md)。
 
@@ -73,9 +84,13 @@ npm run cf:dev            # http://127.0.0.1:8787 — 実データ + Worker
 
 ### データを入れる手順
 
+認証情報は `.env.local` に置く。`collect:rakuten` と `prices:refresh` は
+`--env-file-if-exists=.env.local` で読むので、コマンド側に書かなくてよい。
+`.env.example` を写して埋める。
+
 ```bash
 # 1. 楽天から製品の下書きを作る（内容量は商品名から自動抽出）
-RAKUTEN_APP_ID=xxxx npm run collect:rakuten -- --keyword ホエイプロテイン --pages 4
+npm run collect:rakuten -- --keyword ホエイプロテイン --pages 4
 
 # 2. data/_drafts/*.json の protein_per_100g と brand を人間が埋める
 #    タンパク質含有量は商品名から読めないため、商品ページの栄養成分表示を見る

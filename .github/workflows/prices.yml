@@ -12,17 +12,29 @@ permissions:
 jobs:
   refresh:
     runs-on: ubuntu-latest
+    # 🔒 楽天の4つは Repository secrets ではなく Environment `pergram-dev` にある。
+    #    この宣言が無いと secrets.* が空文字で注入され、認証情報が未設定として弾かれる。
+    #    （2026-08-08〜10 の失敗はこれが原因）
+    environment: pergram-dev
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
 
+      # 🔒 4つとも要る。1つでも欠けると refresh_prices.js は実行前に停止する。
+      #    特に RAKUTEN_AFFILIATE_ID は、無いと公開中の購入リンクを
+      #    素の商品 URL で全上書きしてしまうため、警告では済ませていない。
+      #    出所は scripts/rakuten_api.js の readCredentials ひとつ。
       - name: 価格を取り直す
         env:
           RAKUTEN_APP_ID: ${{ secrets.RAKUTEN_APP_ID }}
+          RAKUTEN_ACCESS_KEY: ${{ secrets.RAKUTEN_ACCESS_KEY }}
+          RAKUTEN_APP_URL: ${{ secrets.RAKUTEN_APP_URL }}
+          RAKUTEN_AFFILIATE_ID: ${{ secrets.RAKUTEN_AFFILIATE_ID }}
         run: node scripts/refresh_prices.js
 
+      # 異常値が出たまま公開データを差し替えないよう、コミットの前に落とす
       - name: バリデーション
         run: npm run validate
 

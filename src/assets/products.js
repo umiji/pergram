@@ -17,17 +17,25 @@
   const panel = document.querySelector('[data-filter-panel]');
   const openBtn = document.querySelector('[data-filter-open]');
   const searchInput = document.querySelector('[data-product-search]');
-  const countEl = document.querySelector('[data-result-count]');
   const activeCountEl = document.querySelector('[data-active-count]');
   const emptyEl = document.querySelector('.p-list__empty');
   const moreWrap = document.querySelector('.p-list__more');
+  const moreBtn = document.querySelector('[data-show-more]');
   const applyBtn = form.querySelector('.filters__foot .btn');
 
   const locale = form.dataset.locale || 'ja';
   const currency = form.dataset.currency || 'JPY';
 
-  /** 上限まで表示しているか。「さらに表示」を押すと true になる */
-  let revealed = false;
+  /**
+   * 表示上限。「さらに表示」を1回押すごとに STEP 件ずつ増える。
+   *
+   * 件数はテンプレート（src/templates/products.js）が data-* で渡す。
+   * ここに数値を書くと初期表示の件数が2箇所に散り、必ず片方だけ直されて食い違う。
+   * 伏せる対象は data-overflow ではなく「絞り込み後の並びで上限を超えた分」。
+   * 属性で固定すると、絞り込んだ結果 10 件未満になっても後半が伏せられたままになる。
+   */
+  const STEP = Number(moreBtn?.dataset.step) || items.length;
+  let limit = Number(list.dataset.pageSize) || items.length;
 
   /* ---- 書式 --------------------------------------------------------- */
 
@@ -99,16 +107,8 @@
     for (const item of items) {
       const ok = matches(item, state);
       if (ok) shown += 1;
-      // 上限を開いていないうちは、条件に合っていても overflow 分は伏せたまま
-      const overflow = item.hasAttribute('data-overflow') && !revealed;
-      item.hidden = !ok || overflow;
-    }
-
-    if (countEl) {
-      const template = countEl.dataset.countTemplate;
-      countEl.textContent = template
-        ? template.replace('{count}', String(shown))
-        : String(shown);
+      // 条件に合っていても、上限を超えた分は伏せたまま
+      item.hidden = !ok || shown > limit;
     }
 
     if (applyBtn) {
@@ -123,7 +123,8 @@
     }
 
     if (emptyEl) emptyEl.hidden = shown > 0;
-    if (moreWrap) moreWrap.hidden = revealed || shown === 0;
+    // 残りが無くなったらボタンごと消す。ラベルに件数は出さない（増分は常に残り or STEP）
+    if (moreWrap) moreWrap.hidden = shown - limit <= 0;
 
     syncUrl(state);
   }
@@ -285,8 +286,8 @@
     });
   });
 
-  document.querySelector('[data-show-more]')?.addEventListener('click', () => {
-    revealed = true;
+  moreBtn?.addEventListener('click', () => {
+    limit += STEP;
     apply();
   });
 

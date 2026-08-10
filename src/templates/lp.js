@@ -22,7 +22,6 @@ export function lpPage(ctx) {
     topRows,
     totalCount,
     nutrientName,
-    updatedAt,
     disclosureKey,
     gaMeasurementId,
     betaPath = null,
@@ -31,7 +30,7 @@ export function lpPage(ctx) {
   const content = `${siteHeader(t, { locale, betaPath })}
 
 <main class="lp">
-${hero({ t, locale, currency, displayUnit, topRows, totalCount, nutrientName, updatedAt, betaPath })}
+${hero({ t, locale, currency, displayUnit, topRows, totalCount, nutrientName, betaPath })}
 
 ${features(t)}
 
@@ -48,7 +47,7 @@ ${siteFooter(t, { disclosureKey })}
 
   return layout({
     locale,
-    title: `${t('lp.h1')} — ${t('brand.name')}`,
+    title: `${t('lp.metaTitle')} — ${t('brand.name')}`,
     description: t('lp.lede'),
     bodyClass: 'lp-body-root',
     content,

@@ -10,13 +10,19 @@
  */
 
 import { escapeHtml } from '../lib/i18n.js';
-import { layout } from './layout.js';
+import { layout, wordmark } from './layout.js';
 import { filters } from './products/filters.js';
 import { productItem } from './products/item.js';
-import { affiliateNotice, appHeader, explainer, pageHead } from './products/head.js';
+import { affiliateNotice, appHeader, explainer, pageHead, toolbar } from './products/head.js';
 
-/** 初期表示する件数。残りは hidden のまま描画し、ボタンで開く */
-const PAGE_SIZE = 24;
+/**
+ * 初期表示する件数。残りも HTML には出しておき、hidden で伏せる。
+ * 検索エンジンには全件見えるし、JS が無くても上位 PAGE_SIZE 件は読める。
+ */
+const PAGE_SIZE = 10;
+
+/** 「さらに表示」1回で増える件数。実際の増分は残り件数との小さい方 */
+const PAGE_STEP = 20;
 
 function productList(rows, ctx) {
   const baseline = rows.length === 0 ? null : rows[0].costPerNutrientUnit;
@@ -28,9 +34,21 @@ function productList(rows, ctx) {
     })
     .join('\n');
 
-  return `<ol class="p-list" id="products" data-view="card" data-metric="${escapeHtml(
+  const { t, displayUnit } = ctx;
+  const headerHtml = `<div class="p-list-header" aria-hidden="true">
+  <div class="p-list-header__cell p-list-header__cell--rank">${escapeHtml(t('products.table.rank'))}</div>
+  <div class="p-list-header__cell p-list-header__cell--product">${escapeHtml(t('products.table.product'))}</div>
+  <div class="p-list-header__cell p-list-header__cell--cost">${escapeHtml(t('products.table.unitCost', { unit: displayUnit }))}</div>
+  <div class="p-list-header__cell p-list-header__cell--weight">${escapeHtml(t('products.table.netWeight'))}</div>
+  <div class="p-list-header__cell p-list-header__cell--nutrient-weight">${escapeHtml(t('products.table.nutrientAmount'))}</div>
+  <div class="p-list-header__cell p-list-header__cell--price">${escapeHtml(t('products.table.price'))}</div>
+  <div class="p-list-header__cell p-list-header__cell--postage">${escapeHtml(t('products.table.postage'))}</div>
+  <div class="p-list-header__cell p-list-header__cell--shop">${escapeHtml(t('products.table.shop'))}</div>
+</div>`;
+
+  return `<div class="p-list-wrapper">${headerHtml}<ol class="p-list" id="products" data-view="card" data-page-size="${PAGE_SIZE}" data-metric="${escapeHtml(
     ctx.secondaryMetrics[0] ?? '',
-  )}">${items}</ol>`;
+  )}">${items}</ol></div>`;
 }
 
 export function productsPage(ctx) {
@@ -74,8 +92,8 @@ export function productsPage(ctx) {
       hidden === 0
         ? ''
         : `<div class="p-list__more">
-      <button class="btn btn--ghost" type="button" data-show-more>${escapeHtml(
-        t('products.more', { count: hidden }),
+      <button class="btn btn--ghost" type="button" data-show-more data-step="${PAGE_STEP}">${escapeHtml(
+        t('products.more'),
       )}</button>
     </div>`
     }`;
@@ -102,6 +120,7 @@ ${appHeader({ t, locale, waitlistPath })}
     ${pageHead(inner)}
     ${explainer({ t, explainerKey: category.explainerKey })}
     ${affiliateNotice({ t, nutrientName, displayUnit })}
+    ${toolbar(inner)}
     ${body}
     ${waitlistBanner}
   </main>
@@ -110,21 +129,17 @@ ${appHeader({ t, locale, waitlistPath })}
 <footer class="site-foot">
   <div class="site-foot__inner">
     <div class="site-foot__brand">
-      <p class="site-foot__wordmark">${escapeHtml(t('brand.name'))}</p>
+      <div class="site-foot__wordmark">${wordmark(t, { href: `/${locale}/` })}</div>
       <p class="site-foot__about">${escapeHtml(t('lp.foot.about'))}</p>
-      <p class="site-foot__copy">${escapeHtml(t('lp.foot.copyright'))}</p>
     </div>
     <div class="site-foot__legal">
-      <p class="site-foot__heading">${escapeHtml(t('lp.section5.heading'))}</p>
-      <ul class="site-foot__list">
-        <li>${escapeHtml(t('lp.section5.item2'))}</li>
-        <li>${escapeHtml(t('lp.section5.item3'))}</li>
-        <li>${escapeHtml(t('lp.section5.item4'))}</li>
-      </ul>
-      <p class="disclosure__line">${escapeHtml(t(`${ctx.disclosureKey}.dataSource`))}</p>
-      <p class="disclosure__line">${escapeHtml(t(`${ctx.disclosureKey}.affiliate`))}</p>
-      <p class="disclosure__line">${escapeHtml(t(`${ctx.disclosureKey}.medical`))}</p>
+      ${t(`${ctx.disclosureKey}.affiliate`) ? `<p class="disclosure__line">${escapeHtml(t(`${ctx.disclosureKey}.affiliate`))}</p>` : ''}
+      ${t(`${ctx.disclosureKey}.dataSource`) ? `<p class="disclosure__line">${escapeHtml(t(`${ctx.disclosureKey}.dataSource`))}</p>` : ''}
+      ${t(`${ctx.disclosureKey}.medical`) ? `<p class="disclosure__line">${escapeHtml(t(`${ctx.disclosureKey}.medical`))}</p>` : ''}
     </div>
+  </div>
+  <div class="site-foot__bottom">
+    <p class="site-foot__copy">${escapeHtml(t('lp.foot.copyright'))}</p>
   </div>
 </footer>
 

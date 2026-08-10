@@ -1,1 +1,162 @@
-[]
+[
+  {
+    "product_id": "rakuten:rakutensokuhaimart:10019793",
+    "nutrient_id": "protein",
+    "salt_form_id": null,
+    "amount_labeled": 20,
+    "unit": "g",
+    "amount_elemental": 20
+  },
+  {
+    "product_id": "rakuten:auc-garlic:10000639",
+    "nutrient_id": "protein",
+    "salt_form_id": null,
+    "amount_labeled": 22.95,
+    "unit": "g",
+    "amount_elemental": 22.95
+  },
+  {
+    "product_id": "rakuten:auc-garlic:10000676",
+    "nutrient_id": "protein",
+    "salt_form_id": null,
+    "amount_labeled": 76.19,
+    "unit": "g",
+    "amount_elemental": 76.19
+  },
+  {
+    "product_id": "rakuten:kenkocom:10312982",
+    "nutrient_id": "protein",
+    "salt_form_id": null,
+    "amount_labeled": 90.8,
+    "unit": "g",
+    "amount_elemental": 90.8
+  },
+  {
+    "product_id": "rakuten:aswel:10000086",
+    "nutrient_id": "protein",
+    "salt_form_id": null,
+    "amount_labeled": 18.023999999999997,
+    "unit": "g",
+    "amount_elemental": 18.023999999999997
+  },
+  {
+    "product_id": "rakuten:pure-shapers:10000002",
+    "nutrient_id": "protein",
+    "salt_form_id": null,
+    "amount_labeled": 82,
+    "unit": "g",
+    "amount_elemental": 82
+  },
+  {
+    "product_id": "rakuten:collagenkirei:10000685",
+    "nutrient_id": "protein",
+    "salt_form_id": null,
+    "amount_labeled": 78.6,
+    "unit": "g",
+    "amount_elemental": 78.6
+  },
+  {
+    "product_id": "rakuten:regulator:10002843",
+    "nutrient_id": "protein",
+    "salt_form_id": null,
+    "amount_labeled": 20.6,
+    "unit": "g",
+    "amount_elemental": 20.600000000000005
+  },
+  {
+    "product_id": "rakuten:bulksports:10000564",
+    "nutrient_id": "protein",
+    "salt_form_id": null,
+    "amount_labeled": 20.2,
+    "unit": "g",
+    "amount_elemental": 20.2
+  },
+  {
+    "product_id": "rakuten:auc-garlic:10001284",
+    "nutrient_id": "protein",
+    "salt_form_id": null,
+    "amount_labeled": 88.9,
+    "unit": "g",
+    "amount_elemental": 88.9
+  },
+  {
+    "product_id": "rakuten:jack:10003659",
+    "nutrient_id": "protein",
+    "salt_form_id": null,
+    "amount_labeled": 81.5,
+    "unit": "g",
+    "amount_elemental": 81.5
+  },
+  {
+    "product_id": "rakuten:kenkocom:12047454",
+    "nutrient_id": "protein",
+    "salt_form_id": null,
+    "amount_labeled": 12.5,
+    "unit": "g",
+    "amount_elemental": 12.5
+  },
+  {
+    "product_id": "rakuten:auc-garlic:10001928",
+    "nutrient_id": "protein",
+    "salt_form_id": null,
+    "amount_labeled": 27.1,
+    "unit": "g",
+    "amount_elemental": 27.100000000000005
+  },
+  {
+    "product_id": "rakuten:auc-fight-club:10000144",
+    "nutrient_id": "protein",
+    "salt_form_id": null,
+    "amount_labeled": 93.6,
+    "unit": "g",
+    "amount_elemental": 93.6
+  },
+  {
+    "product_id": "rakuten:grong:10000788",
+    "nutrient_id": "protein",
+    "salt_form_id": null,
+    "amount_labeled": 22.5,
+    "unit": "g",
+    "amount_elemental": 22.5
+  },
+  {
+    "product_id": "rakuten:shop-megalos:10000084",
+    "nutrient_id": "protein",
+    "salt_form_id": null,
+    "amount_labeled": 25.2,
+    "unit": "g",
+    "amount_elemental": 25.2
+  },
+  {
+    "product_id": "rakuten:collagenkirei:10000904",
+    "nutrient_id": "protein",
+    "salt_form_id": null,
+    "amount_labeled": 89,
+    "unit": "g",
+    "amount_elemental": 89
+  },
+  {
+    "product_id": "rakuten:auc-garlic:10002212",
+    "nutrient_id": "protein",
+    "salt_form_id": null,
+    "amount_labeled": 22.975,
+    "unit": "g",
+    "amount_elemental": 22.975
+  },
+  {
+    "product_id": "rakuten:kyomo:10000507",
+    "nutrient_id": "protein",
+    "salt_form_id": null,
+    "amount_labeled": 17.9,
+    "unit": "g",
+    "amount_elemental": 17.9
+  },
+  {
+    "product_id": "rakuten:kanedestore:10013364",
+    "nutrient_id": "protein",
+    "salt_form_id": null,
+    "amount_labeled": 20,
+    "unit": "g",
+    "amount_elemental": 20
+  }
+]

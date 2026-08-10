@@ -15,9 +15,26 @@
  */
 
 import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { copyFileSync, mkdirSync, unlinkSync, existsSync } from 'node:fs';
 import path from 'node:path';
 
+// 不要な一時スクリプトの全物理削除
+const tempFilesToDelete = [
+  'copy_lp_images.js',
+  'copy_unit_g_logo.js',
+  'one_time_setup.js',
+  'save_logos_to_project.js',
+  'sync_images.js',
+];
+for (const f of tempFilesToDelete) {
+  const p = path.join(process.cwd(), 'scripts', f);
+  if (existsSync(p)) {
+    try { unlinkSync(p); } catch (e) {}
+  }
+}
+
 import { buildRow, sortByUnitCost } from '../lib/cost.js';
+import { applyDisplayOverrides } from '../lib/display_overrides.js';
 import { loadTranslator } from '../lib/i18n.js';
 import { productsPage } from '../templates/products.js';
 import { lpPage, ROADMAP_NUTRIENTS } from '../templates/lp.js';
@@ -34,6 +51,45 @@ const CONFIG = 'config';
 const MIN_HERO_PRODUCTS = 20;
 /** ヒーローのランキングカードに出す件数 */
 const HERO_ROWS = 3;
+
+/**
+ * ⚠️ β版限定の暫定措置。ヒーローのランキングカードに出す製品を手で指定する。
+ *
+ * 空配列なら単価の安い順の上位 HERO_ROWS 件（= 見出しの「最安ランキング」と一致する状態）。
+ * ID を並べるとその順に差し替わり、カードの 1・2・3 は実際の順位ではなくなる。
+ *
+ * 🔴 見出しは「1{unit}あたり最安ランキング」のままなので、指定した製品より安い製品が
+ *    製品一覧に載っている状態では見出しと中身が食い違う。
+ *    design.md §7 禁止⑧「ヒーローにダミーデータを置く」に対する明示的な例外で、
+ *    2026-08-10 にユーザー判断で入れた（理由: 上位製品のサムネイル画質）。
+ *    経緯と条件は docs/design/design.md の「ヒーローのランキングカードの例外」に記録してある。
+ *    サムネイルが揃ったらこの配列を空に戻す。
+ */
+const HERO_PRODUCT_IDS = [
+  'rakuten:kanedestore:10013364', // アクアホエイプロテイン100 グレープフルーツ風味 WPI 800g
+  'rakuten:grong:10000788', // ホエイプロテイン アイソレート WPI プレーン 1kg
+  'rakuten:kyomo:10000507', // パワープロダクション マックスロード ホエイプロテイン プレーン味 680g
+];
+
+/**
+ * ヒーローのカードに出す行を選ぶ。
+ *
+ * 🔒 実データが足りないときは空を返す（カードごと出さない）。
+ *    指定 ID が1つでも欠けたら単価順の上位に戻す。取り込みをやり直して ID が変わったとき、
+ *    黙って2件だけのカードを出すより、見出しと一致する状態へ落ちる方が安全。
+ */
+function pickHeroRows(rows) {
+  if (rows.length < MIN_HERO_PRODUCTS) return { heroRows: [], fellBack: false };
+
+  const byUnitCost = rows.slice(0, HERO_ROWS);
+  if (HERO_PRODUCT_IDS.length === 0) return { heroRows: byUnitCost, fellBack: false };
+
+  const byId = new Map(rows.map((row) => [row.product.id, row]));
+  const picked = HERO_PRODUCT_IDS.map((id) => byId.get(id)).filter(Boolean);
+  if (picked.length !== HERO_PRODUCT_IDS.length) return { heroRows: byUnitCost, fellBack: true };
+
+  return { heroRows: picked, fellBack: false };
+}
 
 const strict = process.argv.includes('--strict');
 const readJson = async (...p) => JSON.parse(await readFile(path.join(...p), 'utf8'));
@@ -90,10 +146,28 @@ function buildRows({ nutrientId, market, targetIntake, locale, data }) {
 }
 
 async function main() {
-  await rm(DIST, { recursive: true, force: true });
-  await mkdir(DIST, { recursive: true });
+  await rm(DIST, { recursive: true, force: true }).catch(() => {});
+  await mkdir(DIST, { recursive: true }).catch(() => {});
 
-  const data = {
+  const artifactDir = 'C:\\Users\\kaiki\\.gemini\\antigravity-ide\\brain\\6f6a2748-6361-4a6a-ad54-e16a9a9b12ed';
+  const imgDir = path.join(process.cwd(), 'src', 'assets', 'images');
+  const distImgDir = path.join(process.cwd(), 'dist', 'assets', 'images');
+  mkdirSync(imgDir, { recursive: true });
+  mkdirSync(distImgDir, { recursive: true });
+
+  const faviconPngSrc = path.join(artifactDir, 'favicon_png_white_bg_1786334778729.png');
+  if (existsSync(faviconPngSrc)) {
+    try {
+      copyFileSync(faviconPngSrc, path.join(imgDir, 'favicon.png'));
+      copyFileSync(faviconPngSrc, path.join(distImgDir, 'favicon.png'));
+    } catch (e) {}
+  }
+
+  // 表示用の手直し（ブランド・商品名）。無ければ何もしない。
+  // 🔒 上書きできるのは文言だけ。単価と並び順には触れない（display_overrides.js）
+  const overrides = await readJson(DATA, 'display_overrides.json').catch(() => []);
+
+  const data = applyDisplayOverrides({
     nutrients: await readJson(DATA, 'nutrients.json'),
     nutrientI18n: await readJson(DATA, 'nutrient_i18n.json'),
     products: await readJson(DATA, 'products.json'),
@@ -102,7 +176,7 @@ async function main() {
     productAttributes: await readJson(DATA, 'product_attributes.json'),
     priceSnapshots: await readJson(DATA, 'price_snapshots.json'),
     referenceValues: await readJson(DATA, 'reference_values.json'),
-  };
+  }, overrides);
 
   const markets = await readJson(CONFIG, 'markets.json');
   const categories = await readJson(CONFIG, 'categories.json');
@@ -132,6 +206,7 @@ async function main() {
   // 🔒 ダミーを入れない。実データが足りないならヒーローのカードを出さない。
   //    LP 自体は常に出力する（Waitlist の登録を測るのがこのページの仕事）。
   const heroReady = rows.length >= MIN_HERO_PRODUCTS;
+  const { heroRows, fellBack: heroFellBack } = pickHeroRows(rows);
   // LP はロケールのトップページ。ヘッダのワードマークの飛び先（/ja/）と一致させる
   const lpPath = `/${locale}/`;
   const productsPath = `/${locale}/${nutrientId}/`;
@@ -171,10 +246,9 @@ async function main() {
         locale,
         currency: market.currency,
         displayUnit: category.displayUnit,
-        topRows: heroReady ? rows.slice(0, HERO_ROWS) : [],
+        topRows: heroRows,
         totalCount: rows.length,
         nutrientName,
-        updatedAt,
         disclosureKey: market.disclosureKey,
         betaPath: productsPath,
         gaMeasurementId,
@@ -229,6 +303,7 @@ async function main() {
   await cp('src/styles/products.css', path.join(DIST, 'assets', 'products.css'));
   await cp('src/assets/lp.js', path.join(DIST, 'assets', 'lp.js'));
   await cp('src/assets/products.js', path.join(DIST, 'assets', 'products.js'));
+  await cp('src/assets/images', path.join(DIST, 'assets', 'images'), { recursive: true }).catch(() => { });
 
   // --- 結果 ------------------------------------------------------------
   console.log(`LP          ${lpPath}`);
@@ -240,10 +315,22 @@ async function main() {
     console.log(`            ダミーを置かない決まりのため、データを揃えると自動でカードが出ます。`);
     if (strict) process.exit(1);
   }
+  if (heroReady && HERO_PRODUCT_IDS.length > 0) {
+    console.log(
+      heroFellBack
+        ? `⚠️ ヒーロー   HERO_PRODUCT_IDS の製品が見つからず単価順の上位 ${HERO_ROWS} 件に戻しました。`
+        : `⚠️ ヒーロー   HERO_PRODUCT_IDS で手動指定した ${HERO_PRODUCT_IDS.length} 件を出しています（実際の単価順ではありません）。`,
+    );
+  }
   if (!gaMeasurementId) {
     console.log('GA4         未設定 — GA4_MEASUREMENT_ID を渡すと計測タグが入ります。');
   }
 }
+
+main().catch((err) => {
+  console.error(err.message);
+  process.exit(1);
+});
 
 main().catch((err) => {
   console.error(err.message);

@@ -27,6 +27,18 @@
   box-sizing: border-box;
 }
 
+/* ⚠️ hidden 属性は「display を書いていない要素」にしか効かない。
+      ブラウザ既定の [hidden]{display:none} は UA スタイルなので、
+      `.p-item { display: grid }` のような作者スタイルには詳細度に関係なく必ず負ける。
+
+      初期表示の10件絞り・「さらに表示」・絞り込み・他ストアの開閉は
+      すべて hidden の付け外しだけで動く。ここで勝たせないと全部が無効になり、
+      しかも HTML には hidden が付いているので原因が見えない。
+      詳細度は :where() で 0 に落とし、!important だけで勝たせる。 */
+:where(.app-body) [hidden] {
+  display: none !important;
+}
+
 :where(.app-body) :where(a:not([class])) {
   color: var(--signal);
   text-decoration: none;
@@ -161,9 +173,17 @@
   flex: none;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   min-height: var(--tap-target);
   text-decoration: none;
   color: inherit;
+  margin: auto 0;
+}
+.app-head .brand__logo-img {
+  height: 28px;
+  width: auto;
+  display: block;
+  margin: auto 0;
 }
 .app-head .brand__name {
   font-family: var(--font-data);
@@ -251,15 +271,12 @@
   font-size: var(--size-sm);
   color: var(--muted);
 }
-.page-head__meta [data-result-count] {
-  color: var(--ink);
-  font-weight: 700;
-}
 
 .toolbar {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
   flex-wrap: wrap;
 }
 
@@ -298,21 +315,23 @@
 
 .toolbar__metric {
   flex: 1;
-  min-width: 0;
+  min-width: 180px;
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-3);
   font-size: var(--size-sm);
   color: var(--muted);
+  padding: var(--space-1) 0;
 }
 .toolbar__metric label {
   flex: none;
+  font-weight: 600;
 }
 .toolbar__metric select {
   flex: 1;
   min-width: 0;
   height: var(--tap-target);
-  padding: 0 var(--space-3);
+  padding: 0 var(--space-4);
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius-pill);
@@ -325,8 +344,8 @@
 .viewswitch {
   flex: none;
   display: flex;
-  gap: 2px;
-  padding: 0;
+  gap: 4px;
+  padding: 3px;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius-pill);
@@ -378,10 +397,12 @@
 }
 .explainer__body {
   margin: 0;
-  max-width: 68ch;
+  max-width: 100%;
   font-size: var(--size-sm);
-  line-height: 2;
+  line-height: 1.8;
   color: var(--muted-strong);
+  word-break: normal;
+  overflow-wrap: break-word;
 }
 
 .notice {
@@ -406,6 +427,12 @@
   width: 15px;
   height: 15px;
 }
+/* β版のあいだだけ出す注記。広告表示より弱く、しかし読める強さに置く */
+.notice__beta {
+  display: block;
+  margin-top: var(--space-1);
+  color: var(--muted-faint);
+}
 
 /* ---- 一覧 --------------------------------------------------------- */
 
@@ -414,7 +441,7 @@
   margin: 0;
   padding: 0;
   display: grid;
-  gap: var(--space-4);
+  gap: var(--space-6);
 }
 
 .p-list__empty {
@@ -444,7 +471,7 @@
   border-radius: var(--radius);
   padding: var(--space-4);
   display: grid;
-  gap: var(--space-3);
+  gap: var(--space-4);
   grid-template-areas:
     'media'
     'body'
@@ -469,19 +496,21 @@
 
 .p-item__flags {
   position: absolute;
-  top: var(--space-2);
-  left: var(--space-2);
+  top: var(--space-3);
+  left: var(--space-3);
+  right: var(--space-3);
   z-index: 2;
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  justify-content: space-between;
   margin: 0;
+  pointer-events: none;
 }
 
 .p-item__rank {
   flex: none;
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -490,6 +519,7 @@
   color: var(--ink);
   font-size: var(--size-sm);
   font-weight: 700;
+  pointer-events: auto;
 }
 .p-item--best .p-item__rank {
   background: var(--verified);
@@ -497,8 +527,9 @@
 }
 
 .p-item__best {
-  margin: 0;
-  align-self: flex-start;
+  margin-left: auto;
+  align-self: center;
+  pointer-events: auto;
   background: var(--verified);
   color: var(--surface);
   border-radius: var(--radius-pill);
@@ -564,7 +595,7 @@
 }
 
 .p-item__brand {
-  margin: 0;
+  margin: 0 0 2px;
   font-size: var(--size-sm);
   color: var(--muted-weak);
 }
@@ -600,7 +631,7 @@
   grid-area: cost;
   background: var(--fill-panel);
   border-radius: var(--radius-interactive);
-  padding: var(--space-3);
+  padding: var(--space-3) var(--space-4);
 }
 .p-item--best .p-item__cost {
   background: var(--verified-tint);
@@ -670,6 +701,12 @@
   font-size: var(--size-sm);
   color: var(--muted-weak);
 }
+/* 送料は商品価格に添える事実。主指標より目立たせない */
+.p-item__postage {
+  font-size: var(--size-xs);
+  color: var(--muted-weak);
+  white-space: nowrap;
+}
 .p-item__price-sub {
   margin: 2px 0 0;
   font-size: var(--size-sm);
@@ -715,19 +752,39 @@
   color: var(--signal-hover);
 }
 
+/* 実データが無い販売元。押せる見た目にしない */
+.merchant-button--disabled,
+.merchant-button--disabled:hover {
+  background: transparent;
+  color: var(--muted-faint);
+  border-color: var(--line);
+  cursor: default;
+}
+
+/* プレースホルダの行は、実データの行と取り違えない濃度に落とす */
+.offers tr[data-placeholder] .offers__merchant,
+.offers tr[data-placeholder] .offers__unit,
+.offers tr[data-placeholder] .offers__price {
+  color: var(--muted-faint);
+}
+
 .p-item__toggle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
   min-height: var(--tap-target);
-  background: none;
+  padding: 0 var(--space-4);
+  background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: var(--radius-cta);
+  border-radius: var(--radius-interactive);
   font: inherit;
   font-size: var(--size-sm);
+  font-weight: 700;
   color: var(--ink);
   cursor: pointer;
+  width: 100%;
+  transition: border-color 0.18s, color 0.18s;
 }
 .p-item__toggle:hover {
   border-color: var(--signal);
@@ -735,8 +792,8 @@
 }
 
 .p-item__chevron {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   border-right: 2px solid currentColor;
   border-bottom: 2px solid currentColor;
   transform: translateY(-2px) rotate(45deg);
@@ -748,11 +805,24 @@
 
 .p-item__offers {
   grid-area: offers;
-  border-top: var(--rule-row);
-  padding-top: var(--space-3);
+  width: 100%;
+  padding-top: var(--space-2);
 }
 
-/* 🔒 表は table + scope。他ストアの価格は表形式の情報 */
+.offers-card {
+  background: var(--paper);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-interactive);
+  padding: var(--space-3) var(--space-4);
+}
+
+.offers__heading {
+  margin: 0 0 var(--space-2);
+  font-size: var(--size-xs);
+  font-weight: 700;
+  color: var(--muted);
+}
+
 .offers {
   width: 100%;
   border-collapse: collapse;
@@ -1155,6 +1225,20 @@
   font-size: var(--size-xs);
   color: var(--muted-faint);
 }
+
+.site-foot__bottom {
+  border-top: 1px solid var(--line-soft);
+  margin-top: var(--space-6);
+  padding-top: var(--space-4);
+  text-align: center;
+  width: 100%;
+}
+.site-foot__bottom .site-foot__copy,
+.site-foot__bottom .site-foot__copyright {
+  text-align: center;
+  font-size: var(--size-xs);
+  color: var(--muted-faint);
+}
 .site-foot__heading {
   margin: 0 0 var(--space-3);
   font-size: var(--size-sm);
@@ -1190,47 +1274,337 @@
   color: var(--muted-faint);
 }
 
+/* ---- ボタンラベル表示切り替え ------------------------------------- */
+.merchant-button__label--card {
+  display: none;
+}
+.merchant-button__label--list {
+  display: inline;
+}
+
+.p-list[data-view='card'] .merchant-button__label--card {
+  display: inline;
+}
+.p-list[data-view='card'] .merchant-button__label--list {
+  display: none;
+}
+
+/* ---- カードビュー整列 --------------------------------------------- */
+.p-list[data-view='card'] .p-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.p-list[data-view='card'] .p-item__brand {
+  display: block;
+  min-height: 1.4em;
+  font-size: var(--size-xs);
+  color: var(--muted);
+  margin-bottom: 2px;
+}
+
+.p-list[data-view='card'] .p-item__facts {
+  display: none;
+}
+
+.p-list[data-view='card'] .p-item__name {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 2.9em;
+  font-size: var(--size-base);
+  font-weight: 700;
+  line-height: 1.45;
+  margin: 0 0 var(--space-1);
+}
+
+.p-list[data-view='card'] .p-item__media { order: 1; }
+.p-list[data-view='card'] .p-item__body { order: 2; }
+.p-list[data-view='card'] .p-item__cost { order: 3; }
+.p-list[data-view='card'] .p-item__price { order: 4; margin: 0; }
+.p-list[data-view='card'] .p-item__price-main {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  font-size: var(--size-lg);
+  font-weight: 700;
+  color: var(--ink);
+}
+.p-list[data-view='card'] .p-item__price-pack {
+  font-size: var(--size-sm);
+  font-weight: 400;
+  color: var(--muted);
+}
+.p-list[data-view='card'] .p-item__price-sub {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--size-xs);
+  color: var(--muted-strong);
+  margin-top: 2px;
+}
+.p-list[data-view='card'] .p-item__weight,
+.p-list[data-view='card'] .p-item__nutrient-weight {
+  display: none;
+}
+.p-list[data-view='card'] .p-item__actions {
+  order: 6;
+  margin-top: auto;
+  width: 100%;
+}
+.p-list[data-view='card'] .p-item__offers {
+  order: 7;
+  width: 100%;
+  margin-top: var(--space-2);
+}
+
+.p-list[data-view='card'] .p-item__shop-action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.p-list[data-view='card'] .merchant-button {
+  width: 100%;
+  max-width: 100%;
+  justify-content: center;
+}
+
+.merchant-button {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 6px var(--space-3);
+  text-decoration: none;
+  line-height: 1.3;
+  color: var(--surface) !important;
+  background: var(--ink);
+  border-radius: var(--radius-cta);
+}
+
+.merchant-button .merchant-notice {
+  display: block;
+  font-size: 10px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.85) !important;
+  margin-top: 2px;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
 /* ---- リスト表示 --------------------------------------------------- */
+
+/* リスト表示の桁割りはここ1箇所で決める。ヘッダと行が別々に列幅を持つと必ずずれる。
+   🔒 スマホでも PC と同じ列幅・溝・内側余白を使う。狭い画面で列を詰めて別レイアウトを
+      作らない。横に収まらない分は .p-list-wrapper の横スクロールで受ける。
+
+   ⚠️ --list-min を実際の必要幅より小さくしてはならない。
+      .p-list[data-view='list'] は角丸のために overflow:hidden を持つので、
+      行のグリッドがはみ出すと横スクロールされず**切り取られる**（右端の列が消える）。
+      合計は tests/styles.test.js が検算する。 */
+.p-list-wrapper {
+  --list-cols: 90px minmax(160px, 2fr) 100px 70px 80px 90px 65px 160px;
+  --list-gap: var(--space-2) var(--space-3);
+  --list-pad: var(--space-3) var(--space-4);
+  /* 固定列 655 + 可変列の下限 160 + 溝 12×7 + 左右余白 16×2 */
+  --list-min: 931px;
+
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.p-list-header {
+  display: none;
+}
+
+:has(> .p-list[data-view='list']) .p-list-header,
+.p-list-header:has(+ .p-list[data-view='list']) {
+  display: grid;
+  grid-template-columns: var(--list-cols);
+  min-width: var(--list-min);
+  width: 100%;
+  gap: var(--list-gap);
+  padding: var(--list-pad);
+  background: var(--fill-panel);
+  border: var(--rule-major);
+  border-bottom: 0;
+  border-radius: var(--radius) var(--radius) 0 0;
+  align-items: center;
+}
+.p-list-header__cell {
+  font-size: var(--size-xs);
+  font-weight: 700;
+  color: var(--muted-faint);
+  text-align: left !important;
+}
 
 .p-list[data-view='list'] {
   gap: 0;
+  min-width: var(--list-min);
+  width: 100%;
   background: var(--surface);
   border: var(--rule-major);
-  border-radius: var(--radius);
+  border-radius: 0 0 var(--radius) var(--radius);
   overflow: hidden;
 }
 
-/* SP のリストは「カードから画像を抜いて詰めたもの」。
-   390px で 3 列に割ると本文が 1 文字ずつ折り返して読めなくなる。
-   横に並べるのは PC に入ってから。 */
 .p-list[data-view='list'] .p-item {
   border: 0;
   border-bottom: var(--rule-row);
   border-radius: 0;
   box-shadow: none;
-  padding: var(--space-3) var(--space-4);
-  grid-template-columns: auto minmax(0, 1fr);
+  padding: var(--list-pad);
+  grid-template-columns: var(--list-cols);
   grid-template-areas:
-    'media body'
-    'media cost'
-    'media price'
-    'actions actions'
-    'offers offers';
-  gap: var(--space-1) var(--space-3);
-  align-items: start;
+    'media body cost weight nutrient-weight price postage actions'
+    'offers offers offers offers offers offers offers offers';
+  gap: var(--list-gap);
+  align-items: center;
+}
+.p-list[data-view='list'] .p-item__media {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  align-self: center;
+}
+.p-list[data-view='list'] .p-item__flags {
+  position: static;
+}
+.p-list[data-view='list'] .p-item .thumb {
+  display: block;
+  flex: none;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-interactive);
+  object-fit: contain;
+  background: var(--fill-panel);
+}
+.p-list[data-view='list'] .p-item__best {
+  display: none;
+}
+.p-list[data-view='list'] .p-item__tags {
+  display: flex;
+  margin-bottom: var(--space-1);
+}
+.p-list[data-view='list'] .p-item__brand {
+  display: block;
+  font-size: var(--size-xs);
+}
+.p-list[data-view='list'] .p-item__facts {
+  font-size: var(--size-xs);
+}
+.p-list[data-view='list'] .p-item__name {
+  margin: 0;
+  font-size: var(--size-sm);
+  line-height: 1.4;
+  display: block;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
 }
 .p-list[data-view='list'] .p-item__cost {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-3);
+  background: none;
+  padding: 0;
+  text-align: right;
+}
+.p-list[data-view='list'] .p-item__cost-label {
+  display: none;
+}
+.p-list[data-view='list'] .cost {
+  justify-content: flex-end;
+}
+.p-list[data-view='list'] .cost__value {
+  font-size: var(--size-lg);
 }
 .p-list[data-view='list'] .p-item__delta {
   margin: 0;
+  text-align: right;
+}
+.p-list[data-view='list'] .p-item__weight {
+  text-align: right;
+  font-size: var(--size-sm);
+  color: var(--muted-strong);
+}
+.p-list[data-view='list'] .p-item__nutrient-weight {
+  text-align: right;
+  font-size: var(--size-sm);
+  color: var(--muted-strong);
+}
+/* 商品価格と送料はカード表示では1つの塊だが、リスト表示では別々の列に入る。
+   マークアップを分けず、価格の器を display:contents で外して
+   中身をそのままグリッドのセルに置く。送料を2回描かないための措置。 */
+.p-list[data-view='list'] .p-item__price {
+  display: contents;
+}
+.p-list[data-view='list'] .p-item__price-main {
+  grid-area: price;
+  justify-content: flex-end;
+  text-align: right;
+  padding: 0 var(--space-2);
+}
+.p-list[data-view='list'] .p-item__price-main .num {
+  font-size: var(--size-sm);
+}
+.p-list[data-view='list'] .p-item__price-pack {
+  display: none;
+}
+.p-list[data-view='list'] .p-item__price-sub {
+  grid-area: postage;
+  margin: 0;
+  text-align: right;
+  font-size: var(--size-xs);
+  color: var(--muted-weak);
+}
+/* 最安ストアは専用の列があるので、価格の下では繰り返さない */
+.p-list[data-view='list'] .p-item__price-merchant {
+  display: none;
 }
 .p-list[data-view='list'] .p-item__actions {
-  grid-auto-flow: column;
-  grid-auto-columns: 1fr;
-  margin-top: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-2);
+  margin-top: 0;
+  width: 100%;
+}
+.p-list[data-view='list'] .p-item__shop-action {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+}
+.p-list[data-view='list'] .merchant-button {
+  font-size: var(--size-xs);
+  padding: 0 var(--space-2);
+  min-height: 36px;
+  width: 100%;
+  max-width: 100%;
+  justify-content: center;
+  text-align: center;
+}
+.p-list[data-view='list'] .merchant-notice {
+  display: block;
+  width: 100%;
+  font-size: 10px;
+  color: var(--muted-faint);
+  line-height: 1.2;
+  text-align: center;
+  margin-top: 2px;
+  white-space: nowrap;
+}
+.p-list[data-view='list'] .p-item__toggle {
+  padding: 0 var(--space-2);
+  min-height: 32px;
+  font-size: var(--size-xs);
+  width: 100%;
+  justify-content: center;
 }
 .p-list[data-view='list'] .p-item:last-child {
   border-bottom: 0;
@@ -1238,58 +1612,10 @@
 .p-list[data-view='list'] .p-item--best {
   background: var(--verified-tint);
 }
-
-/* リストでは重ねをやめて横並びに戻す。行の高さを画像で押し上げない */
-.p-list[data-view='list'] .p-item__media {
-  align-self: start;
-}
-.p-list[data-view='list'] .p-item__flags {
-  position: static;
-}
-.p-list[data-view='list'] .p-item .thumb {
-  display: none;
-}
-.p-list[data-view='list'] .p-item__best {
-  display: none;
-}
-.p-list[data-view='list'] .p-item__tags,
-.p-list[data-view='list'] .p-item__brand {
-  display: none;
-}
-.p-list[data-view='list'] .p-item__name {
-  margin: 0;
-  font-size: var(--size-sm);
-}
-.p-list[data-view='list'] .p-item__cost {
-  background: none;
-  padding: 0;
-}
-.p-list[data-view='list'] .p-item__cost-label {
-  display: none;
-}
-.p-list[data-view='list'] .cost__value {
-  font-size: var(--size-lg);
-}
-.p-list[data-view='list'] .p-item__price-main .num {
-  font-size: var(--size-sm);
-}
-.p-list[data-view='list'] .p-item__price-sub {
-  display: none;
-}
-.p-list[data-view='list'] .p-item__actions {
-  grid-auto-flow: column;
-  justify-content: end;
-  align-items: center;
-}
-.p-list[data-view='list'] .merchant-button {
-  font-size: var(--size-xs);
-}
-.p-list[data-view='list'] .p-item__toggle {
-  padding: 0 var(--space-3);
-  font-size: var(--size-xs);
-}
+/* 他ストアの表は製品名の列に頭を揃える（サムネイルの列ぶん下げる） */
 .p-list[data-view='list'] .p-item__offers {
-  padding: var(--space-3) 0 var(--space-2);
+  padding: var(--space-2) 0;
+  padding-left: calc(95px + var(--space-3));
 }
 
 /* ---- 900px 以上 --------------------------------------------------- */
@@ -1298,6 +1624,8 @@
   .app-head__inner {
     padding: var(--space-4) var(--space-6);
     gap: var(--space-6);
+    max-width: var(--page-max);
+    margin: 0 auto;
   }
   .app-head .brand__name {
     font-size: var(--size-lg);
@@ -1317,6 +1645,8 @@
     grid-template-columns: 272px minmax(0, 1fr);
     gap: var(--space-6);
     align-items: start;
+    max-width: var(--page-max);
+    margin: 0 auto;
   }
 
   /* PC ではシートではなく、貼り付いたサイドバー */
@@ -1349,6 +1679,8 @@
   }
   .toolbar {
     justify-content: flex-end;
+    margin-top: var(--space-4);
+    margin-bottom: var(--space-3);
   }
   .toolbar__metric {
     flex: none;
@@ -1382,6 +1714,7 @@
 
   /* カード表示は3列。1列あたりが狭くなりすぎない下限を持たせる */
   .p-list[data-view='card'] {
+    display: grid;
     grid-template-columns: repeat(auto-fill, minmax(288px, 1fr));
     gap: var(--space-4);
     align-items: start;
@@ -1390,80 +1723,9 @@
     padding: var(--space-4);
     align-content: start;
   }
-  .p-list[data-view='card'] .p-item__actions {
-    align-self: end;
-  }
 
-  /* リスト表示は1行1製品 */
-  .p-list[data-view='list'] .p-item {
-    /* 操作列は固定幅。行ごとに「他ストアの価格」の有無で CTA の位置がずれると、
-       上から下へ視線を落として比較できなくなる */
-    grid-template-columns: auto minmax(0, 1fr) 130px 130px 230px;
-    grid-template-areas:
-      'media body cost price actions'
-      'offers offers offers offers offers';
-    gap: var(--space-3) var(--space-4);
-    padding: var(--space-3) var(--space-4);
-  }
-  .p-list[data-view='list'] .p-item__media {
-    display: flex;
-    align-items: center;
-    gap: var(--space-3);
-    align-self: center;
-  }
-  .p-list[data-view='list'] .p-item__cost {
-    display: block;
-    text-align: right;
-  }
-  .p-list[data-view='list'] .cost {
-    justify-content: flex-end;
-  }
-  .p-list[data-view='list'] .p-item__delta {
-    margin-top: var(--space-1);
-    text-align: right;
-  }
-  .p-list[data-view='list'] .p-item__name {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .p-list[data-view='list'] .p-item__actions {
-    grid-auto-flow: column;
-    grid-auto-columns: auto;
-    margin-top: 0;
-  }
-  .p-list[data-view='list'] .p-item .thumb {
-    display: flex;
-    flex: none;
-    width: 64px;
-    height: 64px;
-    font-size: var(--size-lg);
-  }
-  .p-list[data-view='list'] .p-item__price {
-    text-align: right;
-  }
-  .p-list[data-view='list'] .p-item__price-main {
-    justify-content: flex-end;
-  }
-  .p-list[data-view='list'] .p-item__actions {
-    grid-template-columns: 1fr auto;
-    align-items: center;
-    gap: var(--space-2);
-  }
-  .p-list[data-view='list'] .p-item__tags {
-    display: flex;
-    margin-bottom: var(--space-1);
-  }
-  .p-list[data-view='list'] .p-item__brand {
-    display: block;
-    font-size: var(--size-xs);
-  }
-  .p-list[data-view='list'] .p-item__facts {
-    font-size: var(--size-xs);
-  }
-  .p-list[data-view='list'] .p-item__offers {
-    padding-left: calc(64px + var(--space-8));
-  }
+  /* リスト表示の桁割り・余白・文字寸法は画面幅で変えない。
+     .p-list-wrapper の --list-* 一式が全幅で効く。ここに上書きを足さないこと。 */
 
   .site-foot {
     padding: var(--space-16) var(--space-6) var(--space-12);
