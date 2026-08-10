@@ -46,7 +46,7 @@ ${waitlist(t, { support })}
 ${siteFooter(t, { disclosureKey })}
 
 <script src="/assets/lp.js" defer></script>
-${supportScript(support)}`;
+${supportScript(support, { locale })}`;
 
   return layout({
     locale,

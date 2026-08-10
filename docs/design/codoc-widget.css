@@ -1,0 +1,165 @@
+/* pergram — Codoc ウィジェットの見た目をサイトに合わせる
+   値の出所は src/styles/tokens.css。ここに新しい色を作らない。
+   signal #ea580c / hover #c2410c / band #fff7ed / ink #0f172a
+   面 16px / 操作 10px / タップ領域 44px 以上 / 本文 16px を下回らない */
+
+.codoc-entry,
+.codoc-modal-mask {
+  font-family: 'Noto Sans JP', system-ui, -apple-system, 'Hiragino Sans', sans-serif;
+  color: #0f172a;
+}
+
+/* --- 支援パネル ------------------------------------------------------- */
+.codoc-support {
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 24px;
+  background: #fff7ed;
+  border: 1px solid rgba(234, 88, 12, 0.25);
+  border-radius: 16px;
+  box-sizing: border-box;
+}
+
+/* テーマが載せる虹色の帯を消す。色は signal と verified の2つしか意味を持たない */
+.codoc-support:before,
+.codoc-buy:before {
+  content: none;
+}
+
+.codoc-support .codoc-support-title {
+  /* 改行を改行のまま表示する。Codoc はメッセージをテキストとして描画するので
+     <br> は使えず、見た目の改行はここが作る */
+  white-space: pre-line;
+  text-align: left;
+  margin-bottom: 20px;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.85;
+  color: rgba(22, 24, 29, 0.85);
+}
+
+/* --- ボタン ----------------------------------------------------------- */
+.codoc-entry .codoc-btn,
+.codoc-support .codoc-btn {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  min-height: 48px;
+  margin: 0;
+  padding: 12px 16px;
+  background: #ea580c;
+  border: 1px solid #ea580c;
+  border-radius: 10px;
+  color: #fff !important;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+  box-sizing: border-box;
+  transition: background 150ms ease, border-color 150ms ease;
+}
+
+.codoc-entry .codoc-btn:hover,
+.codoc-support .codoc-btn:hover {
+  background: #c2410c;
+  border-color: #c2410c;
+  color: #fff !important;
+}
+
+.codoc-entry .codoc-btn:focus-visible,
+.codoc-support .codoc-btn:focus-visible {
+  outline: 2px solid #ea580c;
+  outline-offset: 2px;
+}
+
+/* --- 出典表記 --------------------------------------------------------- */
+.codoc-copyright {
+  margin-top: 12px;
+  font-size: 12px;
+  color: rgba(22, 24, 29, 0.65);
+}
+
+.codoc-copyright a {
+  color: rgba(22, 24, 29, 0.65);
+}
+
+/* --- 金額を決めるポップアップ ------------------------------------------ */
+.codoc-modal-container {
+  border-radius: 16px;
+  box-shadow: 0 10px 34px rgba(22, 24, 29, 0.18);
+}
+
+.codoc-modal-header > div .codoc-modal-header-title {
+  font-size: 16px !important;
+  color: #0f172a;
+}
+
+.codoc-modal-container .codoc-modal-body textarea,
+.codoc-modal-container .codoc-modal-body input[type='text'] {
+  border: 1px solid rgba(22, 24, 29, 0.1);
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 16px;
+  color: #0f172a;
+}
+
+.codoc-modal-container .codoc-modal-body textarea:focus,
+.codoc-modal-container .codoc-modal-body input[type='text']:focus {
+  outline: 2px solid #ea580c;
+  outline-offset: 1px;
+}
+
+/* ポップアップの主ボタン。操作の色はサイトと同じ signal に揃える */
+.codoc-modal-container .codoc-modal-default-button,
+.codoc-modal-container .codoc-btn-buy-bg,
+.codoc-modal-container .codoc-noentry-btn .codoc-btn {
+  background: #ea580c !important;
+  border: 1px solid #ea580c !important;
+  border-radius: 10px !important;
+  color: #fff !important;
+  font-size: 16px;
+  font-weight: 700;
+  min-height: 48px;
+  transition: background 150ms ease, border-color 150ms ease;
+}
+
+.codoc-modal-container .codoc-modal-default-button:hover,
+.codoc-modal-container .codoc-btn-buy-bg:hover {
+  background: #c2410c !important;
+  border-color: #c2410c !important;
+}
+
+/* 金額は桁を揃える。揃わない数字は比較できない */
+.codoc-support-modal-price,
+.codoc-support-modal-price *,
+.codoc-modal-thx-price,
+.codoc-modal-thx-price-num,
+.codoc-buy-price {
+  font-variant-numeric: tabular-nums;
+}
+
+/* 金額の増減ボタンは操作の従。主ボタンと同じ重みにしない */
+.codoc-support-modal-price button,
+.codoc-support-modal-price a {
+  min-height: 44px;
+  border: 1px solid rgba(22, 24, 29, 0.1);
+  border-radius: 10px;
+  background: #fff;
+  color: #0f172a !important;
+  font-weight: 700;
+}
+
+.codoc-support-modal-price button:hover,
+.codoc-support-modal-price a:hover {
+  background: rgba(22, 24, 29, 0.03);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .codoc-entry .codoc-btn,
+  .codoc-support .codoc-btn,
+  .codoc-modal-container .codoc-modal-default-button,
+  .codoc-modal-container {
+    transition: none;
+  }
+}
