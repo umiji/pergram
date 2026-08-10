@@ -44,6 +44,23 @@ test('🔒 支援ウィジェットを出す市場では CSP がその3経路を
   assert.ok(directive(csp, 'connect-src').includes(origin), 'connect-src に許可がありません');
 });
 
+// 🔒 これが無いと支援ウィジェットは「読み込みも通信も成功したのに画面が空」になる。
+//    Codoc の cms-core.js は Vue のテンプレートコンパイラ入りビルドで、
+//    テンプレートを `new Function(...)` で関数化する。CSP に 'unsafe-eval' が
+//    無いとその生成が失敗するが、Vue は例外を握り潰して描画関数を空関数に
+//    差し替えるため、mount は成功したように見えたまま何も描かれない。
+//    本番ビルドの Vue は警告も出さないので、コンソールにも痕跡が残らない。
+test("🔒 支援ウィジェットを出す市場では script-src に 'unsafe-eval' がある", () => {
+  const origin = supportOriginOf(markets.JP.support);
+  assert.ok(origin, 'JP の支援設定がありません');
+
+  const csp = contentSecurityPolicy({ supportOrigin: origin });
+  assert.ok(
+    directive(csp, 'script-src').includes("'unsafe-eval'"),
+    "script-src に 'unsafe-eval' がありません",
+  );
+});
+
 test('支援ウィジェットを出さない市場では外部オリジンが増えない', () => {
   assert.equal(markets.US.support, null);
 
@@ -52,6 +69,12 @@ test('支援ウィジェットを出さない市場では外部オリジンが�
 
   assert.ok(!without.includes('example.test'));
   assert.ok(withSupport.length > without.length);
+});
+
+// 🔒 緩めるのは支援ウィジェットを出す市場だけ。理由が無い市場まで道連れにしない
+test("🔒 支援ウィジェットを出さない市場では 'unsafe-eval' を許可しない", () => {
+  const csp = contentSecurityPolicy({ supportOrigin: null });
+  assert.ok(!csp.includes("'unsafe-eval'"), "'unsafe-eval' が無条件に付いています");
 });
 
 // 🔒 既定の締め方を緩めない。ここが緩むと XSS の被害が一段深くなる

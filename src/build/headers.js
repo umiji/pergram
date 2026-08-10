@@ -26,13 +26,24 @@ function withOrigin(base, origin) {
  *   `fonts.googleapis.com` の許可は外せる。
  * - 支援ウィジェット（Codoc）は script / stylesheet / API 取得の3経路を使う。
  *   決済は iframe ではなく別ウィンドウなので `frame-src` は要らない。
+ * - 🔒 支援ウィジェットを出す市場だけ `script-src` に `'unsafe-eval'` を足す。
+ *   Codoc の `cms-core.js` は Vue のテンプレートコンパイラ入りビルドで、
+ *   埋め込み要素のテンプレートを `new Function(...)` で描画関数に変換する。
+ *   これが CSP に阻まれると Vue は例外を握り潰して描画関数を空関数に差し替えるため、
+ *   **スクリプトの取得も API 通信も成功しているのに、要素だけが空になる**。
+ *   本番ビルドの Vue は警告を出さないので、コンソールにも痕跡が残らない。
+ *   支援設定が無い市場（US）には付けない。緩めるのは理由のある側だけにする。
  *
  * @param {{ supportOrigin?: string | null }} options
  */
 export function contentSecurityPolicy({ supportOrigin = null } = {}) {
+  const scriptSrc = supportOrigin
+    ? `script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com`
+    : `script-src 'self' 'unsafe-inline' https://www.googletagmanager.com`;
+
   return [
     `default-src 'self'`,
-    withOrigin(`script-src 'self' 'unsafe-inline' https://www.googletagmanager.com`, supportOrigin),
+    withOrigin(scriptSrc, supportOrigin),
     withOrigin(`style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`, supportOrigin),
     `font-src 'self' https://fonts.gstatic.com`,
     `img-src 'self' data: https:`,
