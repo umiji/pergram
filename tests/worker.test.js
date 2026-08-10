@@ -2,11 +2,13 @@
  * Worker の振り分けと待機リストの受け口。
  *
  * D1 は差し替えて、**何が保存されるか**を機械的に検査する。
- * 🔒 保存してよいのは email / nutrients / channel / created_at の4つだけ。
+ * 🔒 保存してよいのは email / nutrients / channel / nutrients_other / requests /
+ *    created_at の6つだけ。年齢・性別・体調・服薬は送られてきても保存しない。
  */
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { REQUESTS_MAX } from '../src/lib/waitlist_fields.js';
 
 import worker from '../worker/index.js';
 
@@ -48,15 +50,45 @@ const post = (body) =>
     body: JSON.stringify(body),
   });
 
-test('待機リストの登録は 200 を返し、4つの値だけを保存する', async () => {
+/** 保存列の数。増やすときは schema.sql と worker/migrations/ を必ず揃える */
+const STORED_COLUMNS = 6;
+
+test('待機リストの登録は 200 を返し、決まった数の値だけを保存する', async () => {
   const { env, writes } = makeEnv();
-  const res = await worker.fetch(post({ email: 'a@example.com', nutrients: ['creatine'], channel: 'rakuten' }), env);
+  const res = await worker.fetch(
+    post({
+      email: 'a@example.com',
+      nutrients: ['creatine'],
+      channel: 'yahoo',
+      nutrients_other: 'グルタミン',
+      requests: '送料込みで並べたい',
+    }),
+    env,
+  );
 
   assert.equal(res.status, 200);
   assert.deepEqual(await res.json(), { ok: true });
   assert.equal(writes.length, 1);
-  assert.equal(writes[0].args.length, 4);
-  assert.deepEqual(writes[0].args.slice(0, 3), ['a@example.com', 'creatine', 'rakuten']);
+  assert.equal(writes[0].args.length, STORED_COLUMNS);
+  assert.deepEqual(writes[0].args.slice(0, 5), [
+    'a@example.com',
+    'creatine',
+    'yahoo',
+    'グルタミン',
+    '送料込みで並べたい',
+  ]);
+});
+
+test('自由記述は空欄なら null で保存し、上限を超えたら切る', async () => {
+  const { env, writes } = makeEnv();
+  await worker.fetch(
+    post({ email: 'a@example.com', nutrients_other: '   ', requests: 'あ'.repeat(REQUESTS_MAX + 50) }),
+    env,
+  );
+
+  const [, , , nutrientsOther, requests] = writes[0].args;
+  assert.equal(nutrientsOther, null, '空白だけの入力は null にする');
+  assert.equal(requests.length, REQUESTS_MAX);
 });
 
 test('🔒 年齢・体調など許可していない項目は保存しない', async () => {
@@ -66,16 +98,17 @@ test('🔒 年齢・体調など許可していない項目は保存しない', 
     env,
   );
 
-  // 4つ目は created_at のタイムスタンプ。時計から作られる文字列に部分一致をかけると、
-  // 秒が 30 の瞬間に年齢「30」と一致して落ちる。検査するのは入力由来の3つに限る。
-  const [email, nutrients, channel, createdAt] = writes[0].args;
+  // 最後は created_at のタイムスタンプ。時計から作られる文字列に部分一致をかけると、
+  // 秒が 30 の瞬間に年齢「30」と一致して落ちる。検査するのは入力由来の列に限る。
+  const args = writes[0].args;
+  const createdAt = args[args.length - 1];
 
-  const stored = JSON.stringify([email, nutrients, channel]);
+  const stored = JSON.stringify(args.slice(0, -1));
   for (const leaked of ['30', 'male', '疲れやすい', 'なし']) {
     assert.ok(!stored.includes(leaked), `保存してはいけない値「${leaked}」がバインドされています`);
   }
-  // 保存されるのは4つだけ。4つ目が時刻であることも確かめ、項目が増えていないことを見る
-  assert.equal(writes[0].args.length, 4);
+  // 列が増えていないことを見る。最後が時刻であることも確かめる
+  assert.equal(args.length, STORED_COLUMNS);
   assert.match(createdAt, /^\d{4}-\d{2}-\d{2}T/);
 });
 

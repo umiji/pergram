@@ -188,9 +188,16 @@
   "lp.form.email": "Email address (for the launch notice)",
   "lp.form.emailPlaceholder": "you@example.com",
   "lp.form.nutrients": "Nutrients you want next (choose any)",
+  "lp.form.nutrientsOther": "Something else (write it in)",
+  "lp.form.nutrientsOtherPlaceholder": "Name the nutrient or product",
   "lp.form.channel": "Where you usually buy",
+  "lp.form.requests": "Anything else you want (write it in)",
+  "lp.form.requestsPlaceholder": "Features you want, or what you want to compare",
+  "lp.form.freeTextNote": "Do not write health conditions, symptoms, or medication. We do not store them if you do.",
   "lp.form.submit": "Send my request and join",
-  "lp.form.note": "No spam. Unsubscribe at any time. We do not collect personal details we do not need.",
+  "lp.form.note": "We do not collect personal details we do not need.",
+  "lp.form.noteUse": "We use what you send only for the launch notice and to decide which nutrients and features to publish.",
+  "lp.form.noteRelease": "We may decide not to launch. If that happens we delete everything we collected.",
   "lp.form.done": "Signed up. We will email you at launch.",
   "lp.form.errorEmail": "Check the email address format.",
   "lp.form.errorSend": "Could not send. Try again later.",
@@ -213,5 +220,7 @@
   "channel.amazon": "Amazon",
   "channel.iherb": "iHerb",
   "channel.myprotein": "Myprotein",
-  "channel.store": "Retail store"
+  "channel.store": "Retail store",
+  "channel.yahoo": "Yahoo! Shopping",
+  "channel.other": "Other"
 }

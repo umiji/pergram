@@ -124,7 +124,7 @@ export function hero(ctx) {
   const card = rankCard(ctx);
 
   const beta = betaPath
-    ? `<a class="btn btn--signal btn--block hero__beta" href="${escapeHtml(betaPath)}">${escapeHtml(
+    ? `<a class="btn btn--signal btn--block hero__beta" href="${escapeHtml(betaPath)}" data-cta="hero_beta">${escapeHtml(
         t('lp.hero.beta', { nutrient: nutrientName }),
       )}</a>`
     : '';
@@ -138,7 +138,7 @@ export function hero(ctx) {
       <p class="hero__lede">${escapeHtml(t('lp.lede'))}</p>
       <div class="hero__actions">
         ${beta}
-        <a class="btn btn--subtle btn--block hero__waitlist" href="#waitlist">${escapeHtml(t('lp.cta'))}</a>
+        <a class="btn btn--subtle btn--block hero__waitlist" href="#waitlist" data-cta="hero_waitlist">${escapeHtml(t('lp.cta'))}</a>
         <p class="hero__note">${escapeHtml(t('lp.ctaNote'))}</p>
       </div>
     </div>

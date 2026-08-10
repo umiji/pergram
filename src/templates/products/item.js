@@ -196,6 +196,8 @@ export function productItem(row, index, ctx) {
   // data-* は絞り込みが読む。導出値はここで確定させ、クライアントで再計算しない
   const data = [
     `data-rank="${index + 1}"`,
+    // 計測が読む。🔒 GA4 に送るのは ID だけで、価格も URL も送らない
+    `data-product-id="${escapeHtml(row.product.id)}"`,
     `data-unit-cost="${row.costPerNutrientUnit}"`,
     `data-price="${row.price}"`,
     `data-merchant="${escapeHtml(row.merchant)}"`,

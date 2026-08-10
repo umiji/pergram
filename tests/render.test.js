@@ -5,6 +5,7 @@ import { readFile } from 'node:fs/promises';
 import { loadTranslator } from '../src/lib/i18n.js';
 import { productsPage } from '../src/templates/products.js';
 import { lpPage, ROADMAP_NUTRIENTS } from '../src/templates/lp.js';
+import { CHANNEL_CHIPS } from '../src/lib/waitlist_fields.js';
 import { makeRows, market } from './fixtures.js';
 
 const t = await loadTranslator('ja');
@@ -542,6 +543,43 @@ test('LP に禁止語が入っていない', () => {
   for (const word of BANNED_WORDS) {
     assert.ok(!html.includes(word), `LP に禁止語「${word}」が含まれています`);
   }
+});
+
+test('フォームは選択肢に無い成分と、その他の要望を自由記述で受け取れる', () => {
+  const html = renderLp();
+
+  // 名前は Worker とクライアントが読むキーそのもの。綴りがずれると黙って捨てられる
+  assert.match(html, /name="nutrients_other"[^>]*maxlength="\d+"/);
+  assert.match(html, /<textarea[^>]*name="requests"[^>]*maxlength="\d+"/);
+  assert.ok(html.includes(t('lp.form.nutrientsOther')));
+  assert.ok(html.includes(t('lp.form.requests')));
+
+  // 🔒 N-01 / N-05。自由記述に症状を書かせない注記を必ず添える
+  assert.ok(html.includes(t('lp.form.freeTextNote')), '自由記述の注記がありません');
+});
+
+test('普段使っているショップに Yahoo!ショッピングとその他が並ぶ', () => {
+  const html = renderLp();
+  for (const key of CHANNEL_CHIPS) {
+    assert.ok(
+      html.includes(`value="${key}"`),
+      `購入先のチップ「${key}」が出ていません`,
+    );
+    assert.ok(html.includes(t(`channel.${key}`)), `購入先「${key}」の文言がありません`);
+  }
+  // 🔒 単一選択。チェックボックスにしない
+  assert.ok(!/name="channel"[^>]*type="checkbox"/.test(html));
+});
+
+test('🔒 できないことを書かない。利用目的と、リリースしない場合の扱いを明示する', () => {
+  const html = renderLp();
+
+  // 配信停止の窓口がどこにも無いので、できると書かない
+  for (const claim of ['配信停止', 'Unsubscribe', '解除']) {
+    assert.ok(!html.includes(claim), `実装していない「${claim}」を約束しています`);
+  }
+  assert.ok(html.includes(t('lp.form.noteUse')), '取得した情報の利用目的がありません');
+  assert.ok(html.includes(t('lp.form.noteRelease')), 'リリースしない場合の扱いがありません');
 });
 
 test('🔒 LP のフォームは同一ページ内で完了状態に切り替わる', () => {

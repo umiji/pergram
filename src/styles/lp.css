@@ -695,7 +695,9 @@
   padding: 0;
 }
 
-.waitlist input[type='email'] {
+.waitlist input[type='email'],
+.waitlist .field__text,
+.waitlist .field__textarea {
   width: 100%;
   padding: 14px;
   border: 1px solid rgba(22, 24, 29, 0.15);
@@ -765,12 +767,29 @@
   margin: 0 0 var(--space-3);
 }
 
+.waitlist .field__textarea {
+  /* 高さだけは要望を数行書ける分を確保する。横は伸ばさない */
+  resize: vertical;
+  min-height: 84px;
+}
+
 .form-note {
   font-size: 11.5px;
   color: var(--muted-weak);
   text-align: center;
   line-height: 1.7;
   margin: var(--space-3) 0 0;
+}
+
+/* 自由記述の直後に出す注記。送信前に読ませたいので左揃えで本文に寄せる */
+.form-note--caution {
+  text-align: left;
+  margin-top: var(--space-1);
+  color: var(--muted);
+}
+
+.form-note + .form-note {
+  margin-top: var(--space-1);
 }
 
 .waitlist__done {

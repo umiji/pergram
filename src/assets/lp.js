@@ -67,6 +67,15 @@
     observer.observe(flip);
   }
 
+  /* ---- CTA ------------------------------------------------------------ */
+
+  // どの CTA から動いたかを分ける。文言ではなく位置で数える
+  document.querySelectorAll('[data-cta]').forEach(function (el) {
+    el.addEventListener('click', function () {
+      track('cta_click', { location: el.getAttribute('data-cta') });
+    });
+  });
+
   /* ---- 待機リスト ----------------------------------------------------- */
 
   var form = document.querySelector('.waitlist');
@@ -87,6 +96,14 @@
   function showError(message) {
     errorEl.textContent = message;
     errorEl.hidden = false;
+  }
+
+  /** 自由記述。空欄は null にして、送信本文に空文字を混ぜない */
+  function fieldValue(name) {
+    var el = form.querySelector('[name="' + name + '"]');
+    if (!el) return null;
+    var value = el.value.trim();
+    return value === '' ? null : value;
   }
 
   function checkedValues(name) {
@@ -111,6 +128,8 @@
     var nutrients = checkedValues('nutrients');
     // 🔒 普段の購入先は単一選択。配列にしない
     var channel = checkedValues('channel')[0] || null;
+    var nutrientsOther = fieldValue('nutrients_other');
+    var requests = fieldValue('requests');
 
     button.disabled = true;
 
@@ -125,15 +144,25 @@
     fetch('/api/waitlist', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: email, nutrients: nutrients, channel: channel }),
+      body: JSON.stringify({
+        email: email,
+        nutrients: nutrients,
+        channel: channel,
+        nutrients_other: nutrientsOther,
+        requests: requests,
+      }),
       signal: controller ? controller.signal : undefined,
     })
       .then(function (res) {
         if (!res.ok) throw new Error('request_failed');
-        // 🔒 メールアドレスは送らない。選択内容のみ
+        // 🔒 メールアドレスは送らない。選択内容のみ。
+        //    自由記述は**本文を送らない**。書かれたかどうかだけを数える
+        //    （症状や固有名詞が GA4 に流れる経路を作らない）。
         track('waitlist_submit', {
           selected_nutrients: nutrients.join(','),
           purchase_channel: channel || '(none)',
+          has_nutrients_other: nutrientsOther ? 1 : 0,
+          has_requests: requests ? 1 : 0,
         });
         form.hidden = true;
         doneEl.hidden = false;

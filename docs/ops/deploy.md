@@ -49,6 +49,15 @@ npm run d1:schema     # 本番
 
 `waitlist` と `price_alert` ができる。確認は `npx wrangler d1 info pergram` の `num_tables`。
 
+⚠️ `CREATE TABLE IF NOT EXISTS` は**既存のテーブルに列を足さない**。
+稼働中の DB に列を増やしたときは `worker/migrations/` の SQL を1度だけ流す。
+
+```bash
+npx wrangler d1 execute pergram --remote --file worker/migrations/2026-08-10_waitlist_freetext.sql
+```
+
+2度流すと `duplicate column name` で失敗する。それが正しい挙動（既に入っている）。
+
 🔒 サーバに置いてよい列は [worker/schema.sql](../../worker/schema.sql) にあるものだけ。
 年齢・性別・体調・服薬情報の列を足さない。
 

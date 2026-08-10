@@ -8,12 +8,33 @@
  */
 
 import { escapeHtml } from '../../lib/i18n.js';
+import {
+  CHANNEL_CHIPS,
+  NUTRIENTS_OTHER_MAX,
+  REQUESTS_MAX,
+  ROADMAP_NUTRIENTS,
+} from '../../lib/waitlist_fields.js';
 import { wordmark } from '../layout.js';
 import { optionChips } from './parts.js';
-import { ROADMAP_NUTRIENTS } from './sections.js';
 
-/** 普段の購入先。🔒 単一選択（design.md §4.3） */
-const CHANNEL_CHIPS = ['rakuten', 'amazon', 'iherb', 'myprotein', 'store'];
+/**
+ * 自由記述の1行入力。
+ *
+ * 🔒 N-01 / N-05。自由記述は症状や服薬の書き込み口になりうる。
+ *    ラベルと placeholder で書いてよいものを限定し、注記でも明示する。
+ *    最終的な防波堤は worker 側の長さ制限と、保存列を増やさないこと。
+ */
+function freeText({ name, label, placeholder, maxLength, multiline = false }) {
+  const attrs = `name="${escapeHtml(name)}" maxlength="${maxLength}" placeholder="${escapeHtml(placeholder)}"`;
+  const control = multiline
+    ? `<textarea class="field__textarea" rows="3" ${attrs}></textarea>`
+    : `<input class="field__text" type="text" ${attrs}>`;
+
+  return `<label class="field">
+        <span class="field__label">${escapeHtml(label)}</span>
+        ${control}
+      </label>`;
+}
 
 export function waitlist(t) {
   return `<section class="waitlist-band" id="waitlist">
@@ -44,6 +65,13 @@ ${optionChips({
         </div>
       </fieldset>
 
+      ${freeText({
+        name: 'nutrients_other',
+        label: t('lp.form.nutrientsOther'),
+        placeholder: t('lp.form.nutrientsOtherPlaceholder'),
+        maxLength: NUTRIENTS_OTHER_MAX,
+      })}
+
       <fieldset class="field">
         <legend class="field__label">${escapeHtml(t('lp.form.channel'))}</legend>
         <div class="pill-choices">
@@ -58,11 +86,22 @@ ${optionChips({
         </div>
       </fieldset>
 
+      ${freeText({
+        name: 'requests',
+        label: t('lp.form.requests'),
+        placeholder: t('lp.form.requestsPlaceholder'),
+        maxLength: REQUESTS_MAX,
+        multiline: true,
+      })}
+      <p class="form-note form-note--caution">${escapeHtml(t('lp.form.freeTextNote'))}</p>
+
       <p class="form-error" role="alert" hidden></p>
       <button type="submit" class="btn btn--signal btn--block">${escapeHtml(
         t('lp.form.submit'),
       )}</button>
       <p class="form-note">${escapeHtml(t('lp.form.note'))}</p>
+      <p class="form-note">${escapeHtml(t('lp.form.noteUse'))}</p>
+      <p class="form-note">${escapeHtml(t('lp.form.noteRelease'))}</p>
     </form>
 
     <p class="waitlist__done" role="status" tabindex="-1" hidden>${escapeHtml(

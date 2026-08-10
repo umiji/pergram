@@ -188,9 +188,16 @@
   "lp.form.email": "メールアドレス（リリース通知用）",
   "lp.form.emailPlaceholder": "you@example.com",
   "lp.form.nutrients": "次に見たい栄養素・サプリ（複数選択可）",
+  "lp.form.nutrientsOther": "その他（自由記述）",
+  "lp.form.nutrientsOtherPlaceholder": "成分名・製品名を書いてください",
   "lp.form.channel": "普段使っているショップ",
+  "lp.form.requests": "その他のご要望（自由記述）",
+  "lp.form.requestsPlaceholder": "欲しい機能や、比較したい軸を書いてください",
+  "lp.form.freeTextNote": "体調・症状・服用中の薬は書かないでください。書かれても保存しません。",
   "lp.form.submit": "優先アクセス＆リクエストを送信する",
-  "lp.form.note": "いつでも配信停止可能・不要な個人情報は取得しません",
+  "lp.form.note": "不要な個人情報は取得しません。",
+  "lp.form.noteUse": "取得した情報は、リリース後のお知らせと、掲載する成分・機能の検討にのみ利用します。",
+  "lp.form.noteRelease": "運営の判断によりリリースしない場合があります。その場合は取得した情報をすべて削除します。",
   "lp.form.done": "登録しました。公開したらお知らせします。",
   "lp.form.errorEmail": "メールアドレスの形式を確認してください。",
   "lp.form.errorSend": "送信できませんでした。時間をおいて再度お試しください。",
@@ -213,5 +220,7 @@
   "channel.amazon": "Amazon",
   "channel.iherb": "iHerb",
   "channel.myprotein": "マイプロテイン",
-  "channel.store": "店舗"
+  "channel.store": "店舗",
+  "channel.yahoo": "Yahoo!ショッピング",
+  "channel.other": "その他"
 }
