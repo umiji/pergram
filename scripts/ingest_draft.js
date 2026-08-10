@@ -22,6 +22,53 @@ const readJson = async (p) => JSON.parse(await readFile(p, 'utf8'));
 const writeJson = async (p, v) => writeFile(p, `${JSON.stringify(v, null, 2)}\n`, 'utf8');
 
 /**
+ * 同じ商品とみなすためのキー。
+ *
+ * ⚠️ **モックアップ用の力技。名寄せキー（requirements.md Q-07）はまだ決めていない。**
+ *    楽天は同じ商品を複数の店舗が出すため、そのまま並べると同じ製品が何行も出る。
+ *    ここでは「内容量と含有率が一致すれば同じ商品」とみなして最安の1件だけ残す。
+ *
+ *    別ブランドの同スペック品を誤ってまとめる可能性がある。黙って消さないよう、
+ *    落とした出品は merged として必ず返す。
+ *    🔒 2つ目のソース（Yahoo! / iHerb 等）を足す前に Q-07 を確定させ、この処理は捨てる。
+ */
+function sameProductKey(normalized) {
+  const netWeightG = Math.round(normalized.serving_size_g * normalized.servings_per_unit);
+  const ratio = (normalized.amount_elemental / normalized.serving_size_g).toFixed(4);
+  return `${netWeightG}|${ratio}`;
+}
+
+/**
+ * 読み取れた行を同一商品ごとにまとめ、最安の1件だけ残す。
+ * 同額なら先に現れたほうを残す（並びを決定的にするため）。
+ */
+function keepCheapestOfSameProduct(candidates) {
+  const groups = new Map();
+  for (const candidate of candidates) {
+    const current = groups.get(candidate.key);
+    if (current === undefined) {
+      groups.set(candidate.key, [candidate]);
+    } else {
+      current.push(candidate);
+    }
+  }
+
+  const kept = [];
+  const merged = [];
+  for (const group of groups.values()) {
+    const cheapest = group.reduce((best, c) => (c.row.price < best.row.price ? c : best));
+    kept.push(cheapest);
+    if (group.length > 1) {
+      merged.push({
+        kept: cheapest.row.product_id,
+        dropped: group.filter((c) => c !== cheapest).map((c) => c.row.product_id),
+      });
+    }
+  }
+  return { kept, merged };
+}
+
+/**
  * 下書きの各行を、保存してよい形の4つの表に展開する。
  *
  * 🔒 保存する独立変数は serving_size_g / servings_per_unit / amount_elemental の3つだけ。
@@ -34,6 +81,7 @@ export function toRecords(draft) {
   const nutrientContents = [];
   const priceSnapshots = [];
   const skipped = [];
+  const candidates = [];
 
   for (const row of draft) {
     if (row.excluded_reason) {
@@ -52,6 +100,12 @@ export function toRecords(draft) {
       continue;
     }
 
+    candidates.push({ row, normalized, key: sameProductKey(normalized) });
+  }
+
+  const { kept, merged } = keepCheapestOfSameProduct(candidates);
+
+  for (const { row, normalized } of kept) {
     products.push({
       id: row.product_id,
       brand: row.brand ?? null,
@@ -91,6 +145,8 @@ export function toRecords(draft) {
       merchant: 'rakuten',
       price: row.price,
       currency: row.currency ?? 'JPY',
+      // 送料込みか送料別か。🔒 金額は取れないので単価には足さない。表示だけに使う
+      postage_included: row.postage_included ?? null,
       // 収集時にアフィリエイト URL が取れていればそれが購入リンクになる。
       // 取れていない店舗は素の商品 URL のまま（広告表示は「含みます」で正しい）。
       url: row.url,
@@ -99,7 +155,7 @@ export function toRecords(draft) {
     });
   }
 
-  return { products, productI18n, nutrientContents, priceSnapshots, skipped };
+  return { products, productI18n, nutrientContents, priceSnapshots, skipped, merged };
 }
 
 async function main() {
@@ -113,7 +169,8 @@ async function main() {
   const nutrients = await readJson(path.join(DATA_DIR, 'nutrients.json'));
   const previousPrices = await readJson(path.join(DATA_DIR, 'price_snapshots.json'));
 
-  const { products, productI18n, nutrientContents, priceSnapshots, skipped } = toRecords(draft);
+  const { products, productI18n, nutrientContents, priceSnapshots, skipped, merged } =
+    toRecords(draft);
 
   const issues = validateDataset({
     products,
@@ -136,9 +193,14 @@ async function main() {
   await mkdir(path.join(DATA_DIR, '_review'), { recursive: true });
   await writeJson(path.join(DATA_DIR, '_review', 'issues.json'), issues);
   await writeJson(path.join(DATA_DIR, '_review', 'skipped.json'), skipped);
+  await writeJson(path.join(DATA_DIR, '_review', 'merged.json'), merged);
 
   console.log(`取り込み  ${keep(products).length} 件`);
   console.log(`下書きから除外 ${skipped.length} 件（data/_review/skipped.json）`);
+  console.log(
+    `同一商品としてまとめ ${merged.flatMap((m) => m.dropped).length} 件 — ` +
+      '⚠️ 内容量と含有率が一致すれば同じ商品とみなす力技（data/_review/merged.json）',
+  );
   console.log(`error   ${blocking.length} 件 — 取り込まず保留`);
   console.log(`review  ${issues.filter((i) => i.severity === 'review').length} 件 — 公開前に確認`);
 

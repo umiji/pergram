@@ -112,6 +112,15 @@ function basisFor(bases, index) {
 }
 
 /**
+ * g の直後に続く「あたり」「当たり」「中」は、その数値が**基準**であって値ではない印。
+ *
+ * 🔒 「アミノ酸組成(タンパク質100gあたり)」「たん白質100g中(g)」の 100 を含有量として
+ *    読むと、含有率100%の製品として単価が下振れし、最安として先頭に並ぶ。
+ *    プロテイン粉末に含有率100%は存在しない。
+ */
+const NOT_A_BASIS = '(?!\\s*[)）]?\\s*(?:中|あたり|当たり))';
+
+/**
  * 「たんぱく質 24.2g」。脂質・炭水化物・エネルギーは成分名で弾かれる。
  *
  * 🔒 「たんぱく質 24.0g/80.0g」のように1つの成分に値が2つ並ぶのは、
@@ -120,8 +129,11 @@ function basisFor(bases, index) {
  *    ただし「24.0g(30g中)」のような基準の注記は2つ目の値ではないので除く。
  */
 function findProteinGrams(text) {
-  const secondValue = '\\s*[/／(（、･・]\\s*\\d+(?:\\.\\d+)?\\s*g(?!\\s*[)）]?\\s*(?:中|あたり|当たり))';
-  const re = new RegExp(`${PROTEIN_TOKEN}\\s*[:：]?\\s*(\\d+(?:\\.\\d+)?)\\s*g(${secondValue})?`, 'g');
+  const secondValue = `\\s*[/／(（、･・]\\s*\\d+(?:\\.\\d+)?\\s*g${NOT_A_BASIS}`;
+  const re = new RegExp(
+    `${PROTEIN_TOKEN}\\s*[:：]?\\s*(\\d+(?:\\.\\d+)?)\\s*g${NOT_A_BASIS}(${secondValue})?`,
+    'g',
+  );
   return [...text.matchAll(re)].map((m) => ({
     grams: Number(m[1]),
     index: m.index,
@@ -134,13 +146,25 @@ function findProteinGrams(text) {
  *
  * 🔒 「たんぱく質 20%OFF」の 20 を含有率として読むと、含有率20%の製品として
  *    単価が4倍に狂う。割引の文脈が続くものは採らない。
+ *
+ * 🔒 100% も採らない。「ホエイたんぱく質100%」は原材料がホエイであることの表示であって
+ *    含有率ではない。粉末は水分・灰分・脂質・糖質を必ず含むため含有率100%は存在せず、
+ *    読んでしまうと単価が実際の 1/1.3 前後に下振れして順位が狂う。
+ *
+ * 🔒 「81.9%（製品無水あたり）」のような無水換算・乾物換算も採らない。水分を除いた
+ *    換算値であって、袋に入っている製品そのままの含有率（この例では 77.9%）ではない。
+ *    5%ほど過大評価することになり、単価が実際より安く出る。
  */
 function findRatios(text) {
+  const anhydrous = '(\\s*[（(]?\\s*(?:製品)?\\s*(?:無水|乾物|乾燥))?';
   const re = new RegExp(
-    `${PROTEIN_TOKEN}\\s*(?:含有[量率]|含量|含有)?\\s*[:：]?\\s*(\\d+(?:\\.\\d+)?)\\s*[%％]\\s*(OFF|off|Off|オフ|引き|引|割引)?`,
+    `${PROTEIN_TOKEN}\\s*(?:含有[量率]|含量|含有)?\\s*[:：]?\\s*(\\d+(?:\\.\\d+)?)\\s*[%％]\\s*(OFF|off|Off|オフ|引き|引|割引)?${anhydrous}`,
     'g',
   );
-  return [...text.matchAll(re)].filter((m) => m[2] === undefined).map((m) => Number(m[1]));
+  return [...text.matchAll(re)]
+    .filter((m) => m[2] === undefined && m[3] === undefined)
+    .map((m) => Number(m[1]))
+    .filter((ratio) => ratio < PROTEIN_RATIO_RANGE.max);
 }
 
 /** 100gあたり表記 > 1食あたり表記 > 含有率表記 の順に信用する */

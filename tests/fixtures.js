@@ -25,6 +25,9 @@ export const market = {
 /**
  * `others` は楽天以外の販売元。同一製品が複数の EC に出ているケースを再現する。
  * 主指標も表示順も最安のスナップショットで決まるので、必ず楽天より高い値にしてある。
+ *
+ * `postage` は送料が価格に含まれるか。true = 送料込み / false = 送料別 /
+ * 未指定 = 判別できなかった（画面には何も出さない）。3通りすべてを含めてある。
  */
 const specs = [
   {
@@ -34,6 +37,7 @@ const specs = [
     weight: 3000,
     price: 7800,
     attrs: ['third_party_cert', 'whey_wpc'],
+    postage: true,
     image: 'https://thumbnail.image.rakuten.co.jp/@0_mall/example/p1.jpg',
     others: [{ merchant: 'amazon_jp', price: 8200 }, { merchant: 'iherb', price: 8600 }],
   },
@@ -44,6 +48,7 @@ const specs = [
     weight: 3000,
     price: 7400,
     attrs: ['whey_wpc'],
+    postage: false,
     others: [{ merchant: 'amazon_jp', price: 7900 }],
   },
   {
@@ -53,6 +58,7 @@ const specs = [
     weight: 1000,
     price: 3600,
     attrs: ['third_party_cert', 'whey_wpi'],
+    postage: true,
     others: [{ merchant: 'amazon_jp', price: 3850 }, { merchant: 'iherb', price: 4100 }],
   },
   { id: 'p4', brand: 'ブランドD', ratio: 75, weight: 1000, price: 3900, attrs: ['soy'], others: [] },
@@ -63,6 +69,7 @@ const specs = [
     weight: 1000,
     price: 5200,
     attrs: ['organic_cert', 'whey_wpi', 'grass_fed'],
+    postage: false,
     others: [{ merchant: 'iherb', price: 5600 }],
   },
   { id: 'p6', brand: 'ブランドF', ratio: 68, weight: 5000, price: 11800, attrs: ['casein'], others: [] },
@@ -89,7 +96,7 @@ export function makeRows({ targetIntake = 60 } = {}) {
       nutrient_id: 'protein',
       amount_elemental: (30 * spec.ratio) / 100,
     };
-    const snapshot = (merchant, price) => ({
+    const snapshot = (merchant, price, postageIncluded = null) => ({
       product_id: spec.id,
       merchant,
       price,
@@ -97,10 +104,11 @@ export function makeRows({ targetIntake = 60 } = {}) {
       url: `https://example.test/${spec.id}?m=${merchant}`,
       in_stock: true,
       fetched_at: '2026-08-06',
+      postage_included: postageIncluded,
     });
 
     const snapshots = [
-      snapshot('rakuten', spec.price),
+      snapshot('rakuten', spec.price, spec.postage ?? null),
       ...(spec.others ?? []).map((o) => snapshot(o.merchant, o.price)),
     ];
 

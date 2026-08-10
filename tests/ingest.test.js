@@ -51,6 +51,27 @@ test('購入リンクにはアフィリエイト URL がそのまま渡る', () 
   assert.equal(got.priceSnapshots[0].merchant, 'rakuten');
 });
 
+// 送料は販売元ごとに違う。製品ではなく価格スナップショットに紐づく。
+test('送料が価格に含まれるかどうかは価格スナップショットへ渡る', () => {
+  assert.equal(toRecords([row({ postage_included: true })]).priceSnapshots[0].postage_included, true);
+  assert.equal(toRecords([row({ postage_included: false })]).priceSnapshots[0].postage_included, false);
+});
+
+test('🔒 下書きに送料の記載が無ければ null。送料無料と決めつけない', () => {
+  // row() は postage_included を持たない（送料対応より前に作った下書き）
+  assert.equal(toRecords([row()]).priceSnapshots[0].postage_included, null);
+});
+
+// 説明文は店舗が書いた宣伝文。読み取りの材料として下書きには置くが、
+// 🔒 公開データには持ち込まない（転載になる。N-08 と同じ理由）。
+test('🔒 商品説明文を公開データに持ち込まない', () => {
+  const got = toRecords([row({ item_caption: '【栄養成分表示】たんぱく質 24.0g / 送料無料 大人気!' })]);
+
+  const published = JSON.stringify([got.products, got.productI18n, got.nutrientContents, got.priceSnapshots]);
+  assert.ok(!published.includes('大人気'), '説明文が公開データに入っています');
+  assert.ok(!published.includes('item_caption'), '説明文の項目が公開データに入っています');
+});
+
 test('🔒 導出値を products に保存しない', () => {
   const got = toRecords([row()]);
   const product = got.products[0];
@@ -103,11 +124,52 @@ test('1食量が読めていない行は confidence を下げる', () => {
   assert.equal(got.products[0].serving_size, null);
 });
 
+/* ---- 同一商品のまとめ ------------------------------------------------- */
+
+// 楽天は同じ商品を複数の店舗が出している。実データでは同じザバス231gが4件並んだ。
+// ⚠️ 名寄せキー（requirements.md Q-07）はまだ決めていない。これはモック用の力技で、
+//    「内容量と含有率が一致すれば同じ商品」とみなしているだけ。2つ目のソースを足す前に
+//    Q-07 を確定させ、この処理は捨てること。
+test('同一商品が複数の店舗から出ていたら最安の1件だけ残す', () => {
+  const got = toRecords([
+    row({ product_id: 'rakuten:shopA:x', price: 4200 }),
+    row({ product_id: 'rakuten:shopB:x', price: 3980 }),
+    row({ product_id: 'rakuten:shopC:x', price: 4500 }),
+  ]);
+
+  assert.equal(got.products.length, 1);
+  assert.equal(got.products[0].id, 'rakuten:shopB:x');
+  assert.equal(got.priceSnapshots.length, 1);
+  assert.equal(got.priceSnapshots[0].price, 3980);
+});
+
+test('内容量か含有率が違えば別の商品として残す', () => {
+  const got = toRecords([
+    row({ product_id: 'a', net_weight_g: 1000 }),
+    row({ product_id: 'b', net_weight_g: 3000 }),
+    // 同じ1kgでも含有率が違えば中身が違う
+    row({ product_id: 'c', net_weight_g: 1000, protein_per_100g: 70, protein_per_serving_g: 21 }),
+  ]);
+
+  assert.deepEqual(got.products.map((p) => p.id).sort(), ['a', 'b', 'c']);
+});
+
+// 力技なので誤って別商品をまとめる可能性がある。黙って消さず、必ず報告する。
+test('まとめて落とした出品を報告する', () => {
+  const got = toRecords([
+    row({ product_id: 'rakuten:shopA:x', price: 4200 }),
+    row({ product_id: 'rakuten:shopB:x', price: 3980 }),
+  ]);
+
+  assert.deepEqual(got.merged, [{ kept: 'rakuten:shopB:x', dropped: ['rakuten:shopA:x'] }]);
+});
+
 test('複数行のうち読めたものだけが通る', () => {
   const got = toRecords([
     row({ product_id: 'a' }),
     row({ product_id: 'b', protein_per_100g: null, protein_per_serving_g: null, serving_size_g: null }),
-    row({ product_id: 'c' }),
+    // a と同じ内容量・含有率にすると同一商品としてまとめられるので、別商品にしておく
+    row({ product_id: 'c', net_weight_g: 3000 }),
   ]);
 
   assert.deepEqual(got.products.map((p) => p.id), ['a', 'c']);

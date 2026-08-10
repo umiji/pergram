@@ -156,6 +156,36 @@ test('buildRow が導出値を揃える', () => {
   assert.equal(row.netWeightG, 3000);
 });
 
+// 🔒 送料の金額は取れない。取れているのは「込み / 別」の2値だけなので、
+//    単価に足し込むと根拠のない数字になる。表示のためだけに運ぶ。
+test('🔒 送料は表示用に運ぶだけで、単価にも並び順にも混ぜない', () => {
+  const snapshot = (over) => ({
+    merchant: 'rakuten',
+    price: 7200,
+    currency: 'JPY',
+    in_stock: true,
+    url: 'https://example.test',
+    ...over,
+  });
+  const build = (over) =>
+    buildRow({
+      product,
+      content,
+      nutrient: proteinNutrient,
+      snapshots: [snapshot(over)],
+      market: { merchants: ['rakuten'] },
+      targetIntake: 60,
+    });
+
+  assert.equal(build({ postage_included: false }).postageIncluded, false);
+  assert.equal(build({ postage_included: true }).postageIncluded, true);
+  // 記載が無ければ null。送料無料と決めつけない
+  assert.equal(build({}).postageIncluded, null);
+  // 送料の有無で単価は動かない
+  assert.equal(build({ postage_included: false }).costPerNutrientUnit, 3);
+  assert.equal(build({ postage_included: true }).costPerNutrientUnit, 3);
+});
+
 test('プレミアム幅は最安どうしの差', () => {
   const all = [{ costPerNutrientUnit: 3 }, { costPerNutrientUnit: 5 }, { costPerNutrientUnit: 4 }];
   const filtered = [{ costPerNutrientUnit: 4 }, { costPerNutrientUnit: 5 }];
