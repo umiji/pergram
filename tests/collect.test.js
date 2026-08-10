@@ -9,7 +9,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildSearchUrl, resolveOptions, toDraftRow } from '../scripts/collect_rakuten.js';
+import {
+  buildSearchUrl,
+  resolveOptions,
+  shouldExclude,
+  toDraftRow,
+} from '../scripts/collect_rakuten.js';
 
 const APP_ID = 'dc5bdc72-0000-0000-0000-000000000000';
 const ACCESS_KEY = 'pk_testkey';
@@ -89,6 +94,52 @@ test('アフィリエイト ID が無いときは affiliateId を付けない', 
   assert.ok(!url.searchParams.has('affiliateId'));
 });
 
+// 価格の安い順で取ると、下限価格のすぐ真上の帯に張り付く。
+// minPrice 1500 で取り直したとき、41件すべてが 1,510〜1,600円 の小容量品だった。
+// 比較したい 1kg・3kg 帯には、ページを何枚めくっても到達しない。
+test('🔒 売れ筋順で取る。価格の安い順では主力商品帯に届かない', () => {
+  const url = buildSearchUrl({ appId: APP_ID, accessKey: ACCESS_KEY, keyword: 'プロテイン', page: 1 });
+
+  assert.equal(url.searchParams.get('sort'), 'standard');
+});
+
+// 🔒 sort は「API から何を取ってくるか」であって掲載順ではない。
+//    それでも報酬率で取ると、母集団そのものが報酬の高い商品に偏る。
+test('🔒 報酬率で並べて取らない', () => {
+  const url = buildSearchUrl({ appId: APP_ID, accessKey: ACCESS_KEY, keyword: 'プロテイン', page: 1 });
+
+  assert.ok(!/affiliateRate/i.test(url.href), `報酬率が検索条件に入っています: ${url.href}`);
+});
+
+test('🔒 下限価格で小容量品の帯を検索から外す', () => {
+  const url = buildSearchUrl({ appId: APP_ID, accessKey: ACCESS_KEY, keyword: 'プロテイン', page: 1 });
+
+  assert.equal(url.searchParams.get('minPrice'), '3000');
+});
+
+test('下限価格はカテゴリごとに変えられる', () => {
+  const url = buildSearchUrl({ appId: APP_ID, accessKey: ACCESS_KEY, keyword: 'クレアチン', page: 1, minPrice: 800 });
+
+  assert.equal(url.searchParams.get('minPrice'), '800');
+});
+
+/* ---- 除外 ------------------------------------------------------------- */
+
+test('🔒 トライアル品は商品名で除外する', () => {
+  for (const name of [
+    '明治 ザバス ホエイプロテイン100 ショコラ トライアル 1コ',
+    'ザバス マッスルエリート ココア味 お試し',
+    'ホエイプロテイン サンプル 3食分',
+  ]) {
+    assert.equal(shouldExclude(name), true, `除外されていません: ${name}`);
+  }
+});
+
+test('通常の製品は除外しない', () => {
+  assert.equal(shouldExclude('ホエイプロテイン 1kg プレーン'), false);
+  assert.equal(shouldExclude('WPI ホエイプロテインアイソレート 3kg'), false);
+});
+
 /* ---- 下書きの行 ------------------------------------------------------- */
 
 test('購入リンクにはアフィリエイト URL を使う', () => {
@@ -133,6 +184,36 @@ test('自動取得と自動抽出が下書きに入る', () => {
   assert.equal(row.protein_per_serving_g, 24.0);
   // 🔒 ブランドは自動化していない。推測で埋めない
   assert.equal(row.brand, null);
+});
+
+// 送料の金額は API から取れない。取れるのは「価格に含むか否か」の2値だけ。
+// postageFlag: 0 = 送料込み / 1 = 送料別（楽天商品検索 API のドキュメント）
+test('送料が価格に含まれるかどうかを下書きに残す', () => {
+  assert.equal(toDraftRow(item({ postageFlag: 0 }), '2026-08-09').postage_included, true);
+  assert.equal(toDraftRow(item({ postageFlag: 1 }), '2026-08-09').postage_included, false);
+});
+
+test('🔒 送料区分が返らなければ null。送料無料と決めつけない', () => {
+  for (const over of [{}, { postageFlag: null }, { postageFlag: 'unknown' }]) {
+    assert.equal(toDraftRow(item(over), '2026-08-09').postage_included, null);
+  }
+});
+
+// 自動読み取りは説明文の一部しか拾えない。読めなかった行を後から機械にも人にも
+// 回せるよう、元の説明文をそのまま下書きに残す。🔒 残すのは下書き（_drafts）まで。
+test('商品説明文をそのまま下書きに残す', () => {
+  const row = toDraftRow(item(), '2026-08-09');
+
+  assert.equal(
+    row.item_caption,
+    '【栄養成分表示】1食(30g)あたり エネルギー 117kcal、たんぱく質 24.0g、脂質 1.5g',
+  );
+});
+
+test('説明文が無い商品では null にする', () => {
+  for (const over of [{ itemCaption: undefined }, { itemCaption: null }, { itemCaption: '' }]) {
+    assert.equal(toDraftRow(item(over), '2026-08-09').item_caption, null);
+  }
 });
 
 test('🔒 説明文から読めなければ含有量は null のまま人間に回る', () => {

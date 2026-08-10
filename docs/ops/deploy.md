@@ -69,7 +69,24 @@ Cloudflare ダッシュボード → Workers & Pages → 対象の Worker → Se
 |---|---|
 | `GA4_MEASUREMENT_ID` | 渡すと計測タグが入る。**渡さなければ入らない。**検証を始めるまでは未設定でよい |
 
-🔒 `RAKUTEN_APP_ID` は Cloudflare に置かない。データ収集はローカルで回してコミットする。
+🔒 楽天の認証情報は Cloudflare に置かない。収集はローカル、価格更新は GitHub Actions で回し、
+結果を `data/` にコミットする。Cloudflare は生成済みの `dist/` を配るだけ。
+
+### GitHub Secrets（日次の価格更新に要る）
+
+`.github/workflows/prices.yml` が毎朝 06:00 JST に `refresh_prices.js` を回す。
+リポジトリの Settings → Secrets and variables → Actions に4つとも登録する。
+**1つでも欠けると実行前に停止する**（値は `.env.local` と同じ）。
+
+| Secret | 備考 |
+|---|---|
+| `RAKUTEN_APP_ID` | UUID 形式 |
+| `RAKUTEN_ACCESS_KEY` | `pk_` で始まる |
+| `RAKUTEN_APP_URL` | Referer に載せるアプリ URL |
+| `RAKUTEN_AFFILIATE_ID` | 🔒 欠けると購入リンクを素の URL で全上書きしてしまうため必須 |
+
+⚠️ このジョブは `data/price_snapshots.json` を更新して `main` にコミットするだけで、
+**デプロイはしない。**価格の更新を公開に反映するには別途デプロイが要る。
 
 **Production branch は `main`。`main` に入っていない変更はデプロイされない。**
 LP が 404 になるときは、まずここを疑う。

@@ -25,15 +25,31 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import { extractProteinFromCaption, parseNetWeightFromName } from '../src/lib/normalize_protein.js';
+import { apiHeaders, buildApiUrl, pickBuyUrl, pickPostageIncluded, readCredentials } from './rakuten_api.js';
 
-/**
- * 🔒 2026-02-10 の認証基盤刷新でドメインと認証方式が変わった。
- *    旧 `app.rakuten.co.jp/services/api/` + 19桁の applicationId 単独では 400 になる。
- *    現行は openapi ドメイン + UUID の applicationId + accessKey + Referer ヘッダ。
- */
-const ENDPOINT = 'https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20220601';
 const REQUEST_INTERVAL_MS = 1100;
 const HITS_PER_PAGE = 30;
+
+/**
+ * 検索の下限価格（円）。
+ *
+ * 小容量品・トライアル品を母集団から外す。カテゴリによって妥当な額が違うので、
+ * buildSearchUrl の引数で上書きできるようにしてある（プロテイン以外で 3000 は妥当でない）。
+ */
+const MIN_PRICE_JPY = 3000;
+
+/**
+ * 取得順。🔒 これは「API から何を取ってくるか」であって掲載順ではない。
+ *    掲載順は取り込み後に有効成分1単位あたりの価格だけで決まる。
+ *
+ * 価格の安い順（`+itemPrice`）は使わない。下限価格のすぐ真上の帯に張り付くためで、
+ * minPrice 1500 で取り直したとき41件すべてが 1,510〜1,600円の小容量品になった。
+ * 1,500円と3,000円の間に何千件もあるので、ページを重ねても主力商品帯へ届かない。
+ *
+ * 🔒 `+affiliateRate` / `-affiliateRate` は使わない。掲載順と無関係でも、
+ *    母集団そのものが報酬の高い商品に偏る。
+ */
+const SORT = 'standard';
 
 /** 初版データセットの絞り込み。validation-plan.md 段1 🔒 */
 const EXCLUDE_PATTERNS = [
@@ -44,6 +60,7 @@ const EXCLUDE_PATTERNS = [
   /クッキー/,
   /チップス/,
   /お試し/,
+  /トライアル/,
   /サンプル/,
   /福袋/,
   /訳あり/,
@@ -51,7 +68,7 @@ const EXCLUDE_PATTERNS = [
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-function shouldExclude(itemName) {
+export function shouldExclude(itemName) {
   return EXCLUDE_PATTERNS.some((re) => re.test(itemName));
 }
 
@@ -61,32 +78,26 @@ function shouldExclude(itemName) {
  *    掲載順は取り込み後に有効成分1単位あたりの価格で決まる。
  * affiliateId を渡すと、返ってくる itemUrl / affiliateUrl がアフィリエイト URL になる。
  */
-export function buildSearchUrl({ appId, accessKey, affiliateId, keyword, page }) {
-  const url = new URL(ENDPOINT);
-  url.searchParams.set('applicationId', appId);
-  url.searchParams.set('accessKey', accessKey);
-  if (affiliateId) url.searchParams.set('affiliateId', affiliateId);
-  url.searchParams.set('keyword', keyword);
-  url.searchParams.set('hits', String(HITS_PER_PAGE));
-  url.searchParams.set('page', String(page));
-  url.searchParams.set('sort', '+itemPrice');
-  url.searchParams.set('availability', '1');
-  url.searchParams.set('format', 'json');
-  return url;
+export function buildSearchUrl({ appId, accessKey, affiliateId, keyword, page, minPrice = MIN_PRICE_JPY }) {
+  return buildApiUrl({
+    appId,
+    accessKey,
+    affiliateId,
+    params: {
+      keyword,
+      hits: HITS_PER_PAGE,
+      page,
+      minPrice,
+      sort: SORT,
+      availability: 1,
+    },
+  });
 }
 
 async function fetchPage({ appId, accessKey, affiliateId, appUrl, keyword, page }) {
   const url = buildSearchUrl({ appId, accessKey, affiliateId, keyword, page });
 
-  // 🔒 Referer が無いと 403 REQUEST_CONTEXT_BODY_HTTP_REFERRER_MISSING。
-  //    楽天に登録したアプリ URL を送る。
-  const res = await fetch(url, {
-    headers: {
-      'User-Agent': 'pergram/0.1 (data collection)',
-      Referer: appUrl,
-      Origin: new URL(appUrl).origin,
-    },
-  });
+  const res = await fetch(url, { headers: apiHeaders({ appUrl, purpose: 'data collection' }) });
   if (!res.ok) {
     throw new Error(`楽天 API が ${res.status} を返しました: ${await res.text()}`);
   }
@@ -105,16 +116,6 @@ function pickImageUrl(item) {
   return typeof url === 'string' && url.length > 0 ? url.replace(/\?_ex=\d+x\d+$/, '') : null;
 }
 
-/**
- * 購入リンク。affiliateId を渡していればアフィリエイト URL が返る。
- * 参加していない店舗では返らないので、その場合は素の商品 URL を使う。
- * 🔒 報酬率（affiliateRate）は読まない。下書きに無ければ「報酬の高い順」を作れない。
- */
-function pickBuyUrl(item) {
-  const affiliate = typeof item.affiliateUrl === 'string' ? item.affiliateUrl.trim() : '';
-  return affiliate.length > 0 ? { url: affiliate, isAffiliate: true } : { url: item.itemUrl, isAffiliate: false };
-}
-
 export function toDraftRow(item, fetchedAt) {
   const netWeight = parseNetWeightFromName(item.itemName);
   const label = extractProteinFromCaption(item.itemCaption);
@@ -127,6 +128,8 @@ export function toDraftRow(item, fetchedAt) {
     shop_name: item.shopName,
     price: item.itemPrice,
     currency: 'JPY',
+    // 送料込みか送料別か。金額は取れないので2値だけ。判別できなければ null
+    postage_included: pickPostageIncluded(item),
     url: buy.url,
     is_affiliate: buy.isAffiliate,
     image_url: pickImageUrl(item),
@@ -141,6 +144,12 @@ export function toDraftRow(item, fetchedAt) {
     protein_per_serving_g: label.proteinPerServingG,
     label_basis: label.basis, // どの表記から読んだか。null なら人間の入力待ち
     label_ambiguous: label.ambiguous, // 食い違う値が読めた。必ず人間が見る
+
+    // --- 読み取りの材料（後処理用） ---
+    // 正規表現で拾えるのは説明文の一部だけ。読めなかった行を後から埋め直せるよう、
+    // 元の説明文をそのまま持たせる。
+    // 🔒 置くのは下書き（data/_drafts、.gitignore 済み）まで。公開データには入れない。
+    item_caption: typeof item.itemCaption === 'string' && item.itemCaption.length > 0 ? item.itemCaption : null,
 
     // --- ここから人間が埋める ---
     brand: null, // API は店舗名しか返さない。商品名から判別して記入する
@@ -189,24 +198,22 @@ export function resolveOptions(argv) {
 async function main() {
   const options = resolveOptions(process.argv.slice(2));
 
-  // 🔒 2026-02-10 の刷新以降、この3つが揃わないと 400 / 403 になる。
-  const appId = process.env.RAKUTEN_APP_ID;
-  const accessKey = process.env.RAKUTEN_ACCESS_KEY;
-  const appUrl = process.env.RAKUTEN_APP_URL;
-  const missing = [
-    !appId && 'RAKUTEN_APP_ID（UUID 形式）',
-    !accessKey && 'RAKUTEN_ACCESS_KEY',
-    !appUrl && 'RAKUTEN_APP_URL（Referer に使う。楽天に登録したアプリ URL）',
-  ].filter(Boolean);
-  if (missing.length > 0) {
-    console.error(`未設定: ${missing.join(' / ')}`);
+  // 🔒 2026-02-10 の刷新以降、appId / accessKey / appUrl が揃わないと 400 / 403 になる。
+  let appId;
+  let accessKey;
+  let appUrl;
+  let affiliateId;
+  try {
+    ({ appId, accessKey, appUrl, affiliateId } = readCredentials(process.env));
+  } catch (err) {
+    console.error(err.message);
     console.error('https://webservice.rakuten.co.jp/ のアプリ情報から取得してください。');
     process.exit(1);
   }
 
   // 🔒 アフィリエイトを利用する。未設定のまま集めると素の URL になり、
   //    広告表示（「アフィリエイトリンクを含みます」）と食い違う。
-  const affiliateId = process.env.RAKUTEN_AFFILIATE_ID;
+  //    収集は下書きで止まるので警告に留める（価格更新は公開データを上書きするので止める）。
   if (!affiliateId) {
     console.error('RAKUTEN_AFFILIATE_ID が未設定です。素の商品 URL で収集します。');
   }
@@ -251,6 +258,7 @@ async function main() {
   console.log(`  内容量 曖昧  ${count((r) => r.net_weight_ambiguous)} 件 — 商品ページで確認して net_weight_g に記入`);
   console.log(`  画像 自動    ${count((r) => r.image_url !== null)} 件`);
   console.log(`  アフィリエイト ${count((r) => r.is_affiliate)} 件 — 残りは素の商品 URL`);
+  console.log(`  送料 判別    ${count((r) => r.postage_included !== null)} 件 — 込み / 別のみ。金額は取れない`);
   console.log(`  含有量 自動  ${withContent} 件 — 説明文の栄養成分表示から読み取り`);
   console.log(`  含有量 曖昧  ${count((r) => r.label_ambiguous)} 件 — 食い違う値。必ず商品ページで確認する`);
   console.log(`  含有量 要入力 ${needContent} 件 — protein_per_100g を商品ページを見て記入`);
