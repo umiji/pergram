@@ -46,7 +46,7 @@ function productList(rows, ctx) {
   <div class="p-list-header__cell p-list-header__cell--shop">${escapeHtml(t('products.table.shop'))}</div>
 </div>`;
 
-  return `<div class="p-list-wrapper">${headerHtml}<ol class="p-list" id="products" data-view="card" data-page-size="${PAGE_SIZE}" data-metric="${escapeHtml(
+  return `<div class="p-list-wrapper">${headerHtml}<ol class="p-list" id="products" data-view="card" data-nutrient="${escapeHtml(ctx.nutrientId)}" data-page-size="${PAGE_SIZE}" data-metric="${escapeHtml(
     ctx.secondaryMetrics[0] ?? '',
   )}">${items}</ol></div>`;
 }

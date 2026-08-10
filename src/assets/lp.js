@@ -67,6 +67,15 @@
     observer.observe(flip);
   }
 
+  /* ---- CTA ------------------------------------------------------------ */
+
+  // どの CTA から動いたかを分ける。文言ではなく位置で数える
+  document.querySelectorAll('[data-cta]').forEach(function (el) {
+    el.addEventListener('click', function () {
+      track('cta_click', { location: el.getAttribute('data-cta') });
+    });
+  });
+
   /* ---- 待機リスト ----------------------------------------------------- */
 
   var form = document.querySelector('.waitlist');
@@ -84,9 +93,30 @@
     track('waitlist_start', {});
   });
 
+  // 「その他」の自由記述に書いたのにチップを選び忘れる、を防ぐ。
+  // 逆（チップを外したら本文を消す）はやらない — 書いたものを勝手に捨てない。
+  var otherText = form.querySelector('[name="nutrients_other"]');
+  var otherCheck = form.querySelector('input[name="nutrients"][value="other"]');
+  if (otherText && otherCheck) {
+    otherText.addEventListener('input', function () {
+      if (otherText.value.trim() !== '') otherCheck.checked = true;
+    });
+    otherCheck.addEventListener('change', function () {
+      if (otherCheck.checked) otherText.focus();
+    });
+  }
+
   function showError(message) {
     errorEl.textContent = message;
     errorEl.hidden = false;
+  }
+
+  /** 自由記述。空欄は null にして、送信本文に空文字を混ぜない */
+  function fieldValue(name) {
+    var el = form.querySelector('[name="' + name + '"]');
+    if (!el) return null;
+    var value = el.value.trim();
+    return value === '' ? null : value;
   }
 
   function checkedValues(name) {
@@ -109,8 +139,10 @@
     }
 
     var nutrients = checkedValues('nutrients');
-    // 🔒 普段の購入先は単一選択。配列にしない
-    var channel = checkedValues('channel')[0] || null;
+    // 購入先は掛け持ちが普通なので複数選択。1つに丸めない
+    var channels = checkedValues('channel');
+    var nutrientsOther = fieldValue('nutrients_other');
+    var requests = fieldValue('requests');
 
     button.disabled = true;
 
@@ -125,15 +157,25 @@
     fetch('/api/waitlist', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: email, nutrients: nutrients, channel: channel }),
+      body: JSON.stringify({
+        email: email,
+        nutrients: nutrients,
+        channel: channels,
+        nutrients_other: nutrientsOther,
+        requests: requests,
+      }),
       signal: controller ? controller.signal : undefined,
     })
       .then(function (res) {
         if (!res.ok) throw new Error('request_failed');
-        // 🔒 メールアドレスは送らない。選択内容のみ
+        // 🔒 メールアドレスは送らない。選択内容のみ。
+        //    自由記述は**本文を送らない**。書かれたかどうかだけを数える
+        //    （症状や固有名詞が GA4 に流れる経路を作らない）。
         track('waitlist_submit', {
           selected_nutrients: nutrients.join(','),
-          purchase_channel: channel || '(none)',
+          purchase_channel: channels.join(',') || '(none)',
+          has_nutrients_other: nutrientsOther ? 1 : 0,
+          has_requests: requests ? 1 : 0,
         });
         form.hidden = true;
         doneEl.hidden = false;

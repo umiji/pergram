@@ -9,6 +9,27 @@
 (() => {
   'use strict';
 
+  /**
+   * 購入リンクの計測。
+   *
+   * 🔒 GA4 に個人識別情報を送らない。送るのは製品 ID・販売元・順位だけで、
+   *    価格も URL も含めない。
+   * 🔒 計測は絞り込みより先に仕掛ける。下の早期 return に巻き込まれると、
+   *    絞り込みが無いページでリンクだけが数えられなくなる。
+   */
+  document.querySelectorAll('.merchant-button').forEach((link) => {
+    link.addEventListener('click', () => {
+      if (typeof window.gtag !== 'function') return;
+      const item = link.closest('.p-item');
+      window.gtag('event', 'affiliate_click', {
+        nutrient_id: document.querySelector('.p-list')?.dataset.nutrient ?? '(none)',
+        product_id: item?.dataset.productId ?? '(none)',
+        merchant: link.dataset.merchant ?? '(none)',
+        rank_position: Number(item?.dataset.rank ?? 0),
+      });
+    });
+  });
+
   const list = document.querySelector('.p-list');
   const form = document.querySelector('.filters');
   if (!list || !form) return;

@@ -69,7 +69,8 @@ export function eyebrow(text) {
 
 /**
  * フォームの選択肢。
- * 🔒 「見たい成分」は複数選択、「普段の購入先」は単一選択（design.md §4.3）。
+ * 「見たい成分」も「普段の購入先」も複数選択（design.md §4.3）。
+ * 単一選択が要る箇所は今のところ無い。要るようになったら `multiple: false` を渡す。
  */
 export function optionChips({ name, keys, prefix, t, multiple, className }) {
   return keys

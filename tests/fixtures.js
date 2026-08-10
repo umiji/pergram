@@ -20,6 +20,13 @@ export const market = {
   disclosureKey: 'disclosure.jp',
   currency: 'JPY',
   claimSource: 'nutrient_function_food',
+  // 任意支援のウィジェット。実際の値は config/markets.json が持つ
+  support: {
+    scriptSrc: 'https://codoc.example/js/cms.js',
+    userCode: 'USERCODE',
+    entryCode: 'ENTRYCODE',
+    theme: 'rainbow-square',
+  },
 };
 
 /**

@@ -24,15 +24,13 @@ const FEATURE_CARDS = [
   { n: 3, icon: iconSorted },
 ];
 
-/** ロードマップとフォームで出す成分。順序を1箇所で決める */
-export const ROADMAP_NUTRIENTS = [
-  'creatine',
-  'eaa_bcaa',
-  'hmb',
-  'vitamins',
-  'iron_zinc',
-  'multivitamin',
-];
+/**
+ * ロードマップとフォームで出す成分。
+ * 実体は src/lib/waitlist_fields.js（Worker の許可リストと同じ出所）。
+ */
+import { ROADMAP_NUTRIENTS } from '../../lib/waitlist_fields.js';
+
+export { ROADMAP_NUTRIENTS };
 
 /**
  * 「袋の値段」と「1gあたり」で順位が入れ替わることを示す例。
@@ -114,7 +112,7 @@ ${cards}
 
   <div class="banner">
     <p class="banner__text">${escapeHtml(t('lp.features.bannerText'))}</p>
-    <a class="btn btn--signal" href="#waitlist">${escapeHtml(t('lp.features.bannerCta'))}</a>
+    <a class="btn btn--signal" href="#waitlist" data-cta="features_banner">${escapeHtml(t('lp.features.bannerCta'))}</a>
   </div>
 </section>`;
 }

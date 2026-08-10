@@ -31,7 +31,9 @@ npm run validate  # data/ のバリデーションのみ
 | `locales/*.json` | 未定義キーはビルドを落とす。文言をテンプレートに直書きしない |
 | `src/build/build.js` | **LP は掲載件数に関わらず常に出力する**（`/ja/`）。実データが20件未満のとき出さないのは**ヒーローのランキングカードだけ**（出典: [design.md](docs/design/design.md) §7 禁止⑧「ヒーローにダミーデータを置く」）。この門をカード以外に広げない。⚠️ **`HERO_PRODUCT_IDS` にβ版限定の暫定措置が入っている** — ヒーローに出す3件を手動指定しており、行番号が実際の順位と食い違う。経緯と解消条件は design.md「ヒーローのランキングカードの例外」。**空配列に戻せば単価順に戻る** |
 | `src/styles/tokens.css` | 色・寸法の唯一の出所。`scripts/make_ogp.js` の定数もここと同じ値に保つ |
-| `src/templates/lp/` | LP のセクション。`ROADMAP_NUTRIENTS` と `worker/waitlist.js` の許可リストは対応させる |
+| `src/templates/lp/` | LP のセクション。チップの並びも許可リストも `src/lib/waitlist_fields.js` が唯一の出所。LP 側と Worker 側で二重に持たない |
+| `src/templates/lp/support.js` | 任意支援（Codoc）の埋め込み。設定の出所は `config/markets.json` の `support`。⚠️ **1ページに1つしか置けない** — Codoc は要素の id から `#codoc-entry-<code>` を組み立てて mount 先を引き直すので、同じ id を2箇所に置くと後ろ側は空のまま死ぬ。2箇所に出すなら Codoc 側で2つ目の entry を発行する |
+| `src/build/headers.js` | CSP と配信ヘッダ。外部から読み込むものを足したら必ずここに許可を書く。**忘れるとブラウザが黙ってブロックし、画面には何も出ない。**許可するオリジンは設定から導き、ドメインを2箇所に書かない |
 | `worker/index.js` | Worker の入り口。配信は **Pages ではなく Workers**。`functions/` は使えない。ルートは `ROUTES` に足す |
 | `src/templates/products/` | 製品一覧（`/ja/protein/`）。カード表示とリスト表示は**同じマークアップ**を CSS のグリッドだけで組み替える。2つ描き分けない |
 | `src/templates/products/item.js` | ⚠️ **β版限定の暫定措置が入っている。** 他ストアの価格表に `PLACEHOLDER_MERCHANTS`（Amazon / Yahoo! / 公式）の行を必ず足す。**🔒 金額は作らない** — 実データが無い欄は `¥X` / `¥XXXX` を出し、リンクも張らない。表示例であることは `products.betaNoData` で画面に明示する。楽天以外の実データが入ったら定数ごと削り、`market.merchants` を回すだけに戻す |
@@ -181,7 +183,14 @@ LP を階層下（`/ja/lp/` 等）に置かない。ワードマークが指す 
 ## データ保護
 
 - 年齢・性別・服用中サプリは **localStorage / IndexedDB のみ**。サーバへ送信しない
-- サーバが保持してよいのは**メールアドレスと監視製品ID のみ**（価格アラート）
+- サーバが保持してよいのは、待機リストの6列（`email` / `nutrients` / `channel` /
+  `nutrients_other` / `requests` / `created_at`）と、価格アラートの**監視製品ID のみ**。
+  列を足すときは `worker/schema.sql`・`worker/migrations/`・`tests/worker.test.js` を必ず揃える
+- **自由記述（`nutrients_other` / `requests`）は症状・服薬の書き込み口になりうる（N-01 / N-05）。**
+  防波堤はフォーム側の注記（`lp.form.freeTextNote`）とラベルの限定であって、サーバ側の
+  検閲ではない。**中身を解釈して弾こうとしない** — 誤検知で正当な要望を捨てるほうが害が大きい。
+  サーバがやるのは長さで切ることだけ（上限は `src/lib/waitlist_fields.js`）
+- **自由記述の本文を GA4 に送らない。**書かれたかどうか（0 / 1）だけを数える
 - GA4 に個人識別情報を送らない。メールアドレスをイベントパラメータに含めない
 
 ---
