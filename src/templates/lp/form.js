@@ -73,27 +73,25 @@ ${optionChips({
 }
 
 export function siteFooter(t, { disclosureKey }) {
+  const affiliate = t(`${disclosureKey}.affiliate`);
+  const dataSource = t(`${disclosureKey}.dataSource`);
+  const medical = t(`${disclosureKey}.medical`);
+
   return `<footer class="site-foot">
   <div class="site-foot__inner">
     <div class="site-foot__about">
       ${wordmark(t, { withTagline: true, as: 'div' })}
       <p class="site-foot__text">${escapeHtml(t('lp.foot.about'))}</p>
-      <p class="site-foot__copyright">${escapeHtml(t('lp.foot.copyright'))}</p>
     </div>
 
     <div class="disclosure">
-      <h2 class="disclosure__heading">${escapeHtml(t('lp.section5.heading'))}</h2>
-      <ul class="disclosure__list">
-        <li>${escapeHtml(t('lp.section5.item1'))}</li>
-        <li>${escapeHtml(t('lp.section5.item2'))}</li>
-        <li>${escapeHtml(t('lp.section5.item3'))}</li>
-        <li>${escapeHtml(t('lp.section5.item4'))}</li>
-      </ul>
-      <p class="disclosure__fine">${escapeHtml(t(`${disclosureKey}.dataSource`))}</p>
-      <p class="disclosure__fine">${escapeHtml(t(`${disclosureKey}.referenceSource`))}</p>
-      <p class="disclosure__fine">${escapeHtml(t(`${disclosureKey}.affiliate`))}</p>
-      <p class="disclosure__fine">${escapeHtml(t(`${disclosureKey}.medical`))}</p>
+      ${affiliate ? `<p class="disclosure__fine">${escapeHtml(affiliate)}</p>` : ''}
+      ${dataSource ? `<p class="disclosure__fine">${escapeHtml(dataSource)}</p>` : ''}
+      ${medical ? `<p class="disclosure__fine">${escapeHtml(medical)}</p>` : ''}
     </div>
+  </div>
+  <div class="site-foot__bottom">
+    <p class="site-foot__copyright">${escapeHtml(t('lp.foot.copyright'))}</p>
   </div>
 </footer>`;
 }

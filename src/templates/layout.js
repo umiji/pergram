@@ -6,6 +6,22 @@ import { escapeHtml } from '../lib/i18n.js';
  * 🔒 lang は locale、免責は market。この2つを取り違えない。
  *    日本在住者が英語 UI で見ていても、適用されるのは日本の規制。
  */
+/**
+ * meta タグおよび <title> 用のエスケープ関数。
+ * 🔒 <br> や改行コードが <title> や og:title に混入することを防ぐ。
+ */
+export function cleanMetaText(value) {
+  return String(value ?? '')
+    .replace(/<br\s*\/?>|\n/gi, ' ')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 export function layout({
   locale,
   title,
@@ -16,6 +32,9 @@ export function layout({
   gaMeasurementId,
   canonicalPath,
 }) {
+  const metaTitle = cleanMetaText(title);
+  const metaDesc = cleanMetaText(description);
+
   const ga = gaMeasurementId
     ? `<script async src="https://www.googletagmanager.com/gtag/js?id=${escapeHtml(gaMeasurementId)}"></script>
 <script>
@@ -32,11 +51,14 @@ export function layout({
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${escapeHtml(title)}</title>
-<meta name="description" content="${escapeHtml(description)}">
+<title>${metaTitle}</title>
+<meta name="description" content="${metaDesc}">
+<link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/images/favicon.png">
+<link rel="apple-touch-icon" href="/assets/images/favicon.png">
 ${canonicalPath ? `<link rel="canonical" href="${escapeHtml(canonicalPath)}">` : ''}
-<meta property="og:title" content="${escapeHtml(title)}">
-<meta property="og:description" content="${escapeHtml(description)}">
+<meta property="og:title" content="${metaTitle}">
+<meta property="og:description" content="${metaDesc}">
 <meta property="og:type" content="website">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -59,7 +81,8 @@ ${content}
  *    `-gram` が Instagram / Telegram の連想を呼ぶため、単体では SNS アプリに見える。
  */
 export function wordmark(t, { withTagline = false, href = '/', as = 'a' } = {}) {
-  const inner = `<span class="brand__name">${escapeHtml(t('brand.name'))}</span>${
+  const brandName = escapeHtml(t('brand.name'));
+  const inner = `<img class="brand__logo-img" src="/assets/images/pergram_logo.svg" alt="${brandName}" width="140" height="30">${
     withTagline ? `<span class="brand__tagline">${escapeHtml(t('brand.tagline'))}</span>` : ''
   }`;
 

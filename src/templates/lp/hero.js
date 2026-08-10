@@ -1,13 +1,15 @@
 /**
  * LP のヘッダとヒーロー。
  *
- * 🔒 ヒーローのランキングは実データだけ。ダミーを入れない。
- *    件数が足りないときは build.js が LP 自体を出力しない。
+ * 🔒 ヒーローに出す数値は実データだけ。価格・単価をここで作らない。
+ *    件数が足りないときは build.js がカードを渡さず（topRows が空）、LP 自体は出力する。
+ * ⚠️ どの製品を出すかは build.js の HERO_PRODUCT_IDS が決める。β版のあいだは
+ *    手動指定が入っており、行番号は実際の順位と一致しない（design.md の例外を参照）。
  * 🔒 ワードマークは初回接触なのでタグラインと必ずセットで出す。
  */
 
 import { escapeHtml } from '../../lib/i18n.js';
-import { formatCurrency, formatDate, formatPercent } from '../../lib/format.js';
+import { formatCurrency, formatPercent } from '../../lib/format.js';
 import { wordmark } from '../layout.js';
 import { packageThumb } from './parts.js';
 
@@ -24,10 +26,8 @@ export function siteHeader(t, { locale, betaPath = null }) {
     (id) => `<a href="#${id}">${escapeHtml(t(`lp.nav.${id}`))}</a>`,
   ).join('\n      ');
 
-  // 🔒 LP 自体にアフィリエイトリンクは置かない。これは内部リンク。
-  //    リンク先の製品一覧には購入リンクがあるので、ここを主 CTA にしない。
   const beta = betaPath
-    ? `<a class="btn btn--quiet" href="${escapeHtml(betaPath)}">
+    ? `<a class="btn btn--signal" href="${escapeHtml(betaPath)}">
       <span class="u-desktop">${escapeHtml(t('lp.nav.beta'))}</span>
       <span class="u-mobile">${escapeHtml(t('lp.nav.betaShort'))}</span>
     </a>`
@@ -39,11 +39,13 @@ export function siteHeader(t, { locale, betaPath = null }) {
     <nav class="site-nav" aria-label="${escapeHtml(t('lp.nav.label'))}">
       ${links}
     </nav>
-    ${beta}
-    <a class="btn btn--dark" href="#waitlist">
-      <span class="u-desktop">${escapeHtml(t('lp.nav.cta'))}</span>
-      <span class="u-mobile">${escapeHtml(t('lp.nav.ctaShort'))}</span>
-    </a>
+    <div class="site-head__actions">
+      ${beta}
+      <a class="btn btn--subtle" href="#waitlist">
+        <span class="u-desktop">${escapeHtml(t('lp.nav.cta'))}</span>
+        <span class="u-mobile">${escapeHtml(t('lp.nav.ctaShort'))}</span>
+      </a>
+    </div>
   </div>
 </header>`;
 }
@@ -85,12 +87,14 @@ function rankRow(row, index, { t, locale, currency, displayUnit }) {
  * ヒーローのランキングカード。
  *
  * 🔒 順位は ol でマークアップする。div で組まない。
- * 🔒 ここに出す製品は実データだけ。ダミーを入れない（design.md §7 禁止⑧）。
- *    禁止されているのは「嘘の数字を置くこと」であって「LP を出さないこと」ではない。
- *    実データが無いときはカードごと出さず、LP 自体は必ず出す。
+ * 🔒 ここに出す製品・価格は実データだけ。存在しない製品や作った数字は置かない
+ *    （design.md §7 禁止⑧）。禁止されているのは「嘘の数字を置くこと」であって
+ *    「LP を出さないこと」ではない。実データが無いときはカードごと出さず、LP 自体は必ず出す。
+ * ⚠️ 並べる順番だけは build.js の HERO_PRODUCT_IDS で手動指定できる状態にしてある。
+ *    指定中は行番号が実際の順位と食い違う。design.md の例外の記録を参照。
  */
 function rankCard(ctx) {
-  const { t, locale, currency, displayUnit, topRows, totalCount, nutrientName, updatedAt } = ctx;
+  const { t, locale, currency, displayUnit, topRows, nutrientName } = ctx;
 
   if (!topRows || topRows.length === 0) return '';
 
@@ -106,18 +110,11 @@ function rankCard(ctx) {
       )}</span>
       <span class="u-mobile">${escapeHtml(t('lp.hero.cardTitleShort', { unit: displayUnit }))}</span>
     </h2>
-    <span class="rank-card__updated num">${escapeHtml(
-      t('lp.hero.updated', { date: formatDate(updatedAt, { locale }) ?? updatedAt }),
-    )}</span>
   </div>
 
   <ol class="rank-list">
 ${rows}
   </ol>
-
-  <p class="rank-card__foot">${escapeHtml(
-    t('lp.hero.tracking', { nutrient: nutrientName, count: totalCount }),
-  )}</p>
 </div>`;
 }
 
@@ -126,9 +123,8 @@ export function hero(ctx) {
 
   const card = rankCard(ctx);
 
-  // 副次 CTA。主 CTA（Waitlist 登録）より弱い見た目にしておく
   const beta = betaPath
-    ? `<a class="btn btn--quiet btn--block hero__beta" href="${escapeHtml(betaPath)}">${escapeHtml(
+    ? `<a class="btn btn--signal btn--block hero__beta" href="${escapeHtml(betaPath)}">${escapeHtml(
         t('lp.hero.beta', { nutrient: nutrientName }),
       )}</a>`
     : '';
@@ -140,9 +136,11 @@ export function hero(ctx) {
       <p class="hero__tagline">${escapeHtml(t('brand.tagline'))}</p>
       <h1>${escapeHtml(t('lp.h1'))}</h1>
       <p class="hero__lede">${escapeHtml(t('lp.lede'))}</p>
-      <a class="btn btn--signal btn--block" href="#waitlist">${escapeHtml(t('lp.cta'))}</a>
-      ${beta}
-      <p class="hero__note">${escapeHtml(t('lp.ctaNote'))}</p>
+      <div class="hero__actions">
+        ${beta}
+        <a class="btn btn--subtle btn--block hero__waitlist" href="#waitlist">${escapeHtml(t('lp.cta'))}</a>
+        <p class="hero__note">${escapeHtml(t('lp.ctaNote'))}</p>
+      </div>
     </div>
     ${card}
   </div>

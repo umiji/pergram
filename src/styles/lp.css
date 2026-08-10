@@ -88,8 +88,20 @@
   color: #fff;
 }
 
-/* ベータ版（製品一覧）への副次 CTA。
-   主 CTA は Waitlist 登録なので、こちらは輪郭だけにして強さを一段落とす。 */
+/* 薄いオレンジ背景のボタン（Waitlist 登録等） */
+.btn--subtle {
+  background: var(--signal-band);
+  color: var(--signal);
+  border: 1px solid var(--signal-edge);
+  border-radius: var(--radius-cta);
+}
+.btn--subtle:hover {
+  background: #ffedd5;
+  color: var(--signal-hover);
+  border-color: var(--signal);
+}
+
+/* ベータ版（製品一覧）への副次 CTA */
 .btn--quiet {
   background: transparent;
   color: var(--ink);
@@ -209,7 +221,17 @@
 
 /* ---- ヒーロー -------------------------------------------------------- */
 
+.hero__grid {
+  display: flex;
+  flex-direction: column;
+}
+
+.hero__copy {
+  display: contents;
+}
+
 .hero__tagline {
+  order: 1;
   font-size: 13px;
   font-weight: 700;
   color: var(--signal);
@@ -217,6 +239,7 @@
 }
 
 .hero h1 {
+  order: 2;
   font-size: var(--size-xl);
   font-weight: 700;
   line-height: 1.5;
@@ -225,10 +248,30 @@
 }
 
 .hero__lede {
+  order: 3;
   font-size: 14.5px;
   color: var(--muted);
   line-height: 1.9;
   margin: 0 0 var(--space-6);
+}
+
+.rank-card {
+  order: 4;
+  margin-top: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+.hero__actions {
+  order: 5;
+  margin-top: var(--space-6);
+}
+
+.hero__waitlist {
+  margin-top: var(--space-3);
 }
 
 .hero__note {
@@ -236,17 +279,6 @@
   color: var(--muted-faint);
   margin: var(--space-3) 0 0;
   text-align: center;
-}
-
-/* ---- ヒーローのランキングカード -------------------------------------- */
-
-.rank-card {
-  margin-top: var(--space-8);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface);
-  box-shadow: var(--shadow-card);
-  overflow: hidden;
 }
 
 .rank-card__head {
@@ -262,20 +294,6 @@
   font-size: 12.5px;
   font-weight: 700;
   letter-spacing: 0;
-  margin: 0;
-}
-
-.rank-card__updated {
-  font-size: 10.5px;
-  color: var(--muted-faint);
-  white-space: nowrap;
-}
-
-.rank-card__foot {
-  padding: 11px var(--space-4);
-  border-top: 1px solid rgba(22, 24, 29, 0.08);
-  font-size: 11px;
-  color: var(--muted-faint);
   margin: 0;
 }
 
@@ -796,6 +814,20 @@
   margin: 0;
 }
 
+.site-foot__bottom {
+  border-top: 1px solid var(--line-soft);
+  margin-top: var(--space-6);
+  padding-top: var(--space-4);
+  text-align: center;
+  width: 100%;
+}
+.site-foot__bottom .site-foot__copyright,
+.site-foot__bottom .site-foot__copy {
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted-faint);
+}
+
 /* 🔒 免責は常時表示。折りたたまない */
 .site-foot .disclosure {
   border-top: none;
@@ -900,6 +932,17 @@
     grid-template-columns: minmax(0, 720px);
   }
 
+  .hero__copy {
+    display: block;
+  }
+  .hero__tagline,
+  .hero h1,
+  .hero__lede,
+  .rank-card,
+  .hero__actions {
+    order: initial;
+  }
+
   .hero__tagline {
     font-size: 14px;
   }
@@ -911,8 +954,10 @@
   .hero__lede {
     font-size: 17px;
     line-height: 1.85;
-    max-width: 480px;
     margin-bottom: var(--space-8);
+  }
+  .hero__actions {
+    margin-top: 0;
   }
   .hero .btn--block {
     display: inline-flex;
@@ -935,13 +980,6 @@
   }
   .rank-card__title {
     font-size: 13px;
-  }
-  .rank-card__updated {
-    font-size: 11px;
-  }
-  .rank-card__foot {
-    padding: var(--space-3) 20px;
-    font-size: 11.5px;
   }
   .rank-row {
     gap: var(--space-4);
@@ -1185,4 +1223,53 @@
   .disclosure__fine {
     font-size: 11.5px;
   }
+}
+
+/* ---- ロードマップ機能カード ---------------------------------------- */
+
+.roadmap-grid {
+  display: grid;
+  gap: var(--space-4);
+  margin-top: var(--space-6);
+}
+
+@media (min-width: 768px) {
+  .roadmap-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.roadmap-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+}
+
+.roadmap-card__tag {
+  display: inline-block;
+  align-self: flex-start;
+  font-size: var(--size-xs);
+  font-weight: 700;
+  color: var(--signal);
+  background: var(--signal-band);
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  margin-bottom: var(--space-3);
+}
+
+.roadmap-card h3 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--size-md);
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.roadmap-card p {
+  margin: 0;
+  font-size: var(--size-sm);
+  color: var(--muted-weak);
+  line-height: 1.6;
 }

@@ -73,9 +73,9 @@ function exampleFigures({ locale, currency }) {
 }
 
 /** 比較バー。長さは金額の比そのもので、装飾ではない */
-function compareBar({ label, value, widthPercent, isLead, noImageLabel, initial }) {
+function compareBar({ label, value, widthPercent, isLead, noImageLabel, initial, imageUrl }) {
   return `<div class="cmp-row">
-  ${packageThumb({ imageUrl: null, initial, noImageLabel })}
+  ${packageThumb({ imageUrl: imageUrl ?? null, initial, noImageLabel })}
   <div class="cmp-row__body">
     <div class="cmp-row__head">
       <span class="cmp-row__label">${escapeHtml(label)}</span>
@@ -124,6 +124,8 @@ export function howItWorks(t, { locale, currency, displayUnit }) {
   const noImageLabel = t('lp.hero.noImage');
   const labelA = t('lp.how.labelA');
   const labelB = t('lp.how.labelB');
+  const imageA = '/assets/images/protein_a.jpg';
+  const imageB = '/assets/images/protein_b.jpg';
 
   // 袋の値段: 高いほうを 100% とし、比をそのまま幅にする
   const packWidth = (price) => Math.round((price / Math.max(f.a.price, f.b.price)) * 1000) / 10;
@@ -149,6 +151,7 @@ export function howItWorks(t, { locale, currency, displayUnit }) {
         widthPercent: packWidth(f.a.price),
         isLead: true,
         initial: 'A',
+        imageUrl: imageA,
         noImageLabel,
       })}
       ${compareBar({
@@ -157,6 +160,7 @@ export function howItWorks(t, { locale, currency, displayUnit }) {
         widthPercent: packWidth(f.b.price),
         isLead: false,
         initial: 'B',
+        imageUrl: imageB,
         noImageLabel,
       })}
 
@@ -182,19 +186,21 @@ export function howItWorks(t, { locale, currency, displayUnit }) {
       <p class="flip__sub">${escapeHtml(t('lp.how.afterSub'))}</p>
 
       ${compareBar({
-        label: t('lp.how.effective', { label: labelB, amount: f.weight(f.b.nutrientG) }),
-        value: unitCostValue(f.money(f.b.unitCost), displayUnit),
-        widthPercent: unitWidth(f.b.unitCost),
-        isLead: true,
-        initial: 'B',
-        noImageLabel,
-      })}
-      ${compareBar({
         label: t('lp.how.effective', { label: labelA, amount: f.weight(f.a.nutrientG) }),
         value: unitCostValue(f.money(f.a.unitCost), displayUnit),
         widthPercent: unitWidth(f.a.unitCost),
         isLead: false,
         initial: 'A',
+        imageUrl: imageA,
+        noImageLabel,
+      })}
+      ${compareBar({
+        label: t('lp.how.effective', { label: labelB, amount: f.weight(f.b.nutrientG) }),
+        value: unitCostValue(f.money(f.b.unitCost), displayUnit),
+        widthPercent: unitWidth(f.b.unitCost),
+        isLead: true,
+        initial: 'B',
+        imageUrl: imageB,
         noImageLabel,
       })}
 
@@ -211,14 +217,32 @@ export function howItWorks(t, { locale, currency, displayUnit }) {
 export function roadmap(t) {
   const chips = ROADMAP_NUTRIENTS.map(
     (key) => `<li class="pill">${escapeHtml(t(`nutrient.${key}`))}</li>`,
-  ).join('\n    ');
+  ).join('\n        ');
 
   return `<section class="section" id="roadmap">
   ${eyebrow(t('lp.roadmap.eyebrow'))}
   <h2>${escapeHtml(t('lp.roadmap.heading'))}</h2>
   <p class="section__lede">${escapeHtml(t('lp.roadmap.lede'))}</p>
-  <ul class="pill-list">
-    ${chips}
-  </ul>
+
+  <div class="roadmap-grid">
+    <div class="roadmap-card">
+      <span class="roadmap-card__tag">${escapeHtml(t('lp.roadmap.feat1Tag'))}</span>
+      <h3>${escapeHtml(t('lp.roadmap.feat1Title'))}</h3>
+      <p>${escapeHtml(t('lp.roadmap.feat1Desc'))}</p>
+    </div>
+    <div class="roadmap-card">
+      <span class="roadmap-card__tag">${escapeHtml(t('lp.roadmap.feat2Tag'))}</span>
+      <h3>${escapeHtml(t('lp.roadmap.feat2Title'))}</h3>
+      <p>${escapeHtml(t('lp.roadmap.feat2Desc'))}</p>
+      <ul class="pill-list" style="margin-top:var(--space-3)">
+        ${chips}
+      </ul>
+    </div>
+    <div class="roadmap-card">
+      <span class="roadmap-card__tag">${escapeHtml(t('lp.roadmap.feat3Tag'))}</span>
+      <h3>${escapeHtml(t('lp.roadmap.feat3Title'))}</h3>
+      <p>${escapeHtml(t('lp.roadmap.feat3Desc'))}</p>
+    </div>
+  </div>
 </section>`;
 }

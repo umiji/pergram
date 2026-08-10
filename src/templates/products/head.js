@@ -52,7 +52,7 @@ const iconInfo = `<svg viewBox="0 0 20 20" fill="none" aria-hidden="true" focusa
  */
 export function appHeader({ t, locale, waitlistPath }) {
   const waitlist = waitlistPath
-    ? `<a class="btn btn--dark app-head__cta" href="${escapeHtml(waitlistPath)}">
+    ? `<a class="btn btn--signal app-head__cta" href="${escapeHtml(waitlistPath)}">
       ${escapeHtml(t('products.waitlistCta'))}
     </a>`
     : '';
@@ -71,15 +71,13 @@ export function appHeader({ t, locale, waitlistPath }) {
 </header>`;
 }
 
-/**
- * ページ見出しとツールバー。
- * 件数は絞り込みで変わるので data-result-count を JS が書き換える。
- */
-export function pageHead(ctx) {
-  const { t, locale, nutrientName, displayUnit, rows, updatedAt, secondaryMetrics } = ctx;
+export function toolbar(ctx) {
+  const { t, nutrientName, displayUnit, secondaryMetrics } = ctx;
 
-  const updated = formatDate(updatedAt, { locale });
-
+  // 副指標の選択肢は config/categories.json の secondaryMetrics を回すだけ。
+  // 🔒 これを消すと、2つ目以降の副指標が CSS で隠れたまま到達不能になる
+  //    （src/assets/products.js の [data-metric-select] と products.css の
+  //     .p-list[data-metric=...] が対になっている）。
   const metricOptions = secondaryMetrics
     .map(
       (metric, i) =>
@@ -95,18 +93,7 @@ export function pageHead(ctx) {
       <span class="viewswitch__label">${escapeHtml(label)}</span>
     </button>`;
 
-  return `<div class="page-head">
-  <div class="page-head__titles">
-    <h1>${escapeHtml(t('products.title', { nutrient: nutrientName, unit: displayUnit }))}</h1>
-    <p class="page-head__meta">
-      <span class="num" data-result-count
-        data-count-template="${escapeHtml(t('products.tracking', { count: '{count}' }))}">${escapeHtml(
-          t('products.tracking', { count: rows.length }),
-        )}</span>${updated === null ? '' : `　${escapeHtml(t('products.updatedAt', { date: updated }))}`}
-    </p>
-  </div>
-
-  <div class="toolbar">
+  return `<div class="toolbar">
     <button class="toolbar__filter" type="button" data-filter-open aria-controls="filters" aria-expanded="false">
       <span class="toolbar__filter-icon">${iconFilter}</span>
       <span>${escapeHtml(t('filters.heading'))}</span>
@@ -122,6 +109,29 @@ export function pageHead(ctx) {
       ${viewButton('card', t('products.view.card'), iconCard, 'true')}
       ${viewButton('list', t('products.view.list'), iconList, 'false')}
     </div>
+  </div>`;
+}
+
+/**
+ * ページ見出し。
+ *
+ * 掲載件数は出さない。絞り込みの結果件数は絞り込みシートの適用ボタンが持っていて、
+ * 見出しに置くと「掲載数」なのか「表示中の数」なのか読み手に判別できない
+ * （初期表示を上位10件に絞っているので、必ず食い違う）。
+ */
+export function pageHead(ctx) {
+  const { t, locale, nutrientName, displayUnit, updatedAt } = ctx;
+
+  const updated = formatDate(updatedAt, { locale });
+
+  return `<div class="page-head">
+  <div class="page-head__titles">
+    <h1>${escapeHtml(t('products.title', { nutrient: nutrientName, unit: displayUnit }))}</h1>
+    ${
+      updated === null
+        ? ''
+        : `<p class="page-head__meta">${escapeHtml(t('products.updatedAt', { date: updated }))}</p>`
+    }
   </div>
 </div>`;
 }
@@ -141,13 +151,20 @@ export function explainer({ t, explainerKey }) {
 </section>`;
 }
 
-/** 広告表示。market に紐づく。常時表示する */
+/**
+ * 広告表示。market に紐づく。常時表示する。
+ * 🔴 β版のあいだは、他ストアの欄が表示例であることをここに続けて書く。
+ *    実データが揃ったら products.betaNoData の行ごと消す。
+ */
 export function affiliateNotice({ t, nutrientName, displayUnit }) {
+  const affiliateText = t('products.affiliate', { nutrient: nutrientName, unit: displayUnit });
+  const betaText = t('products.betaNoData');
+
   return `<p class="notice">
   <span class="notice__icon">${iconInfo}</span>
-  <span>${escapeHtml(
-    t('products.affiliate', { nutrient: nutrientName, unit: displayUnit }),
-  )}</span>
+  <span>${escapeHtml(affiliateText)}${
+    betaText ? `<span class="notice__beta">${escapeHtml(betaText)}</span>` : ''
+  }</span>
 </p>`;
 }
 

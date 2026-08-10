@@ -131,6 +131,24 @@ function rangeGroup({ id, legend, range, value, valueLabel, template, digits }) 
 </fieldset>`;
 }
 
+/**
+ * スライダーの上限を、掲載中の行が必ず収まるところまで押し上げる。
+ *
+ * 🔒 上限を config/categories.json の固定値のままにしない。掲載データは取り込みのたびに
+ *    変わるので、固定値はいずれ実データの最大を下回る。初期値は上限そのものなので、
+ *    そのとき**操作していないのに製品が消える**（価格上限 20,000円 に対して ¥39,980 の
+ *    1位が消え、初期表示が 2〜13位になった実例がある）。
+ *    config が持つのは目盛りの下限と刻み幅、そして上限の**下限値**だけ。
+ */
+function rangeCovering(range, rows, pick) {
+  const values = rows.map(pick).filter((v) => Number.isFinite(v));
+  if (values.length === 0) return range;
+
+  // 刻みの切りのいいところまで切り上げる。端数のままだと最高値の行が閾値を超える
+  const ceiling = Math.ceil(Math.max(...values) / range.step) * range.step;
+  return { ...range, max: Math.max(range.max, ceiling) };
+}
+
 export function filters(ctx) {
   const {
     t,
@@ -206,8 +224,8 @@ export function filters(ctx) {
         )}</button>`
       : '';
 
-  const unitCostRange = category.unitCostRange;
-  const priceRange = category.priceRange;
+  const unitCostRange = rangeCovering(category.unitCostRange, rows, (r) => r.costPerNutrientUnit);
+  const priceRange = rangeCovering(category.priceRange, rows, (r) => r.price);
   const unitCostLabel = t('filters.rangeUpTo', {
     max: formatCurrency(unitCostRange.max, { locale, currency, fractionDigits: 1 }) ?? '',
   });
@@ -219,7 +237,10 @@ export function filters(ctx) {
   data-locale="${escapeHtml(locale)}" data-currency="${escapeHtml(currency)}"
   data-count-template="${escapeHtml(t('filters.apply', { count: '{count}' }))}">
   <div class="filters__head">
-    <p class="filters__title" id="filters-title">${escapeHtml(t('filters.heading'))}</p>
+    <div>
+      <p class="filters__title" id="filters-title">${escapeHtml(t('filters.heading'))}</p>
+      <p class="filters__beta-notice" style="font-size: 11px; color: var(--warn); margin: 2px 0 0; font-weight: 600;">※ イメージのみ、フィルタは出来ません</p>
+    </div>
     <div class="filters__head-actions">
       <button class="filters__reset" type="reset">${escapeHtml(t('filters.reset'))}</button>
       <button class="filters__close" type="button" data-filter-close aria-label="${escapeHtml(

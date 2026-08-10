@@ -16,6 +16,16 @@ import { costPerNutrientUnit } from '../../lib/cost.js';
 import { formatCurrency, formatDate, formatPercent, formatWeight } from '../../lib/format.js';
 import { packageThumb } from '../lp/parts.js';
 
+/**
+ * 🔴 β版の暫定措置。楽天以外の EC サイトの価格をまだ取得していないため、
+ *    他ストアの欄は「行だけある表示例」として出す。
+ *    🔒 金額を推定して埋めない。実データが無い欄はプレースホルダの文字を出す。
+ *    実データが入ったらこの2つの定数ごと消し、market.merchants を回すだけに戻す。
+ */
+const PLACEHOLDER_MERCHANTS = ['amazon_jp', 'rakuten', 'yahoo', 'official'];
+const PLACEHOLDER_UNIT_COST = '¥X';
+const PLACEHOLDER_PRICE = '¥XXXX';
+
 /** 最安との差。事実の提示であり優劣の判断ではない */
 function deltaLabel(row, baseline, { t, locale }) {
   if (baseline === null || row.costPerNutrientUnit <= baseline) return t('products.deltaBase');
@@ -47,12 +57,6 @@ function secondaryFacts(row, { t, locale, currency, displayUnit, secondaryMetric
     },
   };
 
-  const weight = formatWeight(row.netWeightG, { locale });
-  const fixed =
-    weight === null
-      ? ''
-      : `<span class="p-item__fact">${escapeHtml(t('product.netWeight', { amount: weight }))}</span>`;
-
   const swappable = secondaryMetrics
     .map((metric) => {
       const text = value[metric]?.();
@@ -61,7 +65,7 @@ function secondaryFacts(row, { t, locale, currency, displayUnit, secondaryMetric
     })
     .join('');
 
-  return `${fixed}${swappable}`;
+  return swappable;
 }
 
 /**
@@ -70,32 +74,52 @@ function secondaryFacts(row, { t, locale, currency, displayUnit, secondaryMetric
  * 🔒 merchant は market 設定の配列を回す。UI に locale の分岐を書かない。
  */
 function offersTable(row, { t, locale, currency, displayUnit, market, id }) {
-  const rows = market.merchants
+  const targetMerchants = ['amazon_jp', 'rakuten', 'yahoo', 'official'];
+  const otherMerchants = targetMerchants.filter((m) => m !== row.merchant);
+
+  const rows = otherMerchants
     .map((merchant) => {
-      const snapshot = row.snapshotsByMerchant.get(merchant);
-      if (!snapshot) return null;
-      const unitCost = costPerNutrientUnit(snapshot.price, row.product, row.content);
-      return { merchant, snapshot, unitCost };
+      const snapshot = row.snapshotsByMerchant?.get(merchant) ?? null;
+      return {
+        merchant,
+        snapshot,
+        unitCost:
+          snapshot === null ? null : costPerNutrientUnit(snapshot.price, row.product, row.content),
+      };
     })
-    .filter(Boolean)
+    // 実データのある行が先。プレースホルダは単価が無いので自然に後ろへ落ちる
     .sort((a, b) => (a.unitCost ?? Infinity) - (b.unitCost ?? Infinity));
 
-  if (rows.length === 0) return { count: 0, html: '' };
+  const unitSuffix = t('unit.perNutrientUnit', { unit: displayUnit });
+  const viewLabel = escapeHtml(t('products.offers.view'));
 
   const body = rows
     .map(({ merchant, snapshot, unitCost }) => {
+      const name = escapeHtml(t(`merchant.${merchant}`));
+
+      // 🔒 実データが無い販売元。金額を作らず、リンクも張らない
+      if (snapshot === null) {
+        return `<tr data-placeholder="true">
+        <th scope="row" class="offers__merchant">${name}</th>
+        <td class="num offers__unit">${PLACEHOLDER_UNIT_COST}<span class="unit-sub">${escapeHtml(unitSuffix)}</span></td>
+        <td class="num offers__price">${PLACEHOLDER_PRICE}</td>
+        <td class="offers__action"><span class="merchant-button merchant-button--quiet merchant-button--disabled"
+          aria-disabled="true">${viewLabel}</span></td>
+      </tr>`;
+      }
+
       const unit = formatCurrency(unitCost, { locale, currency });
       const price = formatCurrency(snapshot.price, { locale, currency });
       const stock = snapshot.in_stock
         ? ''
         : ` <span class="badge badge--warn">▲ ${escapeHtml(t('merchant.outOfStock'))}</span>`;
       return `<tr>
-        <th scope="row">${escapeHtml(t(`merchant.${merchant}`))}${stock}</th>
-        <td class="num">${escapeHtml(unit ?? '—')}</td>
-        <td class="num">${escapeHtml(price ?? '—')}</td>
-        <td><a class="merchant-button merchant-button--quiet" href="${escapeHtml(snapshot.url)}"
+        <th scope="row" class="offers__merchant">${name}${stock}</th>
+        <td class="num offers__unit">${escapeHtml(unit ?? '—')}<span class="unit-sub">${escapeHtml(unitSuffix)}</span></td>
+        <td class="num offers__price">${escapeHtml(price ?? '—')}</td>
+        <td class="offers__action"><a class="merchant-button merchant-button--quiet" href="${escapeHtml(snapshot.url)}"
           rel="nofollow sponsored noopener" target="_blank"
-          data-merchant="${escapeHtml(merchant)}">${escapeHtml(t('products.offers.view'))}</a></td>
+          data-merchant="${escapeHtml(merchant)}">${viewLabel}</a></td>
       </tr>`;
     })
     .join('\n');
@@ -103,18 +127,20 @@ function offersTable(row, { t, locale, currency, displayUnit, market, id }) {
   return {
     count: rows.length,
     html: `<div class="p-item__offers" id="${escapeHtml(id)}" hidden>
-  <table class="offers">
-    <caption>${escapeHtml(t('products.offersHeading', { count: rows.length }))}</caption>
-    <thead>
-      <tr>
-        <th scope="col">${escapeHtml(t('products.offers.merchant'))}</th>
-        <th scope="col">${escapeHtml(t('products.offers.unitCost', { unit: displayUnit }))}</th>
-        <th scope="col">${escapeHtml(t('products.offers.price'))}</th>
-        <th scope="col"><span class="u-visually-hidden">${escapeHtml(t('products.offers.action'))}</span></th>
-      </tr>
-    </thead>
-    <tbody>${body}</tbody>
-  </table>
+  <div class="offers-card">
+    <p class="offers__heading">${escapeHtml(t('products.offersHeading', { count: rows.length }))}</p>
+    <table class="offers">
+      <thead>
+        <tr>
+          <th scope="col">${escapeHtml(t('products.offers.merchant'))}</th>
+          <th scope="col">${escapeHtml(t('products.offers.unitCost', { unit: displayUnit }))}</th>
+          <th scope="col">${escapeHtml(t('products.offers.price'))}</th>
+          <th scope="col"><span class="u-visually-hidden">${escapeHtml(t('products.offers.action'))}</span></th>
+        </tr>
+      </thead>
+      <tbody>${body}</tbody>
+    </table>
+  </div>
 </div>`,
   };
 }
@@ -128,16 +154,21 @@ export function productItem(row, index, ctx) {
   const unitSuffix = t('unit.perNutrientUnit', { unit: displayUnit });
   const price = formatCurrency(row.price, { locale, currency });
   const pack = formatWeight(row.netWeightG, { locale });
+  const nutrientWeight = formatWeight(row.totalNutrientAmount, { locale });
   const fetched = formatDate(row.fetchedAt, { locale });
+  const merchantName = t(`merchant.${row.merchant}`);
+
+  // 送料は「込み / 別」の2値だけで、判別できなければ何も出さない（🔒 推測で埋めない）。
+  // カード表示では商品価格の下に、リスト表示では送料の列に出るが、
+  // 描くのはこの1箇所だけ。置き場所は products.css のグリッドが決める。
+  const postage =
+    row.postageIncluded === null || row.postageIncluded === undefined
+      ? ''
+      : `<span class="p-item__postage">${escapeHtml(
+          t(row.postageIncluded ? 'products.postage.included' : 'products.postage.excluded'),
+        )}</span>`;
 
   const badges = [];
-  if (row.product.confidence === 'low' || row.product.confidence === 'medium') {
-    badges.push(
-      `<span class="badge badge--review">▲ ${escapeHtml(
-        t(`product.confidence.${row.product.confidence}`),
-      )}</span>`,
-    );
-  }
   if (!row.inStock) {
     badges.push(`<span class="badge badge--warn">▲ ${escapeHtml(t('merchant.outOfStock'))}</span>`);
   }
@@ -152,11 +183,15 @@ export function productItem(row, index, ctx) {
       <span class="p-item__chevron" aria-hidden="true"></span>
     </button>`;
 
+  const noticeText = escapeHtml(t('merchant.accessNotice', { merchant: merchantName }));
+
   const bestLink = `<a class="merchant-button" href="${escapeHtml(row.url)}"
       rel="nofollow sponsored noopener" target="_blank"
-      data-merchant="${escapeHtml(row.merchant)}">${escapeHtml(
-        t('merchant.viewAt', { merchant: t(`merchant.${row.merchant}`) }),
-      )}</a>`;
+      data-merchant="${escapeHtml(row.merchant)}">
+      <span class="merchant-button__label merchant-button__label--card">${escapeHtml(t('merchant.viewBestShop'))}</span>
+      <span class="merchant-button__label merchant-button__label--list">${escapeHtml(t('merchant.viewShop'))}</span>
+      <span class="merchant-notice">${noticeText}</span>
+    </a>`;
 
   // data-* は絞り込みが読む。導出値はここで確定させ、クライアントで再計算しない
   const data = [
@@ -168,6 +203,8 @@ export function productItem(row, index, ctx) {
     `data-attrs="${escapeHtml((row.attributeKeys ?? []).join(' '))}"`,
     `data-name="${escapeHtml(`${row.name} ${row.product.brand ?? ''}`.toLowerCase())}"`,
   ].join(' ');
+
+  const tagsHtml = badges.length > 0 ? `<p class="p-item__tags">${badges.join('')}</p>` : '';
 
   return `<li class="p-item${isBest ? ' p-item--best' : ''}" ${data}>
   <div class="p-item__media">
@@ -187,10 +224,7 @@ export function productItem(row, index, ctx) {
   </div>
 
   <div class="p-item__body">
-    <p class="p-item__tags">
-      <span class="chip chip--nutrient">${escapeHtml(ctx.nutrientName)}</span>
-      ${badges.join('')}
-    </p>
+    ${tagsHtml}
     <p class="p-item__brand">${escapeHtml(row.product.brand ?? '')}</p>
     <h2 class="p-item__name">${escapeHtml(row.name)}</h2>
     <p class="p-item__facts">${secondaryFacts(row, ctx)}</p>
@@ -206,14 +240,24 @@ export function productItem(row, index, ctx) {
     <p class="p-item__delta">${escapeHtml(deltaLabel(row, baseline, { t, locale }))}</p>
   </div>
 
+  <div class="p-item__weight">
+    <span class="p-item__weight-val">${pack === null ? '—' : escapeHtml(pack)}</span>
+  </div>
+
+  <div class="p-item__nutrient-weight">
+    <span class="p-item__nutrient-weight-val">${nutrientWeight === null ? '—' : escapeHtml(nutrientWeight)}</span>
+  </div>
+
   <div class="p-item__price">
     <p class="p-item__price-main">
       <span class="num">${escapeHtml(price ?? '—')}</span>
-      ${pack === null ? '' : `<span class="p-item__pack">${escapeHtml(t('products.perPack', { amount: pack }))}</span>`}
+      <span class="p-item__price-pack"> / ${pack === null ? '—' : escapeHtml(pack)}</span>
     </p>
-    <p class="p-item__price-sub">${escapeHtml(
-      t('products.bestMerchant', { merchant: t(`merchant.${row.merchant}`) }),
-    )}${fetched === null ? '' : `　${escapeHtml(t('products.fetchedAt', { date: fetched }))}`}</p>
+    <p class="p-item__price-sub">
+      ${postage}<span class="p-item__price-merchant">${postage ? ' ・ ' : ''}${escapeHtml(
+        t('products.bestMerchant', { merchant: merchantName }),
+      )}</span>
+    </p>
   </div>
 
   <div class="p-item__actions">
