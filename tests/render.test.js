@@ -644,6 +644,29 @@ test('🔒 支援ウィジェットは1ページに1つしか出ない', () => {
   assert.equal((html.match(/cms\.js/g) ?? []).length, 1, '読み込みタグが1つではありません');
 });
 
+/**
+ * 🔒 Codoc は `data-lang` が無いとブラウザの言語設定で表示言語を決める。
+ *    日本語以外のブラウザだとボタンが "Tip"、金額を決めるポップアップも
+ *    英語になる。表示言語は locale の担当なので、明示して固定する。
+ */
+test('🔒 支援ウィジェットの表示言語は locale で決める', () => {
+  assert.match(renderLp({ locale: 'ja' }), /<script[^>]+cms\.js[^>]+data-lang="ja"/);
+  assert.match(renderLp({ locale: 'en' }), /<script[^>]+cms\.js[^>]+data-lang="en"/);
+});
+
+/**
+ * Codoc は支援メッセージをテキストノードとして描画する（innerHTML ではない）。
+ * `<br>` を入れると文字列 "<br>" がそのまま画面に出るので、改行は改行のまま
+ * 属性に残し、見た目は Codoc 側の追加 CSS（white-space: pre-line）で作る。
+ */
+test('支援メッセージの改行は <br> にせず改行のまま残す', () => {
+  const html = renderLp();
+  const attr = html.match(/data-support-message="([^"]*)"/);
+  assert.ok(attr, '支援メッセージの属性がありません');
+  assert.ok(attr[1].includes('\n'), '改行が消えています');
+  assert.ok(!attr[1].includes('<br>'), '改行が <br> に変換されています');
+});
+
 test('支援ウィジェットは登録完了ブロックの中に出る', () => {
   const html = renderLp();
   const done = html.match(/<div class="waitlist__done"[\s\S]*?<\/div>\s*<\/div>/);

@@ -42,3 +42,19 @@ export function escapeHtml(value) {
     .replace(/'/g, '&#39;')
     .replace(/\n/g, '<br>');
 }
+
+/**
+ * 属性値のエスケープ。`escapeHtml` と違い、改行を `<br>` にしない。
+ *
+ * 属性の中の `<br>` はタグとして解釈されず、文字列 "<br>" がそのまま
+ * 画面に出る。中身をテキストとして読む相手（Codoc の支援メッセージなど）に
+ * 渡すときはこちらを使い、改行の見た目は受け取る側の CSS で作る。
+ */
+export function escapeAttribute(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
