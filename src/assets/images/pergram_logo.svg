@@ -1,10 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 52" width="240" height="52" fill="none">
   <style>
-    .text-per { font-family: 'JetBrains Mono', 'Noto Sans JP', monospace, sans-serif; font-weight: 800; font-size: 42px; fill: #0F172A; letter-spacing: -2px; }
-    .text-g { font-family: 'JetBrains Mono', 'Noto Sans JP', monospace, sans-serif; font-weight: 700; font-size: 42px; fill: #EA580C; }
-    .text-ram { font-family: 'JetBrains Mono', 'Noto Sans JP', monospace, sans-serif; font-weight: 600; font-size: 42px; fill: #EA580C; letter-spacing: -1.5px; }
+    /* 書体・ウェイト・字送りは全文字で共通。tspan で変えるのは色だけ。
+       ウェイトは design.md の「JetBrains Mono 700 のワードマーク」に合わせる。
+       色は tokens.css の --ink / --signal と同じ値に保つ。 */
+    .wordmark { font-family: 'JetBrains Mono', 'Noto Sans JP', monospace, sans-serif; font-weight: 700; font-size: 42px; letter-spacing: -2px; }
+    .wordmark-ink { fill: #0F172A; }
+    .wordmark-signal { fill: #EA580C; }
   </style>
-  <text x="0" y="40">
-    <tspan class="text-per">per</tspan><tspan class="text-g">g</tspan><tspan class="text-ram">ram</tspan>
+  <text class="wordmark" x="0" y="40">
+    <tspan class="wordmark-ink">per</tspan><tspan class="wordmark-signal">gram</tspan>
   </text>
 </svg>
