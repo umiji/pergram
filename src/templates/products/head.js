@@ -72,20 +72,7 @@ export function appHeader({ t, locale, waitlistPath }) {
 }
 
 export function toolbar(ctx) {
-  const { t, nutrientName, displayUnit, secondaryMetrics } = ctx;
-
-  // 副指標の選択肢は config/categories.json の secondaryMetrics を回すだけ。
-  // 🔒 これを消すと、2つ目以降の副指標が CSS で隠れたまま到達不能になる
-  //    （src/assets/products.js の [data-metric-select] と products.css の
-  //     .p-list[data-metric=...] が対になっている）。
-  const metricOptions = secondaryMetrics
-    .map(
-      (metric, i) =>
-        `<option value="${escapeHtml(metric)}"${i === 0 ? ' selected' : ''}>${escapeHtml(
-          t(`metric.${metric}`, { nutrient: nutrientName, unit: displayUnit }),
-        )}</option>`,
-    )
-    .join('');
+  const { t } = ctx;
 
   const viewButton = (value, label, icon, pressed) =>
     `<button class="viewswitch__btn" type="button" data-view-set="${value}" aria-pressed="${pressed}">
@@ -99,11 +86,6 @@ export function toolbar(ctx) {
       <span>${escapeHtml(t('filters.heading'))}</span>
       <span class="toolbar__filter-count num" data-active-count hidden>0</span>
     </button>
-
-    <div class="toolbar__metric">
-      <label for="secondary-metric">${escapeHtml(t('products.secondaryLabel'))}</label>
-      <select id="secondary-metric" data-metric-select>${metricOptions}</select>
-    </div>
 
     <div class="viewswitch" role="group" aria-label="${escapeHtml(t('products.viewLabel'))}">
       ${viewButton('card', t('products.view.card'), iconCard, 'true')}

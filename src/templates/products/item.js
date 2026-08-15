@@ -36,6 +36,9 @@ function deltaLabel(row, baseline, { t, locale }) {
 /**
  * 副指標。config/categories.json の secondaryMetrics を回すだけにする。
  * 全部を静的に出力し、表示中の1つ以外を CSS で隠す。
+ *
+ * ⚠️ β版につき呼び出し元（下の productItem）から呼んでいない。表示を戻すときは
+ *    `<p class="p-item__facts">` の行と head.js の toolbar__metric セレクトを戻すこと。
  */
 function secondaryFacts(row, { t, locale, currency, displayUnit, secondaryMetrics }) {
   const value = {
@@ -200,6 +203,7 @@ export function productItem(row, index, ctx) {
     `data-product-id="${escapeHtml(row.product.id)}"`,
     `data-unit-cost="${row.costPerNutrientUnit}"`,
     `data-price="${row.price}"`,
+    `data-net-weight="${row.netWeightG ?? ''}"`,
     `data-merchant="${escapeHtml(row.merchant)}"`,
     `data-brand="${escapeHtml(row.product.brand ?? '')}"`,
     `data-attrs="${escapeHtml((row.attributeKeys ?? []).join(' '))}"`,
@@ -229,7 +233,6 @@ export function productItem(row, index, ctx) {
     ${tagsHtml}
     <p class="p-item__brand">${escapeHtml(row.product.brand ?? '')}</p>
     <h2 class="p-item__name">${escapeHtml(row.name)}</h2>
-    <p class="p-item__facts">${secondaryFacts(row, ctx)}</p>
   </div>
 
   <div class="p-item__cost">

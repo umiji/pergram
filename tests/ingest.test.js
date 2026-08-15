@@ -164,6 +164,26 @@ test('まとめて落とした出品を報告する', () => {
   assert.deepEqual(got.merged, [{ kept: 'rakuten:shopB:x', dropped: ['rakuten:shopA:x'] }]);
 });
 
+/* ---- product_type facet ------------------------------------------------ */
+
+test('商品名からホエイ・ソイを判定して product_attributes に積む', () => {
+  const got = toRecords([
+    row({ product_id: 'a', item_name: 'ホエイプロテイン100 1kg' }),
+    row({ product_id: 'b', item_name: 'ソイプロテイン きなこ味 1kg', net_weight_g: 3000 }),
+  ]);
+
+  assert.deepEqual(got.productAttributes, [
+    { product_id: 'a', key: 'whey_wpc' },
+    { product_id: 'b', key: 'soy' },
+  ]);
+});
+
+test('判定できない商品名は product_attributes に何も足さない', () => {
+  const got = toRecords([row({ product_id: 'a', item_name: 'プロテイン 1kg' })]);
+
+  assert.deepEqual(got.productAttributes, []);
+});
+
 test('複数行のうち読めたものだけが通る', () => {
   const got = toRecords([
     row({ product_id: 'a' }),

@@ -9,6 +9,13 @@
 (() => {
   'use strict';
 
+  /** GA4 送信の共通ガード。gtag 未ロード時は何もしない */
+  function track(name, params) {
+    if (typeof window.gtag === 'function') {
+      window.gtag('event', name, params || {});
+    }
+  }
+
   /**
    * 購入リンクの計測。
    *
@@ -19,9 +26,8 @@
    */
   document.querySelectorAll('.merchant-button').forEach((link) => {
     link.addEventListener('click', () => {
-      if (typeof window.gtag !== 'function') return;
       const item = link.closest('.p-item');
-      window.gtag('event', 'affiliate_click', {
+      track('affiliate_click', {
         nutrient_id: document.querySelector('.p-list')?.dataset.nutrient ?? '(none)',
         product_id: item?.dataset.productId ?? '(none)',
         merchant: link.dataset.merchant ?? '(none)',
@@ -73,6 +79,17 @@
     return parts.map((p) => (p.type === 'currency' && symbol ? symbol : p.value)).join('');
   }
 
+  /** 内容量。src/lib/format.js の formatWeight と同じ規則（1000g以上は kg） */
+  function weight(grams) {
+    const useKg = grams >= 1000;
+    return new Intl.NumberFormat(locale, {
+      style: 'unit',
+      unit: useKg ? 'kilogram' : 'gram',
+      unitDisplay: 'short',
+      maximumFractionDigits: useKg ? 1 : 0,
+    }).format(useKg ? grams / 1000 : grams);
+  }
+
   /* ---- 状態 --------------------------------------------------------- */
 
   function readState() {
@@ -86,6 +103,7 @@
       attrs: checked('attr'),
       merchants: checked('merchant'),
       brands: checked('brand'),
+      netWeight: range('net-weight'),
       unitCost: range('unit-cost'),
       price: range('price'),
       query: (searchInput?.value ?? '').trim().toLowerCase(),
@@ -98,6 +116,7 @@
   function activeCount(state) {
     let n = state.attrs.length + state.merchants.length + state.brands.length;
     if (state.query) n += 1;
+    if (state.netWeight && state.netWeight.value < state.netWeight.max) n += 1;
     if (state.unitCost && state.unitCost.value < state.unitCost.max) n += 1;
     if (state.price && state.price.value < state.price.max) n += 1;
     return n;
@@ -115,6 +134,7 @@
     if (state.merchants.length > 0 && !state.merchants.includes(item.dataset.merchant)) return false;
     if (state.brands.length > 0 && !state.brands.includes(item.dataset.brand)) return false;
 
+    if (state.netWeight && Number(item.dataset.netWeight) > state.netWeight.value) return false;
     if (state.unitCost && Number(item.dataset.unitCost) > state.unitCost.value) return false;
     if (state.price && Number(item.dataset.price) > state.price.value) return false;
 
@@ -158,6 +178,9 @@
     if (state.merchants.length) params.set('s', state.merchants.join(','));
     if (state.brands.length) params.set('b', state.brands.join(','));
     if (state.query) params.set('q', state.query);
+    if (state.netWeight && state.netWeight.value < state.netWeight.max) {
+      params.set('w', String(state.netWeight.value));
+    }
     if (state.unitCost && state.unitCost.value < state.unitCost.max) {
       params.set('u', String(state.unitCost.value));
     }
@@ -191,6 +214,7 @@
       const el = form.querySelector(`#${id}`);
       if (el) el.value = raw;
     };
+    setRange('net-weight', params.get('w'));
     setRange('unit-cost', params.get('u'));
     setRange('price', params.get('p'));
 
@@ -223,10 +247,9 @@
       const input = form.querySelector(`#${out.dataset.rangeOut}`);
       if (!input) return;
       const digits = Number(out.dataset.digits) || 0;
-      out.textContent = (out.dataset.template || '{max}').replace(
-        '{max}',
-        money(Number(input.value), digits),
-      );
+      const formatted =
+        out.dataset.unit === 'weight' ? weight(Number(input.value)) : money(Number(input.value), digits);
+      out.textContent = (out.dataset.template || '{max}').replace('{max}', formatted);
     });
   }
 
@@ -254,7 +277,24 @@
 
   /* ---- 配線 --------------------------------------------------------- */
 
-  form.addEventListener('change', () => {
+  /**
+   * フィルタのチップ／チェックボックスをクリックした計測。
+   * range（単価・価格スライダー）はドラッグ中に大量発火するため対象外。
+   */
+  const FILTER_TRACK_NAMES = new Set(['attr', 'merchant', 'brand']);
+  function trackFilterChange(target) {
+    if (!(target instanceof HTMLInputElement) || target.type !== 'checkbox') return;
+    if (!FILTER_TRACK_NAMES.has(target.name)) return;
+    track('filter_click', {
+      nutrient_id: list.dataset.nutrient ?? '(none)',
+      filter_type: target.name,
+      filter_value: target.value,
+      checked: target.checked ? 1 : 0,
+    });
+  }
+
+  form.addEventListener('change', (e) => {
+    trackFilterChange(e.target);
     updateRangeOutputs();
     apply();
   });
@@ -308,6 +348,10 @@
   });
 
   moreBtn?.addEventListener('click', () => {
+    track('list_show_more', {
+      nutrient_id: list.dataset.nutrient ?? '(none)',
+      shown_before: limit,
+    });
     limit += STEP;
     apply();
   });

@@ -59,6 +59,7 @@
   "filters.nutrientAvailable": "Nutrients covered",
   "filters.product_type": "Product type",
   "filters.quality": "Quality",
+  "filters.netWeight": "Net weight",
   "filters.unitCost": "Price per {unit}",
   "filters.price": "Product price",
   "filters.merchant": "Store",
