@@ -239,7 +239,6 @@ export function filters(ctx) {
   <div class="filters__head">
     <div>
       <p class="filters__title" id="filters-title">${escapeHtml(t('filters.heading'))}</p>
-      <p class="filters__beta-notice" style="font-size: 11px; color: var(--warn); margin: 2px 0 0; font-weight: 600;">※ イメージのみ、フィルタは出来ません</p>
     </div>
     <div class="filters__head-actions">
       <button class="filters__reset" type="reset">${escapeHtml(t('filters.reset'))}</button>
