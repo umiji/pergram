@@ -79,6 +79,7 @@ test('🔒 絞り込みの初期値がどの製品も除外しない', () => {
 
   const priceMax = Math.max(...itemValues('price'));
   const unitCostMax = Math.max(...itemValues('unit-cost'));
+  const netWeightMax = Math.max(...itemValues('net-weight'));
 
   assert.ok(
     sliderValue('price') >= priceMax,
@@ -87,6 +88,10 @@ test('🔒 絞り込みの初期値がどの製品も除外しない', () => {
   assert.ok(
     sliderValue('unit-cost') >= unitCostMax,
     `単価スライダーの初期値 ${sliderValue('unit-cost')} が最高単価 ${unitCostMax} 未満です。操作なしで製品が消えます`,
+  );
+  assert.ok(
+    sliderValue('net-weight') >= netWeightMax,
+    `内容量スライダーの初期値 ${sliderValue('net-weight')} が最大内容量 ${netWeightMax} 未満です。操作なしで製品が消えます`,
   );
 });
 
@@ -127,19 +132,19 @@ test('🔒 表示順は単価の昇順になっている', () => {
   assert.deepEqual(costs, [...costs].sort((a, b) => a - b));
 });
 
-test('🔒 並び替えのセレクトを置かない。切り替えられるのは副指標だけ', () => {
+test('🔒 並び替えのセレクトを置かない', () => {
   const html = renderProducts();
   assert.ok(!html.includes('data-sort'));
   for (const banned of ['価格が安い順', '含有率が高い順', 'レビュー評価が高い順']) {
     assert.ok(!html.includes(banned), `並び替えの選択肢「${banned}」が残っています`);
   }
-  // 副指標のセレクトは categories.json の secondaryMetrics ぶんだけ出る
-  const select = html.match(/<select id="secondary-metric"[^>]*>([\s\S]*?)<\/select>/);
-  assert.ok(select, '副指標のセレクトがありません');
-  assert.equal(
-    (select[1].match(/<option/g) ?? []).length,
-    category.secondaryMetrics.length,
-  );
+});
+
+// β版につき副指標の表示を止めている（ユーザー指示）。戻すときはこのテストごと見直す。
+test('β版: 副指標のセレクトも各行の副指標表示も出ない', () => {
+  const html = renderProducts();
+  assert.ok(!html.includes('id="secondary-metric"'));
+  assert.ok(!html.includes('p-item__facts'));
 });
 
 test('🔒 レビューの星評価とレビュー件数を出さない', () => {
@@ -337,14 +342,15 @@ test('🔒 他ストアの価格は table + scope で組む', () => {
   assert.equal(toggles, rows.length);
 });
 
-test('副指標は categories.json の secondaryMetrics を回して全部描画される', () => {
+test('内容量スライダーは掲載中の Min〜Max 幅で出る', () => {
   const html = renderProducts();
-  for (const metric of category.secondaryMetrics) {
-    assert.ok(
-      html.includes(`data-metric="${metric}"`),
-      `副指標 ${metric} が描画されていません`,
-    );
-  }
+  const weights = [...html.matchAll(/data-net-weight="(\d+(?:\.\d+)?)"/g)].map((m) => Number(m[1]));
+
+  const min = Number(html.match(/id="net-weight"[\s\S]*?min="([\d.]+)"/)[1]);
+  const max = Number(html.match(/id="net-weight"[\s\S]*?max="([\d.]+)"/)[1]);
+
+  assert.ok(min <= Math.min(...weights), '内容量スライダーの下限が実データの最小より大きいです');
+  assert.ok(max >= Math.max(...weights), '内容量スライダーの上限が実データの最大より小さいです');
 });
 
 test('絞り込みは fieldset + legend で組む', () => {

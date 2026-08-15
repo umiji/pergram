@@ -59,6 +59,7 @@
   "filters.nutrientAvailable": "対応中の栄養素",
   "filters.product_type": "製品タイプ",
   "filters.quality": "品質",
+  "filters.netWeight": "内容量",
   "filters.unitCost": "1{unit}あたり価格",
   "filters.price": "製品価格",
   "filters.merchant": "ECサイト",

@@ -27,7 +27,8 @@
       }
     ],
     "unitCostRange": { "min": 3, "max": 12, "step": 0.5 },
-    "priceRange": { "min": 0, "max": 20000, "step": 500 }
+    "priceRange": { "min": 0, "max": 20000, "step": 500 },
+    "netWeightStep": 100
   },
   "creatine": {
     "primaryMetric": "cost_per_nutrient_unit",
@@ -43,7 +44,8 @@
       }
     ],
     "unitCostRange": { "min": 5, "max": 60, "step": 1 },
-    "priceRange": { "min": 0, "max": 12000, "step": 500 }
+    "priceRange": { "min": 0, "max": 12000, "step": 500 },
+    "netWeightStep": 25
   },
   "zinc": {
     "primaryMetric": "cost_per_nutrient_unit",
@@ -59,6 +61,7 @@
       }
     ],
     "unitCostRange": { "min": 0.5, "max": 10, "step": 0.5 },
-    "priceRange": { "min": 0, "max": 8000, "step": 250 }
+    "priceRange": { "min": 0, "max": 8000, "step": 250 },
+    "netWeightStep": 10
   }
 }

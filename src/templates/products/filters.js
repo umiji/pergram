@@ -10,7 +10,7 @@
  */
 
 import { escapeHtml } from '../../lib/i18n.js';
-import { formatCurrency } from '../../lib/format.js';
+import { formatCurrency, formatWeight } from '../../lib/format.js';
 
 /** 選択肢1つ。count が 0 なら disabled にして淡くする */
 function option({ type, name, value, label, count, checked = false, disabled = false }) {
@@ -115,20 +115,37 @@ function facetGroup(facet, { t, counts }) {
  * 表示文字列は Intl が組み立てる。テンプレートだけ data 属性で渡し、
  * クライアント側でも同じ locale / currency / 桁数で書式化する。
  * 「¥」を JS で文字列連結すると US 市場で位置が狂う。
+ *
+ * unit は既定が通貨（money()）。'weight' を渡すと data-unit 属性が付き、
+ * クライアント側（src/assets/products.js）が formatWeight 相当で書式化する。
  */
-function rangeGroup({ id, legend, range, value, valueLabel, template, digits }) {
+function rangeGroup({ id, legend, range, value, valueLabel, template, digits, unit }) {
   return `<fieldset class="filters__group">
   <div class="filters__range-head">
     <legend class="filters__legend">${escapeHtml(legend)}</legend>
     <output class="filters__range-value num" for="${escapeHtml(id)}" id="${escapeHtml(id)}-out"
       data-range-out="${escapeHtml(id)}"
       data-template="${escapeHtml(template)}"
-      data-digits="${digits}">${escapeHtml(valueLabel)}</output>
+      data-digits="${digits}"${unit ? ` data-unit="${escapeHtml(unit)}"` : ''}>${escapeHtml(valueLabel)}</output>
   </div>
   <input class="filters__range" type="range" id="${escapeHtml(id)}"
     name="${escapeHtml(id)}"
     min="${range.min}" max="${range.max}" step="${range.step}" value="${value}">
 </fieldset>`;
+}
+
+/**
+ * 内容量スライダーの範囲。unitCostRange/priceRange と違い config に固定下限を持たない。
+ * 🔒 「取得している製品の Min〜Max」がそのままバーの両端になる。掲載データが変わるたびに
+ *    両端とも動く。対象行が無ければ 0〜step の空レンジを返す。
+ */
+function netWeightRangeFromRows(rows, step) {
+  const values = rows.map((r) => r.netWeightG).filter((v) => Number.isFinite(v));
+  if (values.length === 0) return { min: 0, max: step, step };
+
+  const min = Math.floor(Math.min(...values) / step) * step;
+  const max = Math.max(Math.ceil(Math.max(...values) / step) * step, min + step);
+  return { min, max, step };
 }
 
 /**
@@ -226,11 +243,15 @@ export function filters(ctx) {
 
   const unitCostRange = rangeCovering(category.unitCostRange, rows, (r) => r.costPerNutrientUnit);
   const priceRange = rangeCovering(category.priceRange, rows, (r) => r.price);
+  const netWeightRange = netWeightRangeFromRows(rows, category.netWeightStep ?? 100);
   const unitCostLabel = t('filters.rangeUpTo', {
     max: formatCurrency(unitCostRange.max, { locale, currency, fractionDigits: 1 }) ?? '',
   });
   const priceLabel = t('filters.rangeUpTo', {
     max: formatCurrency(priceRange.max, { locale, currency, fractionDigits: 0 }) ?? '',
+  });
+  const netWeightLabel = t('filters.rangeUpTo', {
+    max: formatWeight(netWeightRange.max, { locale }) ?? '',
   });
 
   return `<form class="filters" id="filters" aria-labelledby="filters-title"
@@ -251,6 +272,16 @@ export function filters(ctx) {
   <div class="filters__scroll">
     ${nutrientGroup({ t, locale, nutrients, activeNutrientId })}
     ${facetGroups}
+    ${rangeGroup({
+      id: 'net-weight',
+      legend: t('filters.netWeight'),
+      range: netWeightRange,
+      value: netWeightRange.max,
+      valueLabel: netWeightLabel,
+      template: t('filters.rangeUpTo', { max: '{max}' }),
+      digits: 0,
+      unit: 'weight',
+    })}
     ${rangeGroup({
       id: 'unit-cost',
       legend: t('filters.unitCost', { unit: displayUnit }),
