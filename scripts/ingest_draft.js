@@ -12,7 +12,7 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-import { normalizeProtein } from '../src/lib/normalize_protein.js';
+import { classifyProteinType, normalizeProtein } from '../src/lib/normalize_protein.js';
 import { validateDataset, hasBlockingIssue } from '../src/lib/validate.js';
 
 const DATA_DIR = 'data';
@@ -80,6 +80,7 @@ export function toRecords(draft) {
   const productI18n = [];
   const nutrientContents = [];
   const priceSnapshots = [];
+  const productAttributes = [];
   const skipped = [];
   const candidates = [];
 
@@ -153,9 +154,15 @@ export function toRecords(draft) {
       in_stock: true,
       fetched_at: row.fetched_at,
     });
+
+    // product_type facet。判定できない商品名は何も足さない（絞り込みに出ないだけで公開は止めない）。
+    const productType = classifyProteinType(row.item_name);
+    if (productType) {
+      productAttributes.push({ product_id: row.product_id, key: productType });
+    }
   }
 
-  return { products, productI18n, nutrientContents, priceSnapshots, skipped, merged };
+  return { products, productI18n, nutrientContents, priceSnapshots, productAttributes, skipped, merged };
 }
 
 async function main() {
@@ -169,7 +176,7 @@ async function main() {
   const nutrients = await readJson(path.join(DATA_DIR, 'nutrients.json'));
   const previousPrices = await readJson(path.join(DATA_DIR, 'price_snapshots.json'));
 
-  const { products, productI18n, nutrientContents, priceSnapshots, skipped, merged } =
+  const { products, productI18n, nutrientContents, priceSnapshots, productAttributes, skipped, merged } =
     toRecords(draft);
 
   const issues = validateDataset({
@@ -189,6 +196,10 @@ async function main() {
   await writeJson(path.join(DATA_DIR, 'product_i18n.json'), keep(productI18n));
   await writeJson(path.join(DATA_DIR, 'nutrient_contents.json'), keep(nutrientContents));
   await writeJson(path.join(DATA_DIR, 'price_snapshots.json'), keep(priceSnapshots));
+  await writeJson(
+    path.join(DATA_DIR, 'product_attributes.json'),
+    productAttributes.filter((a) => !blockedIds.has(a.product_id)),
+  );
 
   await mkdir(path.join(DATA_DIR, '_review'), { recursive: true });
   await writeJson(path.join(DATA_DIR, '_review', 'issues.json'), issues);
@@ -196,6 +207,9 @@ async function main() {
   await writeJson(path.join(DATA_DIR, '_review', 'merged.json'), merged);
 
   console.log(`取り込み  ${keep(products).length} 件`);
+  console.log(
+    `product_type 判定 ${productAttributes.length} 件 — ホエイ・ソイのみ対応（casein/pea/rice は未実装）`,
+  );
   console.log(`下書きから除外 ${skipped.length} 件（data/_review/skipped.json）`);
   console.log(
     `同一商品としてまとめ ${merged.flatMap((m) => m.dropped).length} 件 — ` +

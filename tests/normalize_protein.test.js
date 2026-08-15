@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  classifyProteinType,
   normalizeProtein,
   parseNetWeightFromName,
   toPer100g,
@@ -103,4 +104,23 @@ test('内容量が書かれていなければ null', () => {
 
 test('単位でない g を拾わない', () => {
   assert.equal(parseNetWeightFromName('100 grams of gold').valueG, null);
+});
+
+/* ---- product_type 判定 ------------------------------------------------- */
+
+test('商品名からホエイ・ソイを判定する', () => {
+  assert.equal(classifyProteinType('ザバス ホエイプロテイン100 リッチショコラ 980g'), 'whey_wpc');
+  assert.equal(classifyProteinType('WPI ホエイプロテインアイソレート 1kg'), 'whey_wpi');
+  assert.equal(classifyProteinType('無添加 ソイプロテイン きなこ味 1kg'), 'soy');
+  assert.equal(classifyProteinType('大豆プロテイン 900g'), 'soy');
+});
+
+test('ホエイ・ソイどちらとも読めなければ null（カゼイン等は未対応）', () => {
+  assert.equal(classifyProteinType('カゼインプロテイン 1kg'), null);
+  assert.equal(classifyProteinType('プロテイン 1kg'), null);
+  assert.equal(classifyProteinType(null), null);
+});
+
+test('🔒 ソイとホエイが両方読めるブレンド品は判定不能として null', () => {
+  assert.equal(classifyProteinType('ホエイ&ソイ ミックスプロテイン 1kg'), null);
 });

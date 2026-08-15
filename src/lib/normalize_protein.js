@@ -237,6 +237,27 @@ export function extractProteinFromCaption(caption) {
 }
 
 /**
+ * 商品名から product_type（config/categories.json の facet キー）を判定する。
+ *
+ * ⚠️ 判定できるのは whey_wpi / whey_wpc / soy の3つだけ。casein / pea / rice は
+ *    収集対象にしていないため判定器を持たない — facet の枠自体は残っているので、
+ *    分類器が無い間はそれらの選択肢が件数0のまま表示され続ける（filters.js の仕様通り）。
+ * 🔒 商品名にソイとホエイの両方が読めたら（ブレンド品・セット品）判定不能として null。
+ *    推測で一方を選ばない。
+ */
+export function classifyProteinType(itemName) {
+  if (typeof itemName !== 'string' || itemName.length === 0) return null;
+  const text = toHalfWidth(itemName);
+
+  const isSoy = /ソイ|大豆/.test(text);
+  const isWhey = /ホエイ/.test(text);
+  if (isSoy && isWhey) return null;
+  if (isSoy) return 'soy';
+  if (isWhey) return /WPI|アイソレート/i.test(text) ? 'whey_wpi' : 'whey_wpc';
+  return null;
+}
+
+/**
  * どの表記からでも 100gあたりg（中間形式）を求める。
  * 求まらなければ null。推定しない。
  */
