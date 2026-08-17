@@ -92,6 +92,22 @@
 
   /* ---- 状態 --------------------------------------------------------- */
 
+  /**
+   * ファセットのチェックボックスは name="attr:<facetId>" で出ている。
+   * 同じファセット内の複数チェックは OR（ソイもホエイも表示）、
+   * 別ファセットをまたぐ組み合わせだけ AND（ソイ かつ 認証済み）にするため、
+   * ファセットごとに分けて読む。
+   */
+  function readAttrGroups() {
+    const groups = new Map();
+    form.querySelectorAll('input[name^="attr:"]:checked').forEach((el) => {
+      const facetId = el.name.slice('attr:'.length);
+      if (!groups.has(facetId)) groups.set(facetId, []);
+      groups.get(facetId).push(el.value);
+    });
+    return groups;
+  }
+
   function readState() {
     const checked = (name) =>
       Array.from(form.querySelectorAll(`input[name="${name}"]:checked`)).map((el) => el.value);
@@ -100,7 +116,7 @@
       return el ? { value: Number(el.value), max: Number(el.max) } : null;
     };
     return {
-      attrs: checked('attr'),
+      attrGroups: readAttrGroups(),
       merchants: checked('merchant'),
       brands: checked('brand'),
       netWeight: range('net-weight'),
@@ -114,7 +130,8 @@
 
   /** 実際に絞り込んでいる条件の数。0 ならバッジを出さない */
   function activeCount(state) {
-    let n = state.attrs.length + state.merchants.length + state.brands.length;
+    let n = state.merchants.length + state.brands.length;
+    for (const values of state.attrGroups.values()) n += values.length;
     if (state.query) n += 1;
     if (state.netWeight && state.netWeight.value < state.netWeight.max) n += 1;
     if (state.unitCost && state.unitCost.value < state.unitCost.max) n += 1;
@@ -125,10 +142,12 @@
   function matches(item, state) {
     if (state.query && !(item.dataset.name || '').includes(state.query)) return false;
 
-    if (state.attrs.length > 0) {
+    if (state.attrGroups.size > 0) {
       const own = (item.dataset.attrs || '').split(' ').filter(Boolean);
-      // すべての条件を満たすものだけ残す（AND）。OR にすると絞るほど増えて意味が反転する
-      if (!state.attrs.every((key) => own.includes(key))) return false;
+      // ファセット内は OR（いずれか1つ）、ファセットをまたぐ組み合わせは AND（全ファセットを満たす）
+      for (const values of state.attrGroups.values()) {
+        if (!values.some((key) => own.includes(key))) return false;
+      }
     }
 
     if (state.merchants.length > 0 && !state.merchants.includes(item.dataset.merchant)) return false;
@@ -174,7 +193,12 @@
 
   function syncUrl(state) {
     const params = new URLSearchParams();
-    if (state.attrs.length) params.set('a', state.attrs.join(','));
+    // ファセットをまたいでも1パラメータで持てるよう "facetId:key" の形でまとめる
+    const attrPairs = [];
+    for (const [facetId, values] of state.attrGroups) {
+      for (const value of values) attrPairs.push(`${facetId}:${value}`);
+    }
+    if (attrPairs.length) params.set('a', attrPairs.join(','));
     if (state.merchants.length) params.set('s', state.merchants.join(','));
     if (state.brands.length) params.set('b', state.brands.join(','));
     if (state.query) params.set('q', state.query);
@@ -205,7 +229,18 @@
         if (wanted.has(el.value) && !el.disabled) el.checked = true;
       });
     };
-    setChecked('attr', params.get('a'));
+    // "facetId:key" 形式なので、ファセットごとの input[name="attr:<facetId>"] へ振り分ける
+    const rawAttrs = params.get('a');
+    if (rawAttrs) {
+      for (const pair of rawAttrs.split(',')) {
+        const sep = pair.indexOf(':');
+        if (sep < 0) continue;
+        const facetId = pair.slice(0, sep);
+        const value = pair.slice(sep + 1);
+        const el = form.querySelector(`input[name="attr:${facetId}"][value="${CSS.escape(value)}"]`);
+        if (el && !el.disabled) el.checked = true;
+      }
+    }
     setChecked('merchant', params.get('s'));
     setChecked('brand', params.get('b'));
 

@@ -33,15 +33,27 @@ function option({ type, name, value, label, count, checked = false, disabled = f
 </li>`;
 }
 
-function group({ legend, body, hint = '' }) {
+/**
+ * セクション右横の「利用可能 / イメージのみ」表記。
+ * available は呼び出し側が実データから判定する（ハードコードしない）。
+ */
+function statusBadge(status) {
+  if (!status) return '';
+  return ` <span class="filters__status">${escapeHtml(status.label)}</span>`;
+}
+
+function group({ legend, body, hint = '', status }) {
   return `<fieldset class="filters__group">
-  <legend class="filters__legend">${escapeHtml(legend)}</legend>
+  <legend class="filters__legend">${escapeHtml(legend)}${statusBadge(status)}</legend>
   ${hint ? `<p class="filters__hint">${escapeHtml(hint)}</p>` : ''}
   ${body}
 </fieldset>`;
 }
 
-/** 成分。ここだけは単一選択（1ページ1成分なので、選ぶ = 別ページへ移る） */
+/**
+ * 成分。ここだけは単一選択（1ページ1成分なので、選ぶ = 別ページへ移る）。
+ * ⚠️ ラジオを選んでもページ遷移する配線が無く、常に「イメージのみ」。
+ */
 function nutrientGroup({ t, locale, nutrients, activeNutrientId }) {
   const items = nutrients
     .map((n) =>
@@ -60,6 +72,7 @@ function nutrientGroup({ t, locale, nutrients, activeNutrientId }) {
   return group({
     legend: t('filters.nutrient'),
     hint: t('filters.nutrientAvailable'),
+    status: { label: t('filters.status.mockOnly') },
     body: `<div class="filters__search">
     <label class="u-visually-hidden" for="nutrient-search">${escapeHtml(t('filters.nutrientSearch'))}</label>
     <input id="nutrient-search" type="search" placeholder="${escapeHtml(t('filters.nutrientSearch'))}" data-filter-search="nutrient">
@@ -68,20 +81,31 @@ function nutrientGroup({ t, locale, nutrients, activeNutrientId }) {
   });
 }
 
-/** facets は config を回すだけ。チップ表示とチェックボックス表示を style で選ぶ */
+/**
+ * facets は config を回すだけ。チップ表示とチェックボックス表示を style で選ぶ。
+ *
+ * name は "attr:<facet.id>" にする。同じファセット内で複数チェックしたときは
+ * OR（ソイもホエイも表示）、別ファセットをまたぐときだけ AND（ソイ かつ 認証済み）
+ * にするため、クライアント側（src/assets/products.js）がファセット単位で読む必要がある。
+ * 表記の「利用可能／イメージのみ」は、そのファセットに1件でも該当があるかで機械的に決める
+ * （ハードコードしない。データが増えれば自動で「利用可能」に変わる）。
+ */
 function facetGroup(facet, { t, counts }) {
   const items = facet.keys.map((key) => ({
     key,
     label: t(`attr.${key}`),
     count: counts.get(key) ?? 0,
   }));
+  const available = items.some((item) => item.count > 0);
+  const status = { label: t(available ? 'filters.status.available' : 'filters.status.mockOnly') };
+  const inputName = `attr:${facet.id}`;
 
   if (facet.style === 'chip') {
     const chips = items
       .map(
         ({ key, label, count }) => `<li>
   <label class="filters__chip${count === 0 ? ' filters__chip--empty' : ''}">
-    <input type="checkbox" name="attr" value="${escapeHtml(key)}"${count === 0 ? ' disabled' : ''}>
+    <input type="checkbox" name="${escapeHtml(inputName)}" value="${escapeHtml(key)}"${count === 0 ? ' disabled' : ''}>
     <span>${escapeHtml(label)}</span>
     <span class="num">${count}</span>
   </label>
@@ -90,6 +114,7 @@ function facetGroup(facet, { t, counts }) {
       .join('\n');
     return group({
       legend: t(`filters.${facet.id}`),
+      status,
       body: `<ul class="filters__chips">${chips}</ul>`,
     });
   }
@@ -98,7 +123,7 @@ function facetGroup(facet, { t, counts }) {
     .map(({ key, label, count }) =>
       option({
         type: 'checkbox',
-        name: 'attr',
+        name: inputName,
         value: key,
         label,
         count,
@@ -106,7 +131,7 @@ function facetGroup(facet, { t, counts }) {
       }),
     )
     .join('\n');
-  return group({ legend: t(`filters.${facet.id}`), body: `<ul class="filters__opts">${opts}</ul>` });
+  return group({ legend: t(`filters.${facet.id}`), status, body: `<ul class="filters__opts">${opts}</ul>` });
 }
 
 /**
@@ -119,10 +144,10 @@ function facetGroup(facet, { t, counts }) {
  * unit は既定が通貨（money()）。'weight' を渡すと data-unit 属性が付き、
  * クライアント側（src/assets/products.js）が formatWeight 相当で書式化する。
  */
-function rangeGroup({ id, legend, range, value, valueLabel, template, digits, unit }) {
+function rangeGroup({ id, legend, range, value, valueLabel, template, digits, unit, status }) {
   return `<fieldset class="filters__group">
   <div class="filters__range-head">
-    <legend class="filters__legend">${escapeHtml(legend)}</legend>
+    <legend class="filters__legend">${escapeHtml(legend)}${statusBadge(status)}</legend>
     <output class="filters__range-value num" for="${escapeHtml(id)}" id="${escapeHtml(id)}-out"
       data-range-out="${escapeHtml(id)}"
       data-template="${escapeHtml(template)}"
@@ -254,12 +279,26 @@ export function filters(ctx) {
     max: formatWeight(netWeightRange.max, { locale }) ?? '',
   });
 
+  // スライダー3つは行が1件でもあれば常に機能するので固定で「利用可能」。
+  const availableStatus = { label: t('filters.status.available') };
+  const merchantStatus = {
+    label: t(
+      market.merchants.some((m) => (merchantCounts.get(m) ?? 0) > 0)
+        ? 'filters.status.available'
+        : 'filters.status.mockOnly',
+    ),
+  };
+  const brandStatus = {
+    label: t(brands.length > 0 ? 'filters.status.available' : 'filters.status.mockOnly'),
+  };
+
   return `<form class="filters" id="filters" aria-labelledby="filters-title"
   data-locale="${escapeHtml(locale)}" data-currency="${escapeHtml(currency)}"
   data-count-template="${escapeHtml(t('filters.apply', { count: '{count}' }))}">
   <div class="filters__head">
     <div>
       <p class="filters__title" id="filters-title">${escapeHtml(t('filters.heading'))}</p>
+      <p class="filters__notice">${escapeHtml(t('filters.limitedNotice'))}</p>
     </div>
     <div class="filters__head-actions">
       <button class="filters__reset" type="reset">${escapeHtml(t('filters.reset'))}</button>
@@ -281,6 +320,7 @@ export function filters(ctx) {
       template: t('filters.rangeUpTo', { max: '{max}' }),
       digits: 0,
       unit: 'weight',
+      status: availableStatus,
     })}
     ${rangeGroup({
       id: 'unit-cost',
@@ -290,6 +330,7 @@ export function filters(ctx) {
       valueLabel: unitCostLabel,
       template: t('filters.rangeUpTo', { max: '{max}' }),
       digits: 1,
+      status: availableStatus,
     })}
     ${rangeGroup({
       id: 'price',
@@ -299,10 +340,16 @@ export function filters(ctx) {
       valueLabel: priceLabel,
       template: t('filters.rangeUpTo', { max: '{max}' }),
       digits: 0,
+      status: availableStatus,
     })}
-    ${group({ legend: t('filters.merchant'), body: `<ul class="filters__opts">${merchantOpts}</ul>` })}
+    ${group({
+      legend: t('filters.merchant'),
+      status: merchantStatus,
+      body: `<ul class="filters__opts">${merchantOpts}</ul>`,
+    })}
     ${group({
       legend: t('filters.brand'),
+      status: brandStatus,
       body: `<ul class="filters__opts" data-filter-list="brand">${brandOpts}</ul>${brandMore}`,
     })}
   </div>
