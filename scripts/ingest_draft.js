@@ -22,6 +22,21 @@ const readJson = async (p) => JSON.parse(await readFile(p, 'utf8'));
 const writeJson = async (p, v) => writeFile(p, `${JSON.stringify(v, null, 2)}\n`, 'utf8');
 
 /**
+ * 既存の行に今回の下書き由来の行を upsert する。
+ *
+ * 🔒 以前は下書き1本ぶんで data/*.json を丸ごと上書きしていたため、
+ *    ソイの下書きだけを ingest すると既存のホエイが全部消えていた。
+ *    キーが一致する行だけ今回の内容に差し替え、それ以外の既存行はそのまま残す。
+ * ⚠️ 削除は行わない。下書きから漏れた（＝今回対象にしなかった）既存行を
+ *    自動で消す仕組みが無いため、製品を本当に取り下げるときは手で消すこと。
+ */
+function upsertBy(existing, incoming, keyFn) {
+  const byKey = new Map(existing.map((row) => [keyFn(row), row]));
+  for (const row of incoming) byKey.set(keyFn(row), row);
+  return [...byKey.values()];
+}
+
+/**
  * 同じ商品とみなすためのキー。
  *
  * ⚠️ **モックアップ用の力技。名寄せキー（requirements.md Q-07）はまだ決めていない。**
@@ -174,17 +189,49 @@ async function main() {
 
   const draft = await readJson(draftPath);
   const nutrients = await readJson(path.join(DATA_DIR, 'nutrients.json'));
-  const previousPrices = await readJson(path.join(DATA_DIR, 'price_snapshots.json'));
+  const existingProducts = await readJson(path.join(DATA_DIR, 'products.json'));
+  const existingProductI18n = await readJson(path.join(DATA_DIR, 'product_i18n.json'));
+  const existingNutrientContents = await readJson(path.join(DATA_DIR, 'nutrient_contents.json'));
+  const existingPriceSnapshots = await readJson(path.join(DATA_DIR, 'price_snapshots.json'));
+  const existingProductAttributes = await readJson(path.join(DATA_DIR, 'product_attributes.json'));
 
-  const { products, productI18n, nutrientContents, priceSnapshots, productAttributes, skipped, merged } =
-    toRecords(draft);
+  const {
+    products: newProducts,
+    productI18n: newProductI18n,
+    nutrientContents: newNutrientContents,
+    priceSnapshots: newPriceSnapshots,
+    productAttributes: newProductAttributes,
+    skipped,
+    merged,
+  } = toRecords(draft);
+
+  // 既存データに今回の下書き分を upsert してから、マージ後の全体でバリデーションする。
+  // 🔒 V-05（ブランド内の含有率外れ値）等はカタログ全体を見て初めて判定できるため、
+  //    今回の下書き分だけを検証すると見落とす。
+  const products = upsertBy(existingProducts, newProducts, (r) => r.id);
+  const productI18n = upsertBy(existingProductI18n, newProductI18n, (r) => `${r.product_id}:${r.locale}`);
+  const nutrientContents = upsertBy(
+    existingNutrientContents,
+    newNutrientContents,
+    (r) => `${r.product_id}:${r.nutrient_id}`,
+  );
+  const priceSnapshots = upsertBy(
+    existingPriceSnapshots,
+    newPriceSnapshots,
+    (r) => `${r.product_id}:${r.merchant}`,
+  );
+  const productAttributes = upsertBy(
+    existingProductAttributes,
+    newProductAttributes,
+    (r) => `${r.product_id}:${r.key}`,
+  );
 
   const issues = validateDataset({
     products,
     nutrientContents,
     nutrients,
     priceSnapshots,
-    previousPriceSnapshots: previousPrices,
+    previousPriceSnapshots: existingPriceSnapshots,
   });
 
   const blocking = issues.filter((i) => i.severity === 'error');
@@ -196,17 +243,17 @@ async function main() {
   await writeJson(path.join(DATA_DIR, 'product_i18n.json'), keep(productI18n));
   await writeJson(path.join(DATA_DIR, 'nutrient_contents.json'), keep(nutrientContents));
   await writeJson(path.join(DATA_DIR, 'price_snapshots.json'), keep(priceSnapshots));
-  await writeJson(
-    path.join(DATA_DIR, 'product_attributes.json'),
-    productAttributes.filter((a) => !blockedIds.has(a.product_id)),
-  );
+  await writeJson(path.join(DATA_DIR, 'product_attributes.json'), keep(productAttributes));
 
   await mkdir(path.join(DATA_DIR, '_review'), { recursive: true });
   await writeJson(path.join(DATA_DIR, '_review', 'issues.json'), issues);
   await writeJson(path.join(DATA_DIR, '_review', 'skipped.json'), skipped);
   await writeJson(path.join(DATA_DIR, '_review', 'merged.json'), merged);
 
-  console.log(`取り込み  ${keep(products).length} 件`);
+  const newIds = new Set(newProducts.map((r) => r.id));
+  const newKept = keep(products).filter((r) => newIds.has(r.id));
+  console.log(`今回の下書きから取り込み ${newKept.length} 件`);
+  console.log(`カタログ全体      ${keep(products).length} 件`);
   console.log(
     `product_type 判定 ${productAttributes.length} 件 — ホエイ・ソイのみ対応（casein/pea/rice は未実装）`,
   );

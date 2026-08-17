@@ -158,5 +158,213 @@
     "amount_labeled": 20,
     "unit": "g",
     "amount_elemental": 20
+  },
+  {
+    "product_id": "rakuten:collagenkirei:10001292",
+    "nutrient_id": "protein",
+    "salt_form_id": null,
+    "amount_labeled": 85,
+    "unit": "g",
+    "amount_elemental": 85
+  },
+  {
+    "product_id": "rakuten:sundrug:10066701",
+    "nutrient_id": "protein",
+    "salt_form_id": null,
+    "amount_labeled": 20,
+    "unit": "g",
+    "amount_elemental": 20
+  },
+  {
+    "product_id": "rakuten:sundrug:10066700",
+    "nutrient_id": "protein",
+    "salt_form_id": null,
+    "amount_labeled": 20,
+    "unit": "g",
+    "amount_elemental": 20
+  },
+  {
+    "product_id": "rakuten:libertacreate:10000541",
+    "nutrient_id": "protein",
+    "salt_form_id": null,
+    "amount_labeled": 9.1,
+    "unit": "g",
+    "amount_elemental": 9.1
+  },
+  {
+    "product_id": "rakuten:rakuten24:11267691",
+    "nutrient_id": "protein",
+    "salt_form_id": null,
+    "amount_labeled": 10.4,
+    "unit": "g",
+    "amount_elemental": 10.4
+  },
+  {
+    "product_id": "rakuten:rakuten24:11222462",
+    "nutrient_id": "protein",
+    "salt_form_id": null,
+    "amount_labeled": 21,
+    "unit": "g",
+    "amount_elemental": 21
+  },
+  {
+    "product_id": "rakuten:rakuten24:11201930",
+    "nutrient_id": "protein",
+    "salt_form_id": null,
+    "amount_labeled": 21,
+    "unit": "g",
+    "amount_elemental": 21
+  },
+  {
+    "product_id": "rakuten:myprotein:10001200",
+    "nutrient_id": "protein",
+    "salt_form_id": null,
+    "amount_labeled": 90,
+    "unit": "g",
+    "amount_elemental": 90
+  },
+  {
+    "product_id": "rakuten:toyomarket:10000307",
+    "nutrient_id": "protein",
+    "salt_form_id": null,
+    "amount_labeled": 16.9,
+    "unit": "g",
+    "amount_elemental": 16.9
+  },
+  {
+    "product_id": "rakuten:libertacreate:10000537",
+    "nutrient_id": "protein",
+    "salt_form_id": null,
+    "amount_labeled": 9.1,
+    "unit": "g",
+    "amount_elemental": 9.1
+  },
+  {
+    "product_id": "rakuten:cherie-brin:10000171",
+    "nutrient_id": "protein",
+    "salt_form_id": null,
+    "amount_labeled": 20,
+    "unit": "g",
+    "amount_elemental": 19.999999999999996
+  },
+  {
+    "product_id": "rakuten:aswel:10000094",
+    "nutrient_id": "protein",
+    "salt_form_id": null,
+    "amount_labeled": 21.33,
+    "unit": "g",
+    "amount_elemental": 21.33
+  },
+  {
+    "product_id": "rakuten:rakuten24:11366526",
+    "nutrient_id": "protein",
+    "salt_form_id": null,
+    "amount_labeled": 20,
+    "unit": "g",
+    "amount_elemental": 20
+  },
+  {
+    "product_id": "rakuten:collagenkirei:10001287",
+    "nutrient_id": "protein",
+    "salt_form_id": null,
+    "amount_labeled": 85,
+    "unit": "g",
+    "amount_elemental": 85
+  },
+  {
+    "product_id": "rakuten:supplement-direct:10000128",
+    "nutrient_id": "protein",
+    "salt_form_id": null,
+    "amount_labeled": 20.73,
+    "unit": "g",
+    "amount_elemental": 20.730000000000004
+  },
+  {
+    "product_id": "rakuten:rakuten24:11026130",
+    "nutrient_id": "protein",
+    "salt_form_id": null,
+    "amount_labeled": 20,
+    "unit": "g",
+    "amount_elemental": 20
+  },
+  {
+    "product_id": "rakuten:sundrug:10053851",
+    "nutrient_id": "protein",
+    "salt_form_id": null,
+    "amount_labeled": 10.4,
+    "unit": "g",
+    "amount_elemental": 10.4
+  },
+  {
+    "product_id": "rakuten:rakutensokuhaimart:10014241",
+    "nutrient_id": "protein",
+    "salt_form_id": null,
+    "amount_labeled": 12.5,
+    "unit": "g",
+    "amount_elemental": 12.5
+  },
+  {
+    "product_id": "rakuten:cherie-brin:10000173",
+    "nutrient_id": "protein",
+    "salt_form_id": null,
+    "amount_labeled": 12,
+    "unit": "g",
+    "amount_elemental": 12
+  },
+  {
+    "product_id": "rakuten:rakuten24:11305064",
+    "nutrient_id": "protein",
+    "salt_form_id": null,
+    "amount_labeled": 15.6,
+    "unit": "g",
+    "amount_elemental": 15.6
+  },
+  {
+    "product_id": "rakuten:wakuwakuen:10000523",
+    "nutrient_id": "protein",
+    "salt_form_id": null,
+    "amount_labeled": 4.95,
+    "unit": "g",
+    "amount_elemental": 4.95
+  },
+  {
+    "product_id": "rakuten:rakutensokuhaimart:10020757",
+    "nutrient_id": "protein",
+    "salt_form_id": null,
+    "amount_labeled": 15,
+    "unit": "g",
+    "amount_elemental": 15
+  },
+  {
+    "product_id": "rakuten:naturich:10000128",
+    "nutrient_id": "protein",
+    "salt_form_id": null,
+    "amount_labeled": 10.6,
+    "unit": "g",
+    "amount_elemental": 10.6
+  },
+  {
+    "product_id": "rakuten:rakuten24:11298148",
+    "nutrient_id": "protein",
+    "salt_form_id": null,
+    "amount_labeled": 20,
+    "unit": "g",
+    "amount_elemental": 20
+  },
+  {
+    "product_id": "rakuten:myprotein:10001199",
+    "nutrient_id": "protein",
+    "salt_form_id": null,
+    "amount_labeled": 90,
+    "unit": "g",
+    "amount_elemental": 90
+  },
+  {
+    "product_id": "rakuten:soukaidrink:10008928",
+    "nutrient_id": "protein",
+    "salt_form_id": null,
+    "amount_labeled": 12.5,
+    "unit": "g",
+    "amount_elemental": 12.5
   }
 ]
