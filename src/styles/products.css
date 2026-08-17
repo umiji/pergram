@@ -912,6 +912,11 @@
   font-size: var(--size-md);
   font-weight: 700;
 }
+.filters__notice {
+  margin: var(--space-1) 0 0;
+  font-size: var(--size-xs);
+  color: var(--muted-faint);
+}
 .filters__head-actions {
   display: flex;
   align-items: center;
@@ -994,6 +999,12 @@
   font-weight: 700;
   letter-spacing: 0.06em;
   color: var(--muted-faint);
+}
+/* 「利用可能／イメージのみ」。色ではなく文言で区別する（tokens.css の色ルール） */
+.filters__status {
+  float: right;
+  font-weight: 600;
+  letter-spacing: normal;
 }
 /* float の解除。これがないと最初の選択肢が見出しの右へ回り込む */
 .filters__legend + * {
