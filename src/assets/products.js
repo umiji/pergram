@@ -160,6 +160,22 @@
     return true;
   }
 
+  /**
+   * 表示中の行だけ順位を1番から振り直す。
+   * 🔒 並び順（DOM上の並び）は変えない。書き換えるのは見た目の順位番号だけ。
+   *    data-rank（GA4計測用）はカタログ全体での順位のまま変えない — 絞り込みで
+   *    変わるのは「今何位に見えるか」であって「実際に何番目に安いか」ではないため。
+   */
+  function updateVisibleRanks() {
+    let rank = 0;
+    for (const item of items) {
+      if (item.hidden) continue;
+      rank += 1;
+      const rankEl = item.querySelector('.p-item__rank');
+      if (rankEl) rankEl.textContent = String(rank);
+    }
+  }
+
   function apply() {
     const state = readState();
     let shown = 0;
@@ -170,6 +186,8 @@
       // 条件に合っていても、上限を超えた分は伏せたまま
       item.hidden = !ok || shown > limit;
     }
+
+    updateVisibleRanks();
 
     if (applyBtn) {
       const template = form.dataset.countTemplate;
