@@ -27,7 +27,7 @@ export function siteHeader(t, { locale, betaPath = null }) {
   ).join('\n      ');
 
   const beta = betaPath
-    ? `<a class="btn btn--signal" href="${escapeHtml(betaPath)}">
+    ? `<a class="btn btn--signal" href="${escapeHtml(betaPath)}" data-cta="header_beta">
       <span class="u-desktop">${escapeHtml(t('lp.nav.beta'))}</span>
       <span class="u-mobile">${escapeHtml(t('lp.nav.betaShort'))}</span>
     </a>`
@@ -41,7 +41,7 @@ export function siteHeader(t, { locale, betaPath = null }) {
     </nav>
     <div class="site-head__actions">
       ${beta}
-      <a class="btn btn--subtle" href="#waitlist">
+      <a class="btn btn--subtle" href="#waitlist" data-cta="header_waitlist">
         <span class="u-desktop">${escapeHtml(t('lp.nav.cta'))}</span>
         <span class="u-mobile">${escapeHtml(t('lp.nav.ctaShort'))}</span>
       </a>
