@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import path from 'node:path';
 
 import { loadTranslator } from '../src/lib/i18n.js';
 import { productsPage } from '../src/templates/products.js';
@@ -11,6 +12,7 @@ import {
   NUTRIENT_CHIPS,
 } from '../src/lib/waitlist_fields.js';
 import { makeRows, market } from './fixtures.js';
+import { OG_IMAGE, absoluteUrl } from '../src/lib/site.js';
 
 const t = await loadTranslator('ja');
 const rows = makeRows();
@@ -744,4 +746,101 @@ test('🔒 カテゴリ固有の分岐は categories.json に閉じている', a
       for (const key of facet.keys) t(`attr.${key}`);
     }
   }
+});
+
+/* ---- OGP -------------------------------------------------------------- */
+
+/** JPEG / PNG のヘッダから実寸を読む。宣言値と実ファイルの食い違いを検出するため */
+function imageSize(buf) {
+  if (buf[0] === 0x89 && buf[1] === 0x50) {
+    return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
+  }
+  for (let i = 2; i < buf.length; ) {
+    if (buf[i] !== 0xff) {
+      i += 1;
+      continue;
+    }
+    const marker = buf[i + 1];
+    if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
+      return { width: buf.readUInt16BE(i + 7), height: buf.readUInt16BE(i + 5) };
+    }
+    i += 2 + buf.readUInt16BE(i + 2);
+  }
+  throw new Error('画像サイズを読めませんでした');
+}
+
+const metaContent = (html, attr, name) => {
+  const m = html.match(new RegExp(`<meta ${attr}="${name}" content="([^"]*)"`));
+  return m ? m[1] : null;
+};
+
+test('🔒 OGP 画像は絶対 URL で指す（相対パスは SNS 側で解決されない）', () => {
+  for (const html of [renderLp(), renderProducts()]) {
+    const image = metaContent(html, 'property', 'og:image');
+    assert.ok(image, 'og:image がありません');
+    assert.match(image, /^https:\/\//, `og:image が絶対 URL ではありません: ${image}`);
+    assert.equal(image, absoluteUrl(OG_IMAGE.path));
+  }
+});
+
+test('🔒 OGP 画像は SVG ではなく実在するラスタ画像', async () => {
+  assert.doesNotMatch(OG_IMAGE.path, /\.svg$/i, 'SVG は OGP 画像として描画されません');
+  const buf = await readFile(path.join('src', 'assets', OG_IMAGE.path.replace('/assets/', '')));
+  const size = imageSize(buf);
+  assert.equal(size.width, OG_IMAGE.width, 'og:image:width が実ファイルと違います');
+  assert.equal(size.height, OG_IMAGE.height, 'og:image:height が実ファイルと違います');
+});
+
+test('canonical と og:url は絶対 URL で、そのページを指す', () => {
+  const pages = [
+    [renderLp({ canonicalPath: '/ja/' }), '/ja/'],
+    [renderProducts({ canonicalPath: '/ja/protein/' }), '/ja/protein/'],
+  ];
+  for (const [html, pagePath] of pages) {
+    assert.equal(metaContent(html, 'property', 'og:url'), absoluteUrl(pagePath));
+    assert.match(html, new RegExp(`<link rel="canonical" href="${absoluteUrl(pagePath)}">`));
+  }
+});
+
+test('X で大きいカードとして出すための指定が入っている', () => {
+  for (const html of [renderLp(), renderProducts()]) {
+    assert.equal(metaContent(html, 'name', 'twitter:card'), 'summary_large_image');
+    assert.equal(metaContent(html, 'property', 'og:site_name'), 'pergram');
+  }
+});
+
+test('🔒 OGP の代替テキストはワードマークとタグラインをセットで持つ', () => {
+  for (const html of [renderLp(), renderProducts()]) {
+    const alt = metaContent(html, 'property', 'og:image:alt');
+    assert.ok(alt?.includes('pergram'), 'og:image:alt にワードマークがありません');
+    assert.ok(alt.includes(t('brand.tagline')), 'og:image:alt にタグラインがありません');
+  }
+});
+
+/* ---- 含有率 ----------------------------------------------------------- */
+
+test('含有率はカード用とリスト用の2箇所に出る（置き場所が違うため）', () => {
+  const html = renderProducts();
+  const inline = html.match(/class="p-item__ratio p-item__ratio--card"/g) ?? [];
+  const stacked = html.match(/class="p-item__ratio p-item__ratio--list"/g) ?? [];
+  assert.equal(inline.length, rows.length, 'カード用の含有率が製品数だけ出ていません');
+  assert.equal(stacked.length, rows.length, 'リスト用の含有率が製品数だけ出ていません');
+  assert.match(html, /（含有率: \d+%）/);
+});
+
+test('カードの含有率は製品価格と同じ行、リストの含有率は成分量の直後に置く', () => {
+  const html = renderProducts();
+  // カード: 「/ 内容量」の直後
+  assert.match(html, /p-item__price-pack">[^<]*<\/span>\s*<span class="p-item__ratio p-item__ratio--card"/);
+  // リスト: 成分量の直後
+  assert.match(
+    html,
+    /p-item__nutrient-weight-val">[^<]*<\/span>\s*<span class="p-item__ratio p-item__ratio--list"/,
+  );
+});
+
+test('🔒 含有率が出せない製品では欄ごと出さない（— で埋めない）', () => {
+  const noRatio = rows.map((r) => ({ ...r, contentRatioPercent: null }));
+  const html = renderProducts({ rows: noRatio });
+  assert.doesNotMatch(html, /p-item__ratio/);
 });

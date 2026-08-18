@@ -27,6 +27,7 @@ export function lpPage(ctx) {
     gaMeasurementId,
     betaPath = null,
     support = null,
+    canonicalPath = null,
   } = ctx;
 
   const content = `${siteHeader(t, { locale, betaPath })}
@@ -55,8 +56,11 @@ ${supportScript(support, { locale })}`;
     bodyClass: 'lp-body-root',
     content,
     gaMeasurementId,
+    canonicalPath,
+    siteName: t('brand.name'),
+    // 🔒 ブランド規則: 初回接触ではワードマークとタグラインを必ずセットで出す
+    ogImageAlt: `${t('brand.name')} — ${t('brand.tagline')}`,
     head: `<link rel="stylesheet" href="/assets/lp.css">
-<meta property="og:image" content="/assets/ogp.png">
 <meta name="theme-color" content="${escapeHtml('#FAFAF7')}">`,
   });
 }

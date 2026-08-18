@@ -13,13 +13,15 @@ import path from 'node:path';
 import { loadTranslator } from '../src/lib/i18n.js';
 import { productsPage } from '../src/templates/products.js';
 import { lpPage, ROADMAP_NUTRIENTS } from '../src/templates/lp.js';
-import { makeRows, market } from '../tests/fixtures.js';
+import { makeRows } from '../tests/fixtures.js';
 
 const OUT = '.preview';
 const NUTRIENT_ID = 'protein';
 
 const t = await loadTranslator('ja');
 const rows = makeRows();
+const markets = JSON.parse(await readFile('config/markets.json', 'utf8'));
+const market = markets.JP;
 const categories = JSON.parse(await readFile('config/categories.json', 'utf8'));
 const category = categories[NUTRIENT_ID];
 
@@ -79,6 +81,7 @@ for (const file of ['tokens.css', 'site.css', 'lp.css', 'products.css']) {
 for (const file of ['lp.js', 'products.js']) {
   await cp(path.join('src/assets', file), path.join(OUT, 'assets', file));
 }
+await cp('src/assets/images', path.join(OUT, 'assets', 'images'), { recursive: true }).catch(() => { });
 
 // file:// で開くと /assets/... がドライブのルートを指してしまい、CSS も JS も当たらない。
 // 本番と同じくルートを持つサーバから配る。--build-only で書き出しだけにできる。

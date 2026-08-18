@@ -152,6 +152,9 @@ ${appHeader({ t, locale, waitlistPath })}
     bodyClass: 'app-body',
     content,
     gaMeasurementId,
+    canonicalPath: ctx.canonicalPath ?? null,
+    siteName: t('brand.name'),
+    ogImageAlt: `${t('brand.name')} — ${t('brand.tagline')}`,
     head: `<link rel="stylesheet" href="/assets/products.css">
 <meta name="theme-color" content="#FAFAF7">`,
   });

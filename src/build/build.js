@@ -39,6 +39,7 @@ import { loadTranslator } from '../lib/i18n.js';
 import { productsPage } from '../templates/products.js';
 import { lpPage, ROADMAP_NUTRIENTS } from '../templates/lp.js';
 import { headersFile, supportOriginOf } from './headers.js';
+import { absoluteUrl } from '../lib/site.js';
 
 const DIST = 'dist';
 const DATA = 'data';
@@ -235,6 +236,7 @@ async function main() {
       disclosureKey: market.disclosureKey,
       waitlistPath: `${lpPath}#waitlist`,
       gaMeasurementId,
+      canonicalPath: productsPath,
     }),
   );
 
@@ -254,6 +256,7 @@ async function main() {
         betaPath: productsPath,
         gaMeasurementId,
         support: market.support ?? null,
+        canonicalPath: lpPath,
       }),
     );
   }
@@ -268,7 +271,7 @@ async function main() {
 <head>
 <meta charset="utf-8">
 <meta http-equiv="refresh" content="0; url=${lpPath}">
-<link rel="canonical" href="${lpPath}">
+<link rel="canonical" href="${absoluteUrl(lpPath)}">
 <title>pergram</title>
 </head>
 <body><a href="${lpPath}">${lpPath}</a></body>

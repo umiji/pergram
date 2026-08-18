@@ -1300,6 +1300,37 @@
   display: none;
 }
 
+/* ---- 含有率の表示切り替え ------------------------------------------
+   カードでは「製品価格 / 内容量」の右に添え、リストでは成分量の下に改行して置く。
+   置き場所が違うので器を2つ出し、表示中の view 以外を隠す。
+   🔒 主指標（1単位あたりの価格）より目立たせない。 */
+.p-item__ratio {
+  display: none;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.p-list[data-view='card'] .p-item__ratio--card {
+  display: inline;
+  font-size: var(--size-sm);
+  font-weight: 400;
+}
+/* リストでは含有率に高さを持たせない。
+   セルの高さが1行分のままなら、行の align-items:center が効いて
+   成分量の数値が内容量・商品価格・送料と同じ高さに並ぶ。
+   含有率を通常の2行目にすると、このセルだけ背が高くなって数値が上にずれる。 */
+.p-list[data-view='list'] .p-item__nutrient-weight {
+  position: relative;
+}
+.p-list[data-view='list'] .p-item__ratio--list {
+  display: block;
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 2px;
+  font-size: var(--size-xs);
+}
+
 /* ---- カードビュー整列 --------------------------------------------- */
 .p-list[data-view='card'] .p-item {
   display: flex;

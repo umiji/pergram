@@ -29,6 +29,8 @@
   "products.best": "Lowest per {unit}",
   "products.deltaBase": "Baseline",
   "products.delta": "+{percent} vs lowest",
+  "products.ratioInline": "(Content ratio: {percent})",
+  "products.ratioStacked": "Content ratio {percent}",
   "products.perPack": "/ {amount}",
   "products.postage.included": "Shipping included",
   "products.postage.excluded": "Plus shipping",
