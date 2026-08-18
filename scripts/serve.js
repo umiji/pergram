@@ -60,6 +60,12 @@ async function resolveFile(root, urlPath) {
  */
 export function serve(root, port = 4173) {
   const server = createServer(async (req, res) => {
+    if (req.method === 'POST' && req.url && req.url.startsWith('/api/waitlist')) {
+      res.writeHead(200, { 'Content-Type': MIME['.json'], 'Cache-Control': 'no-store' });
+      res.end(JSON.stringify({ ok: true }));
+      return;
+    }
+
     const file = await resolveFile(root, req.url ?? '/');
     if (file === null) {
       res.writeHead(404, { 'Content-Type': MIME['.txt'] });
