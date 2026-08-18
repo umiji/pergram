@@ -115,6 +115,13 @@ npm run cf:deploy
 | `/` | `/ja/` へ 302 |
 | `/ja/` | LP。**掲載件数に関わらず必ず出る** |
 | `/ja/protein/` | 製品一覧。データ 0 件なら「まだ登録されていません」 |
+| `/robots.txt` | クロール許可範囲。`Disallow: /ja/protein/` と `Sitemap:` 行が入る |
+| `/sitemap.xml` | `/ja/` の1件のみ。`Content-Type` が `application/xml` であること |
+| `/llms.txt` | LLM 向けの要約。単価の定義と順位の決め方 |
+
+この3ファイルは [crawl.js](../../src/build/crawl.js) が `crawlPolicy()` ひとつから
+生成している。robots.txt を手で書き換えても sitemap.xml が追従しないので、
+**必ず `crawlPolicy()` を直す。**
 
 `data/` が空のあいだ、LP のヒーローにランキングカードは出ない（🔒 ダミーを置かないため）。
 LP 本体・Waitlist フォームは出る。**これが正しい状態。**
@@ -204,8 +211,16 @@ npx wrangler d1 execute pergram --local --command "SELECT * FROM waitlist"
 
 ## 決めていないこと
 
-- **`robots.txt` は `Disallow: /`**（[build.js](../../src/build/build.js)）。
-  検証段階では意図的にインデックスさせていない。一般公開に切り替えるときに外す。
+- **製品一覧 `/ja/protein/` はクロール対象外**（[crawl.js](../../src/build/crawl.js)）。
+  他ストアの価格欄が `¥X` / `¥XXXX` のプレースホルダのままのため塞いでいる。
+  実データが入って `PLACEHOLDER_MERCHANTS` を消したら、`crawlPolicy()` の
+  `blocked` から外して `open` に移す。robots.txt と sitemap.xml の両方が同時に追従する。
+  ⚠️ `Disallow` はクロールを止めるがインデックス登録は止めない。LP からリンクが
+  あるため、Google が URL のみで登録する可能性は残る（`noindex` はクロールを
+  許可しないと読まれないので両立しない）。被リンクの少ないうちは実害が小さいと判断している。
+- **Search Console 未登録**。所有権確認タグは `GOOGLE_SITE_VERIFICATION` を
+  渡せば入る（未設定なら出力されない）。独自ドメインへ移す予定があるなら、
+  移行後にまとめて登録するほうが二度手間にならない。
 - **独自ドメイン** 未取得。当面は `*.workers.dev` で動かす。
 - **CSP の `script-src 'unsafe-inline'`**（`_headers`）。GA4 の初期化スニペットがインラインなため。
   静的ビルドではリクエストごとの nonce を発行できない。GA4 を使わないなら外せる。

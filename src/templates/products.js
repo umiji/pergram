@@ -14,6 +14,7 @@ import { layout, wordmark } from './layout.js';
 import { filters } from './products/filters.js';
 import { productItem } from './products/item.js';
 import { affiliateNotice, appHeader, explainer, pageHead, toolbar } from './products/head.js';
+import { breadcrumbList, itemList } from '../lib/jsonld.js';
 
 /**
  * 初期表示する件数。残りも HTML には出しておき、hidden で伏せる。
@@ -145,6 +146,22 @@ ${appHeader({ t, locale, waitlistPath })}
 
 <script src="/assets/products.js" defer></script>`;
 
+  // 並び順そのものを機械可読にする。names は描画順（= 単価の昇順）と同じ配列から作る。
+  // 🔒 現状このページは robots.txt でクロール対象外（src/build/crawl.js）。
+  //    公開に切り替えた日にそのまま効くよう、構造化データは先に用意しておく。
+  const productsPath = ctx.canonicalPath ?? `/${locale}/${nutrientId}/`;
+  const structuredData = [
+    breadcrumbList([
+      { name: t('brand.name'), path: `/${locale}/` },
+      { name: nutrientName, path: productsPath },
+    ]),
+    itemList({
+      name: t('products.title', { nutrient: nutrientName, unit: displayUnit }),
+      names: rows.map((row) => row.name),
+      pagePath: productsPath,
+    }),
+  ];
+
   return layout({
     locale,
     title: `${t('products.title', { nutrient: nutrientName, unit: displayUnit })} — ${t('brand.name')}`,
@@ -153,6 +170,8 @@ ${appHeader({ t, locale, waitlistPath })}
     content,
     gaMeasurementId,
     canonicalPath: ctx.canonicalPath ?? null,
+    jsonLd: structuredData,
+    siteVerification: ctx.siteVerification ?? null,
     siteName: t('brand.name'),
     ogImageAlt: `${t('brand.name')} — ${t('brand.tagline')}`,
     head: `<link rel="stylesheet" href="/assets/products.css">

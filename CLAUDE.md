@@ -33,6 +33,8 @@ npm run validate  # data/ のバリデーションのみ
 | `src/styles/tokens.css` | 色・寸法の唯一の出所。`scripts/make_ogp.js` の定数もここと同じ値に保つ |
 | `src/templates/lp/` | LP のセクション。チップの並びも許可リストも `src/lib/waitlist_fields.js` が唯一の出所。LP 側と Worker 側で二重に持たない |
 | `src/templates/lp/support.js` | 任意支援（Codoc）の埋め込み。設定の出所は `config/markets.json` の `support`。⚠️ **1ページに1つしか置けない** — Codoc は要素の id から `#codoc-entry-<code>` を組み立てて mount 先を引き直すので、同じ id を2箇所に置くと後ろ側は空のまま死ぬ。2箇所に出すなら Codoc 側で2つ目の entry を発行する |
+| `src/build/crawl.js` | robots.txt / sitemap.xml / llms.txt の**唯一の出所**。公開範囲は `crawlPolicy()` ひとつに書き、3ファイルすべてをそこから導く。**別々に書くと「robots.txt で塞いだ URL をサイトマップに載せる」事故が静かに起きる**（検索エンジンは矛盾を報告しない）。⚠️ 現在 `/ja/protein/` を塞いでいるのはβ版のプレースホルダ価格が出ているため。`PLACEHOLDER_MERCHANTS` を消すのと同時に `blocked` から `open` へ移す。llms.txt に成分の働きを書かない（N-02）、独自スコアを書かない（N-03） |
+| `src/lib/jsonld.js` | 構造化データ。`aggregateRating` / `review` を入れない（N-08）。**LP のヒーローに ItemList を付けない** — `HERO_PRODUCT_IDS` の手動指定で表示順が単価順と一致しておらず、構造化データにすると誤った順位を機械に断言することになる。`<` のエスケープを外さない（生の `<` があるとブラウザがそこでスクリプトを打ち切る） |
 | `src/build/headers.js` | CSP と配信ヘッダ。外部から読み込むものを足したら必ずここに許可を書く。**忘れるとブラウザが黙ってブロックし、画面には何も出ない。**許可するオリジンは設定から導き、ドメインを2箇所に書かない |
 | `worker/index.js` | Worker の入り口。配信は **Pages ではなく Workers**。`functions/` は使えない。ルートは `ROUTES` に足す |
 | `src/templates/products/` | 製品一覧（`/ja/protein/`）。カード表示とリスト表示は**同じマークアップ**を CSS のグリッドだけで組み替える。2つ描き分けない |

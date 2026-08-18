@@ -13,6 +13,8 @@ import { hero, siteHeader } from './lp/hero.js';
 import { features, howItWorks, roadmap, ROADMAP_NUTRIENTS } from './lp/sections.js';
 import { siteFooter, waitlist, CHANNEL_CHIPS } from './lp/form.js';
 import { supportScript } from './lp/support.js';
+import { organization, webSite } from '../lib/jsonld.js';
+import { OG_IMAGE } from '../lib/site.js';
 
 export function lpPage(ctx) {
   const {
@@ -28,6 +30,7 @@ export function lpPage(ctx) {
     betaPath = null,
     support = null,
     canonicalPath = null,
+    siteVerification = null,
   } = ctx;
 
   const content = `${siteHeader(t, { locale, betaPath })}
@@ -49,6 +52,23 @@ ${siteFooter(t, { disclosureKey })}
 <script src="/assets/lp.js" defer></script>
 ${supportScript(support, { locale })}`;
 
+  // 🔒 ヒーローの3件を ItemList にしない。HERO_PRODUCT_IDS の暫定措置で
+  //    表示順が実際の単価順と一致していない（build.js / hero.js）。人間には
+  //    「Sample」と断ってあるが、構造化データにすると誤った順位を機械に断言することになる。
+  const structuredData = [
+    organization({
+      name: t('brand.name'),
+      tagline: t('brand.tagline'),
+      logoPath: OG_IMAGE.path,
+    }),
+    webSite({
+      name: t('brand.name'),
+      description: t('lp.lede'),
+      locale,
+      lpPath: canonicalPath ?? `/${locale}/`,
+    }),
+  ];
+
   return layout({
     locale,
     title: `${t('lp.metaTitle')} — ${t('brand.name')}`,
@@ -57,6 +77,8 @@ ${supportScript(support, { locale })}`;
     content,
     gaMeasurementId,
     canonicalPath,
+    jsonLd: structuredData,
+    siteVerification,
     siteName: t('brand.name'),
     // 🔒 ブランド規則: 初回接触ではワードマークとタグラインを必ずセットで出す
     ogImageAlt: `${t('brand.name')} — ${t('brand.tagline')}`,
