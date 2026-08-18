@@ -49,6 +49,8 @@ npm run validate  # data/ のバリデーションのみ
 | ~~[docs/design/ad-lp.md](docs/design/ad-lp.md)~~ | design.md に置き換え済み。検討過程の記録 |
 | [docs/research/validation-plan.md](docs/research/validation-plan.md) | 先行需要検証プラン |
 | [docs/ops/deploy.md](docs/ops/deploy.md) | Cloudflare Workers + D1 のデプロイ手順。バインディングの出所は `wrangler.toml` ひとつ |
+| [docs/ops/google-ads-first-campaign.md](docs/ops/google-ads-first-campaign.md) | 初回の Google 検索広告出稿の手順書。判定基準は validation-plan.md をそのまま使う |
+| [docs/tasks/README.md](docs/tasks/README.md) | **タスク台帳。進捗の唯一の出所**。索引は [docs/task-list-pergram.csv](docs/task-list-pergram.csv)、詳細は `docs/tasks/T-XXX.md` |
 
 ドキュメント間は相対リンクで相互参照している。**ファイルを移動・改名する場合は全参照を更新すること。**
 
