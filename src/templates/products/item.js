@@ -34,6 +34,27 @@ function deltaLabel(row, baseline, { t, locale }) {
 }
 
 /**
+ * 含有率。カード表示とリスト表示で置き場所が違うため、2つの器を静的に出して
+ * 表示中の view 以外を CSS で隠す（merchant-button__label--card / --list と同じ手）。
+ *
+ * 🔒 成分の単位が g のときだけ値がある。mg / mcg 成分では null になり、
+ *    そのときは器ごと出さない（`—` も出さない。無い指標を欄として見せない）。
+ * 🔒 導出値であって保存値ではない。row から受け取るだけで、ここで計算しない。
+ */
+function contentRatio(row, { t, locale }) {
+  const percent = formatPercent(row.contentRatioPercent, { locale });
+  if (percent === null) return { inline: '', stacked: '' };
+  return {
+    inline: `<span class="p-item__ratio p-item__ratio--card">${escapeHtml(
+      t('products.ratioInline', { percent }),
+    )}</span>`,
+    stacked: `<span class="p-item__ratio p-item__ratio--list">${escapeHtml(
+      t('products.ratioStacked', { percent }),
+    )}</span>`,
+  };
+}
+
+/**
  * 副指標。config/categories.json の secondaryMetrics を回すだけにする。
  * 全部を静的に出力し、表示中の1つ以外を CSS で隠す。
  *
@@ -156,6 +177,7 @@ export function productItem(row, index, ctx) {
   const primary = formatCurrency(row.costPerNutrientUnit, { locale, currency });
   const unitSuffix = t('unit.perNutrientUnit', { unit: displayUnit });
   const price = formatCurrency(row.price, { locale, currency });
+  const ratio = contentRatio(row, { t, locale });
   const pack = formatWeight(row.netWeightG, { locale });
   const nutrientWeight = formatWeight(row.totalNutrientAmount, { locale });
   const fetched = formatDate(row.fetchedAt, { locale });
@@ -251,12 +273,14 @@ export function productItem(row, index, ctx) {
 
   <div class="p-item__nutrient-weight">
     <span class="p-item__nutrient-weight-val">${nutrientWeight === null ? '—' : escapeHtml(nutrientWeight)}</span>
+    ${ratio.stacked}
   </div>
 
   <div class="p-item__price">
     <p class="p-item__price-main">
       <span class="num">${escapeHtml(price ?? '—')}</span>
       <span class="p-item__price-pack"> / ${pack === null ? '—' : escapeHtml(pack)}</span>
+      ${ratio.inline}
     </p>
     <p class="p-item__price-sub">
       ${postage}<span class="p-item__price-merchant">${postage ? ' ・ ' : ''}${escapeHtml(

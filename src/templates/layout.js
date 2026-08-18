@@ -1,4 +1,5 @@
 import { escapeHtml } from '../lib/i18n.js';
+import { OG_IMAGE, absoluteUrl, ogLocale } from '../lib/site.js';
 
 /**
  * 全ページ共通の外枠。
@@ -31,9 +32,14 @@ export function layout({
   content,
   gaMeasurementId,
   canonicalPath,
+  siteName = '',
+  ogImageAlt = '',
 }) {
   const metaTitle = cleanMetaText(title);
   const metaDesc = cleanMetaText(description);
+  // 🔒 canonical / og:url / og:image はすべて絶対 URL。相対パスは SNS 側で解決されない
+  const pageUrl = canonicalPath ? absoluteUrl(canonicalPath) : null;
+  const ogImageUrl = absoluteUrl(OG_IMAGE.path);
 
   const ga = gaMeasurementId
     ? `<script async src="https://www.googletagmanager.com/gtag/js?id=${escapeHtml(gaMeasurementId)}"></script>
@@ -56,10 +62,19 @@ export function layout({
 <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg">
 <link rel="icon" type="image/png" sizes="32x32" href="/assets/images/favicon.png">
 <link rel="apple-touch-icon" href="/assets/images/favicon.png">
-${canonicalPath ? `<link rel="canonical" href="${escapeHtml(canonicalPath)}">` : ''}
+${pageUrl ? `<link rel="canonical" href="${escapeHtml(pageUrl)}">` : ''}
 <meta property="og:title" content="${metaTitle}">
 <meta property="og:description" content="${metaDesc}">
 <meta property="og:type" content="website">
+<meta property="og:locale" content="${escapeHtml(ogLocale(locale))}">
+${siteName ? `<meta property="og:site_name" content="${cleanMetaText(siteName)}">` : ''}
+${pageUrl ? `<meta property="og:url" content="${escapeHtml(pageUrl)}">` : ''}
+<meta property="og:image" content="${escapeHtml(ogImageUrl)}">
+<meta property="og:image:type" content="${escapeHtml(OG_IMAGE.type)}">
+<meta property="og:image:width" content="${OG_IMAGE.width}">
+<meta property="og:image:height" content="${OG_IMAGE.height}">
+${ogImageAlt ? `<meta property="og:image:alt" content="${cleanMetaText(ogImageAlt)}">` : ''}
+<meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap">
