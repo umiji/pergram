@@ -679,6 +679,7 @@ test('支援ウィジェットは登録完了ブロックの中に出る', () =>
   assert.ok(done, '登録完了ブロックがありません');
   assert.match(done[0], /id="codoc-entry-ENTRYCODE"/);
   assert.ok(html.includes(t('lp.support.message')), '支援メッセージがありません');
+  assert.ok(html.includes(t('lp.support.buttonText')), '支援ボタンのテキストがありません');
 });
 
 // 🔒 出し分けは条件分岐ではなくデータで。support を持たない市場では何も出ない

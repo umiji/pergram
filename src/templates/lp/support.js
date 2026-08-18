@@ -56,5 +56,6 @@ export function supportEmbed(t, support) {
 
   return `<div id="codoc-entry-${escapeHtml(support.entryCode)}" class="codoc-entries"
            data-without-body="1"
+           data-support-button-text="${escapeAttribute(t('lp.support.buttonText'))}"
            data-support-message="${escapeAttribute(t('lp.support.message'))}"></div>`;
 }
