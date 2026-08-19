@@ -122,8 +122,11 @@ function offersTable(row, { t, locale, currency, displayUnit, market, id }) {
       const name = escapeHtml(t(`merchant.${merchant}`));
 
       // 🔒 実データが無い販売元。金額を作らず、リンクも張らない
+      // 🔒 data-nosnippet: Google のスニペットと AI Overviews が ¥XXXX を
+      //    引用しないようにする。robots.txt でこのページを塞いでいる間の二重の保険であり、
+      //    公開に切り替えた日にそのまま効く。
       if (snapshot === null) {
-        return `<tr data-placeholder="true">
+        return `<tr data-placeholder="true" data-nosnippet>
         <th scope="row" class="offers__merchant">${name}</th>
         <td class="num offers__unit">${PLACEHOLDER_UNIT_COST}<span class="unit-sub">${escapeHtml(unitSuffix)}</span></td>
         <td class="num offers__price">${PLACEHOLDER_PRICE}</td>

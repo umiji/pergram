@@ -1,5 +1,6 @@
 import { escapeHtml } from '../lib/i18n.js';
 import { OG_IMAGE, absoluteUrl, ogLocale } from '../lib/site.js';
+import { jsonLdScript } from '../lib/jsonld.js';
 
 /**
  * 全ページ共通の外枠。
@@ -34,12 +35,20 @@ export function layout({
   canonicalPath,
   siteName = '',
   ogImageAlt = '',
+  jsonLd = [],
+  siteVerification = null,
 }) {
   const metaTitle = cleanMetaText(title);
   const metaDesc = cleanMetaText(description);
   // 🔒 canonical / og:url / og:image はすべて絶対 URL。相対パスは SNS 側で解決されない
   const pageUrl = canonicalPath ? absoluteUrl(canonicalPath) : null;
   const ogImageUrl = absoluteUrl(OG_IMAGE.path);
+  const structuredData = jsonLdScript(jsonLd);
+
+  // Search Console の所有権確認。トークンは環境変数から来るので、未設定なら何も出さない
+  const verification = siteVerification
+    ? `<meta name="google-site-verification" content="${escapeHtml(siteVerification)}">`
+    : '';
 
   const ga = gaMeasurementId
     ? `<script async src="https://www.googletagmanager.com/gtag/js?id=${escapeHtml(gaMeasurementId)}"></script>
@@ -59,6 +68,8 @@ export function layout({
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${metaTitle}</title>
 <meta name="description" content="${metaDesc}">
+<meta name="robots" content="max-snippet:-1, max-image-preview:large, max-video-preview:-1">
+${verification}
 <link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg">
 <link rel="icon" type="image/png" sizes="32x32" href="/assets/images/favicon.png">
 <link rel="apple-touch-icon" href="/assets/images/favicon.png">
@@ -80,6 +91,7 @@ ${ogImageAlt ? `<meta property="og:image:alt" content="${cleanMetaText(ogImageAl
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="/assets/tokens.css">
 <link rel="stylesheet" href="/assets/site.css">
+${structuredData}
 ${head}
 ${ga}
 </head>

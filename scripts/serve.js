@@ -27,6 +27,8 @@ const MIME = {
   '.ico': 'image/x-icon',
   '.woff2': 'font/woff2',
   '.txt': 'text/plain; charset=utf-8',
+  // sitemap.xml。text/xml だと一部のクローラが読み飛ばす
+  '.xml': 'application/xml; charset=utf-8',
 };
 
 /**

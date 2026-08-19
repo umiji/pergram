@@ -39,6 +39,7 @@ import { loadTranslator } from '../lib/i18n.js';
 import { productsPage } from '../templates/products.js';
 import { lpPage, ROADMAP_NUTRIENTS } from '../templates/lp.js';
 import { headersFile, supportOriginOf } from './headers.js';
+import { crawlPolicy, llmsTxt, robotsTxt, sitemapXml } from './crawl.js';
 import { absoluteUrl } from '../lib/site.js';
 
 const DIST = 'dist';
@@ -183,6 +184,9 @@ async function main() {
   const markets = await readJson(CONFIG, 'markets.json');
   const categories = await readJson(CONFIG, 'categories.json');
   const gaMeasurementId = process.env.GA4_MEASUREMENT_ID ?? null;
+  // Search Console の所有権確認トークン。未設定ならタグを出さない。
+  // 🔒 秘密ではないが、環境ごとに違うのでソースに書かない。
+  const siteVerification = process.env.GOOGLE_SITE_VERIFICATION ?? null;
 
   // 現時点で公開するのは locale=ja / market=JP のみ。
   // /en/ は P8。URL 構造と翻訳キーは先に用意してある。
@@ -236,6 +240,7 @@ async function main() {
       disclosureKey: market.disclosureKey,
       waitlistPath: `${lpPath}#waitlist`,
       gaMeasurementId,
+      siteVerification,
       canonicalPath: productsPath,
     }),
   );
@@ -255,6 +260,7 @@ async function main() {
         disclosureKey: market.disclosureKey,
         betaPath: productsPath,
         gaMeasurementId,
+        siteVerification,
         support: market.support ?? null,
         canonicalPath: lpPath,
       }),
@@ -280,8 +286,22 @@ async function main() {
   );
   await writeFile(path.join(DIST, '_redirects'), `/  ${lpPath}  302\n`, 'utf8');
 
-  // 検証段階ではインデックスさせない。広告の審査と計測だけに使う。
-  await writeFile(path.join(DIST, 'robots.txt'), 'User-agent: *\nDisallow: /\n', 'utf8');
+  // --- クローラ向けの配信ファイル ---------------------------------------
+  // 🔒 公開範囲の出所は crawl.js の crawlPolicy() ひとつ。robots.txt と
+  //    sitemap.xml をここで別々に組み立てない（塞いだ URL を申告する事故になる）。
+  const policy = crawlPolicy({ lpPath, productsPath });
+  await writeFile(path.join(DIST, 'robots.txt'), robotsTxt(policy), 'utf8');
+  await writeFile(path.join(DIST, 'sitemap.xml'), sitemapXml(policy, { lastmod: updatedAt }), 'utf8');
+  await writeFile(
+    path.join(DIST, 'llms.txt'),
+    llmsTxt(policy, {
+      brandName: t('brand.name'),
+      tagline: t('brand.tagline'),
+      updatedAt,
+      productCount: rows.length,
+    }),
+    'utf8',
+  );
 
   // Cloudflare のレスポンスヘッダ。中身と理由は src/build/headers.js を見る。
   await writeFile(
@@ -315,6 +335,13 @@ async function main() {
       heroFellBack
         ? `⚠️ ヒーロー   HERO_PRODUCT_IDS の製品が見つからず単価順の上位 ${HERO_ROWS} 件に戻しました。`
         : `⚠️ ヒーロー   HERO_PRODUCT_IDS で手動指定した ${HERO_PRODUCT_IDS.length} 件を出しています（実際の単価順ではありません）。`,
+    );
+  }
+  console.log(`クロール    ${policy.open.map((e) => e.path).join(' ')} を許可 / ${policy.blocked.join(' ')} を拒否`);
+  console.log(`            robots.txt  sitemap.xml  llms.txt を出力`);
+  if (!siteVerification) {
+    console.log(
+      'Search Console 未設定 — GOOGLE_SITE_VERIFICATION を渡すと所有権確認タグが入ります。',
     );
   }
   if (!gaMeasurementId) {

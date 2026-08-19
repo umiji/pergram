@@ -317,7 +317,7 @@ test('🔒 merchant ボタンは market 設定にある販売元だけ', () => {
 // 🔒 価格を取得していない販売元の欄に、それらしい金額を作って置かない。
 test('🔒 価格が無い販売元は金額を出さずプレースホルダにする', () => {
   const html = renderProducts();
-  const placeholders = html.match(/<tr data-placeholder="true">[\s\S]*?<\/tr>/g) ?? [];
+  const placeholders = html.match(/<tr data-placeholder="true"[^>]*>[\s\S]*?<\/tr>/g) ?? [];
   assert.ok(placeholders.length > 0, '表示例の行が1つもありません');
 
   for (const tr of placeholders) {
@@ -843,4 +843,97 @@ test('🔒 含有率が出せない製品では欄ごと出さない（— で�
   const noRatio = rows.map((r) => ({ ...r, contentRatioPercent: null }));
   const html = renderProducts({ rows: noRatio });
   assert.doesNotMatch(html, /p-item__ratio/);
+});
+
+/* ---- 構造化データ（JSON-LD） ------------------------------------------ */
+
+/** ページから JSON-LD を取り出して parse する。無ければ空配列 */
+function jsonLdOf(html) {
+  const m = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
+  if (!m) return [];
+  const parsed = JSON.parse(m[1]);
+  return Array.isArray(parsed) ? parsed : [parsed];
+}
+
+test('LP は WebSite と Organization の構造化データを出す', () => {
+  const types = jsonLdOf(renderLp()).map((o) => o['@type']);
+  assert.deepEqual(types.sort(), ['Organization', 'WebSite']);
+});
+
+test('🔒 LP のヒーローを ItemList にしない — 手動指定で表示順が単価順と一致しない', () => {
+  const types = jsonLdOf(renderLp()).map((o) => o['@type']);
+  assert.ok(!types.includes('ItemList'));
+});
+
+test('製品一覧は BreadcrumbList と ItemList を出す', () => {
+  const types = jsonLdOf(renderProducts({ canonicalPath: '/ja/protein/' })).map((o) => o['@type']);
+  assert.deepEqual(types.sort(), ['BreadcrumbList', 'ItemList']);
+});
+
+test('🔒 ItemList の並びは描画順（単価の昇順）と一致する', () => {
+  const html = renderProducts({ canonicalPath: '/ja/protein/' });
+  const list = jsonLdOf(html).find((o) => o['@type'] === 'ItemList');
+
+  assert.equal(list.numberOfItems, rows.length);
+  assert.deepEqual(
+    list.itemListElement.map((e) => e.name),
+    rows.map((r) => r.name),
+  );
+  assert.deepEqual(
+    list.itemListElement.map((e) => e.position),
+    rows.map((_, i) => i + 1),
+  );
+});
+
+test('🔒 構造化データにレビュー評価を入れない（N-08）', () => {
+  for (const html of [renderLp(), renderProducts()]) {
+    const raw = JSON.stringify(jsonLdOf(html));
+    assert.ok(!raw.includes('aggregateRating'), 'aggregateRating が含まれている');
+    assert.ok(!raw.includes('"review"'), 'review が含まれている');
+    assert.ok(!raw.includes('ratingValue'), 'ratingValue が含まれている');
+  }
+});
+
+test('🔒 構造化データに禁止語を入れない', () => {
+  for (const html of [renderLp(), renderProducts()]) {
+    const raw = JSON.stringify(jsonLdOf(html));
+    for (const word of BANNED_WORDS) {
+      assert.ok(!raw.includes(word), `構造化データに禁止語「${word}」が含まれている`);
+    }
+  }
+});
+
+test('🔒 JSON-LD の中で < をエスケープする — 生のままだとそこでスクリプトが切れる', () => {
+  const withTag = rows.map((r, i) => (i === 0 ? { ...r, name: '<script>x</script>' } : r));
+  const html = renderProducts({ rows: withTag, canonicalPath: '/ja/protein/' });
+  const block = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)[1];
+
+  assert.ok(!block.includes('<'), 'JSON-LD 内に生の < が残っている');
+  const list = JSON.parse(block).find((o) => o['@type'] === 'ItemList');
+  assert.equal(list.itemListElement[0].name, '<script>x</script>', '値が壊れている');
+});
+
+/* ---- クローラ向けの meta ----------------------------------------------- */
+
+test('スニペットと画像プレビューの上限を外す', () => {
+  for (const html of [renderLp(), renderProducts()]) {
+    assert.match(html, /<meta name="robots" content="max-snippet:-1, max-image-preview:large/);
+  }
+});
+
+test('Search Console の所有権確認タグは、トークンを渡したときだけ出す', () => {
+  assert.doesNotMatch(renderLp(), /google-site-verification/);
+  assert.match(
+    renderLp({ siteVerification: 'abc123' }),
+    /<meta name="google-site-verification" content="abc123">/,
+  );
+});
+
+test('🔒 β版のプレースホルダ価格は引用対象から外す（data-nosnippet）', () => {
+  const html = renderProducts();
+  const placeholders = [...html.matchAll(/<tr data-placeholder="true"([^>]*)>/g)];
+  assert.ok(placeholders.length > 0, 'プレースホルダ行が無い');
+  for (const [, attrs] of placeholders) {
+    assert.match(attrs, /data-nosnippet/);
+  }
 });
