@@ -5,6 +5,8 @@ dist/
 .wrangler/
 data/_drafts/
 data/_review/
+# 過去投稿フィードのキャッシュ（scripts/x_feed.js）。取り直せるものを履歴に入れない
+.cache/
 # 🔒 API キーの類。`.env` だけでは `.env.local` が漏れる
 .env
 .env.*

@@ -74,6 +74,10 @@ Node 22 以上。**依存パッケージなし**（テストは `node:test`、�
 | `npm run d1:schema:local` | 初回のみ。ローカル D1 データベースにテーブルを作成 |
 | `npm run d1:schema` | リモート D1 データベースにテーブルを作成 |
 | `npm run d1:waitlist` | Waitlist（ウェイトリスト）登録データを確認 |
+| `npm run x:facts` | X 投稿に書いてよい「今の数字」を実データから出す |
+| `npm run x:feed` | 過去の X 投稿をフィードから取り、使った切り口・未使用の切り口を並べる |
+| `npm run x:lint` | 投稿下書きの文字数・禁止語・URL の位置・過去投稿との重複をチェック |
+| `npm run x:card` | X 用アイキャッチ（16:9 / 1600×900）を実データとデザイントークンから生成 |
 
 待機リストの API ごと動かすなら。手順は [docs/ops/deploy.md](docs/ops/deploy.md)。
 
@@ -119,7 +123,26 @@ npm run build
 | `src/lib/validate.js` | V-01〜V-06 |
 | `src/templates/` | ランキングページ / LP |
 | `worker/` | Cloudflare Worker（待機リストの受け口）と D1 スキーマ |
-| `scripts/` | 収集・取り込み・価格更新・OGP |
+| `scripts/` | 収集・取り込み・価格更新・OGP・X 運用 |
+| `.claude/skills/x-post/` | X 投稿文を作る skill（`/post` `/reply` `/image`） |
+
+### X の投稿を作る
+
+投稿文は `.claude/skills/x-post/` の skill が作る。Claude Code で `/post`（単発／ツリーの
+自動判断）、`/reply`（返信文）、`/image`（アイキャッチ）を使う。
+
+```bash
+npm run x:facts                       # 書いてよい数字（掲載件数・上位の単価・取得日）
+npm run x:feed                        # 過去投稿と、直近で使った切り口
+npm run x:lint -- draft.txt --feed    # 文字数・禁止語・URL の位置・過去投稿との近さ
+npm run x:card -- --type rank --headline "袋の値段では、順位は出ない。" --png
+```
+
+下書きは `---` だけの行でツリーの投稿を区切る。`x:lint` は error が1件でもあれば
+非ゼロで終わる。🔒 **数字は `x:facts` の出力からしか書かない**（価格は毎日動く）。
+
+過去投稿のフィード URL は `config/x.json`。取得できないときは `.cache/x_posts.json`
+（gitignore 済み）で続行し、キャッシュを使ったことを表示する。
 
 ### 検証段階の設定
 

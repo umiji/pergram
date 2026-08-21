@@ -11,6 +11,11 @@ npm test          # 導出計算・正規化・バリデーション・描画の
 npm run build     # dist/ を生成（--strict で LP 未出力時に失敗）
 npm run preview   # サンプルデータで .preview/ に描画。デプロイ禁止
 npm run validate  # data/ のバリデーションのみ
+
+npm run x:facts   # X 投稿に書いてよい「今の数字」を実データから出す
+npm run x:feed    # 過去の X 投稿をフィードから取り、使った切り口を並べる
+npm run x:lint -- draft.txt --feed   # 投稿下書きの文字数・禁止語・重複チェック
+npm run x:card -- --type rank --headline "…" --png   # 16:9 のアイキャッチ
 ```
 
 実装済みは P0 と P1c の骨格。データ投入の手順は [README.md](README.md) を見る。
@@ -40,6 +45,11 @@ npm run validate  # data/ のバリデーションのみ
 | `src/templates/products/` | 製品一覧（`/ja/protein/`）。カード表示とリスト表示は**同じマークアップ**を CSS のグリッドだけで組み替える。2つ描き分けない |
 | `src/templates/products/item.js` | ⚠️ **β版限定の暫定措置が入っている。** 他ストアの価格表に `PLACEHOLDER_MERCHANTS`（Amazon / Yahoo! / 公式）の行を必ず足す。**🔒 金額は作らない** — 実データが無い欄は `¥X` / `¥XXXX` を出し、リンクも張らない。表示例であることは `products.betaNoData` で画面に明示する。楽天以外の実データが入ったら定数ごと削り、`market.merchants` を回すだけに戻す |
 | `src/assets/products.js` | 絞り込みは `hidden` の付け外しだけ。並べ替えを足さない。状態は URL にだけ持ち、localStorage を使わない |
+| `src/lib/x_post.js` | X 投稿の機械チェック（文字数・禁止語・URL の位置）の唯一の出所。禁止語を skill 側に書き写さない。**日本語1文字は加重2、URL は長さに関わらず 23** — 素の `length` で数えない |
+| `src/lib/x_feed.js` | 過去投稿フィードの読み取りと重複判定。RSS 2.0 / Atom / 二重エスケープのどれでも本文が取れること。読めないと重複チェックが**落ちずに素通りする** |
+| `scripts/x_facts.js` | 投稿に書いてよい数字の唯一の出所。🔒 ここに出ない数字を SNS に書かない。価格は毎日動くので、記憶や前回の投稿から写した数字はそれだけで有利誤認になる |
+| `scripts/make_x_card.js` | アイキャッチ（1600×900）。🔒 **生成モデルを使わない。数字を作らない。**色は `tokens.css` から読む（16進数を直書きしない）。`rank` / `focus` は実データが無ければ作らずに落ちる |
+| `.claude/skills/x-post/` | X 投稿文の作り方。戦略は `docs/Marketing/`、語彙は CLAUDE.md が勝つ。⚠️ 戦略文書の例文は禁止語（コスパ最強 / 個人開発 等）を含むので、そのまま使わない |
 | `wrangler.toml` | Cloudflare のバインディングの唯一の出所。**このファイルがあるとダッシュボードの設定は無視される。**配信は Workers（`main` + `[assets]`）。`pages_build_output_dir` に戻さない |
 
 | ドキュメント | 役割 |
@@ -52,6 +62,8 @@ npm run validate  # data/ のバリデーションのみ
 | [docs/research/validation-plan.md](docs/research/validation-plan.md) | 先行需要検証プラン |
 | [docs/ops/deploy.md](docs/ops/deploy.md) | Cloudflare Workers + D1 のデプロイ手順。バインディングの出所は `wrangler.toml` ひとつ |
 | [docs/ops/google-ads-first-campaign.md](docs/ops/google-ads-first-campaign.md) | 初回の Google 検索広告出稿の手順書。判定基準は validation-plan.md をそのまま使う |
+| [docs/Marketing/X_post_strategy.md](docs/Marketing/X_post_strategy.md) | X の投稿・リプライ戦略。**狙いの出所**。例文の語彙は CLAUDE.md が上書きする |
+| [docs/Marketing/X_eyecatch_image_method.md](docs/Marketing/X_eyecatch_image_method.md) | アイキャッチの構図の考え方。プロンプト部分は `scripts/make_x_card.js` に置き換え済み |
 | [docs/tasks/README.md](docs/tasks/README.md) | **タスク台帳。進捗の唯一の出所**。索引は [docs/task-list-pergram.csv](docs/task-list-pergram.csv)、詳細は `docs/tasks/T-XXX.md` |
 
 ドキュメント間は相対リンクで相互参照している。**ファイルを移動・改名する場合は全参照を更新すること。**

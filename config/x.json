@@ -1,0 +1,8 @@
+{
+  "_comment": "X 運用の設定。🔒 サイトの URL はここに書かない（src/lib/site.js が唯一の出所）",
+  "pastPostsFeed": "https://politepaul.com/fd/k6l77typtks2.xml",
+  "feedCache": ".cache/x_posts.json",
+  "landingPath": "/ja/",
+  "productsPath": "/ja/protein/",
+  "recentWindowDays": 30
+}
