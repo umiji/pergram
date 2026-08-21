@@ -55,6 +55,8 @@ const top = rows.slice(0, Number.parseInt(values.top, 10) || 5).map((row, i) => 
   price: row.price,
   merchant: row.merchant,
   netWeightG: row.netWeightG,
+  // 🔒 行ごとの取得日。投稿に日付を書くならここから引く（全体の期間で代用しない）
+  fetchedAt: row.fetchedAt ?? null,
 }));
 
 const facts = {
@@ -89,7 +91,10 @@ console.log('\n── タンパク質1gあたりが安い順 ──');
 for (const row of top) {
   const ratio = row.ratioPercent === null ? '含有率不明' : `含有率 ${formatPercent(row.ratioPercent, { locale: 'ja' })}`;
   const price = formatCurrency(row.price, { locale: 'ja', currency: 'JPY' });
-  console.log(`${row.rank}. ${row.unitCostLabel} — ${shortName(row.name, 34)}（${ratio} / ${price} / ${row.merchant}）`);
+  const weight = row.netWeightG === null ? '' : ` / ${row.netWeightG >= 1000 ? `${row.netWeightG / 1000}kg` : `${row.netWeightG}g`}`;
+  console.log(
+    `${row.rank}. ${row.unitCostLabel} — ${shortName(row.name, 30)}（${ratio}${weight} / ${price} / ${row.merchant} / 取得 ${row.fetchedAt ?? '不明'}）`,
+  );
 }
 
 console.log('\n── 書いてはいけないこと（β版の暫定措置） ──');
