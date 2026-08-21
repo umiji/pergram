@@ -10,13 +10,16 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  PRICE_TOPICS,
   SIMILAR_THRESHOLD,
+  TOPIC_LEXICON,
   mostSimilar,
   normalizeForCompare,
   parseFeed,
   similarity,
-  themeCounts,
-  unusedThemes,
+  priceBalance,
+  topicCounts,
+  unusedTopics,
 } from '../src/lib/x_feed.js';
 
 const rss = `<?xml version="1.0"?>
@@ -120,12 +123,29 @@ test('近い過去投稿を近い順に返す', () => {
   assert.match(first.item.text, /電卓/);
 });
 
-test('直近で使ったテーマと、まだ使っていないテーマを数える', () => {
+test('直近で話したトピックと、まだ話していないトピックを数える', () => {
   const items = parseFeed(rss);
 
-  const counts = new Map(themeCounts(items));
+  const counts = new Map(topicCounts(items));
 
-  assert.equal(counts.get('電卓'), 1);
-  assert.equal(counts.get('含有率'), 1);
-  assert.ok(unusedThemes(items).includes('送料'));
+  assert.equal(counts.get('単価の出し方'), 1);
+  assert.ok(unusedTopics(items).includes('買い物の実務'));
+});
+
+// 以前はトピック一覧が13項目とも価格の言い換えで、どれを選んでも単価の話になった。
+// 「毎回同じことを言っている」状態は、この一覧が痩せることから始まる。
+test('🔒 トピック一覧の過半数が価格の話にならないようにする', () => {
+  const all = Object.keys(TOPIC_LEXICON).length;
+
+  assert.ok(all >= 8, `トピックが ${all} 個しかない`);
+  assert.ok(PRICE_TOPICS.length * 2 < all, '価格系のトピックが多すぎる');
+});
+
+test('価格の話に偏っていたら数で示す', () => {
+  const price = { text: 'タンパク質1gあたりの単価で並べています' };
+  const other = { text: '栄養成分表示の基準が2つ書いてあるときの読み方' };
+
+  assert.equal(priceBalance([price, price, price]).heavy, true);
+  assert.equal(priceBalance([price, other, other]).heavy, false);
+  assert.equal(priceBalance([]).heavy, false);
 });

@@ -18,7 +18,7 @@ import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
 import path from 'node:path';
 
-import { parseFeed, themeCounts, unusedThemes } from '../src/lib/x_feed.js';
+import { parseFeed, priceBalance, topicCounts, unusedTopics } from '../src/lib/x_feed.js';
 
 const CONFIG = 'config/x.json';
 const FETCH_TIMEOUT_MS = 15000;
@@ -106,10 +106,21 @@ for (const [i, item] of recent.entries()) {
   if (item.link) console.log(`    ${item.link}`);
 }
 
-const counts = themeCounts(recent).filter(([, n]) => n > 0);
-console.log('\n── 直近で使ったテーマ ──');
+const counts = topicCounts(recent).filter(([, n]) => n > 0);
+console.log('\n── 直近で話したトピック ──');
 console.log(counts.length === 0 ? '（判定できず）' : counts.map(([k, n]) => `${k} ×${n}`).join(' / '));
 
-console.log('\n── まだ使っていないテーマ ──');
-const unused = unusedThemes(recent);
-console.log(unused.length === 0 ? '（一巡している。角度を変えるか、同じテーマを別のフックで書く）' : unused.join(' / '));
+console.log('\n── まだ話していないトピック ──');
+const unused = unusedTopics(recent);
+console.log(
+  unused.length === 0
+    ? '（一巡している。同じトピックを別の角度・別の型で書く）'
+    : unused.join(' / '),
+);
+
+// 🔒 単価はサービスの中心だが、それしか言わないと飽きられる（ミュート -58.8）
+const balance = priceBalance(recent);
+console.log(
+  `\n価格の話: ${balance.total} 本中 ${balance.price} 本` +
+    (balance.heavy ? ' ⚠️ 偏っている。次の1本は価格以外のトピックにする' : ''),
+);

@@ -133,7 +133,7 @@ npm run build
 
 ```bash
 npm run x:facts                       # 書いてよい数字（掲載件数・上位の単価・取得日）
-npm run x:feed                        # 過去投稿と、直近で使った切り口
+npm run x:feed                        # 過去投稿と、話したトピック・価格の話への偏り
 npm run x:lint -- draft.txt --feed    # 文字数・禁止語・URL の位置・過去投稿との近さ
 npm run x:card -- --type rank --headline "袋の値段では、順位は出ない。" --png
 ```
