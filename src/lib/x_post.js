@@ -108,6 +108,17 @@ export const SUSPECT = [
 ];
 
 /**
+ * 🔒 誘導の言い回し。**単発と1投稿目に入ると、その投稿は告知になる。**
+ *
+ *    サービスの話は5本に1本・URL は10本に1本までで、**残りは告知しない**
+ *    （`src/lib/x_feed.js` の `SELF_MAX_RATIO` / `LINK_MAX_RATIO`）。
+ *    毎回どこかで自分の宣伝に着地する投稿は、読み手からはステルスマーケティングに見える。
+ *    ツリーの2投稿目は誘導のために置く場所なので、ここでは見ない。
+ */
+export const PROMO_PATTERN =
+  /詳しくは|チェックして|覗いて|使ってみて|見てみて|作りました|公開しました|リリースしました|(ぜひ|よければ|よかったら)[^。]{0,14}(使|見|試|どうぞ)/;
+
+/**
  * タイムラインで折りたたまれる行。
  *
  * ブラウザは「140文字以下かつ10行以下なら全文、11行目以降は『さらに表示』の向こう側」。
@@ -193,6 +204,18 @@ export function lintPost(text, options = {}) {
   for (const { code, pattern, hint } of SUSPECT) {
     const hit = body.match(pattern);
     if (hit) add('warn', code, `要検討「${hit[0]}」— ${hint}`);
+  }
+
+  // 🔒 誘導は2投稿目の仕事。単発と1投稿目に混ざると、毎回宣伝しているように見える
+  if ((options.position ?? null) !== 2) {
+    const promo = body.match(PROMO_PATTERN);
+    if (promo) {
+      add(
+        'warn',
+        'promo.cta',
+        `誘導の言い回し「${promo[0]}」— 告知は毎回しない。誘導するならツリーの2投稿目に置き、しないなら落とす`,
+      );
+    }
   }
 
   const hashtags = body.match(HASHTAG_PATTERN) ?? [];

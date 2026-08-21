@@ -171,3 +171,37 @@ test('長い行の位置を返す（箇条書きが折り返していないか�
 
   assert.deepEqual(layout.longLines, [1]);
 });
+
+// 🔒 ステマ感は「毎回どこかで自分の宣伝に着地する」ことから出る。
+//    誘導の言い回しは2投稿目の仕事で、単発と1投稿目に混ざるとその回が告知になる。
+test('🔒 単発と1投稿目の誘導文句を warn で拾う', () => {
+  const draft = 'ECの「安い順」は最安を教えてくれません。\n詳しくはこちら。';
+
+  const solo = lintPost(draft).find((i) => i.code === 'promo.cta');
+  const first = lintPost(draft, { position: 1 }).find((i) => i.code === 'promo.cta');
+
+  assert.equal(solo.severity, 'warn');
+  assert.match(solo.message, /詳しくは/);
+  assert.ok(first, '1投稿目でも拾う');
+});
+
+test('ツリーの2投稿目は誘導のために置く場所なので、そこでは拾わない', () => {
+  const issues = lintPost('一覧はこちら https://example.test/ja/ 登録不要です。', { position: 2 });
+
+  assert.equal(issues.some((i) => i.code === 'promo.cta'), false);
+});
+
+test('「作りました」「公開しました」も誘導として拾う（告知は毎回しない）', () => {
+  for (const line of ['比較できるサービスを作りました。', 'β版を公開しました。', 'よければ使ってみてください。']) {
+    assert.ok(
+      lintPost(line).some((i) => i.code === 'promo.cta'),
+      `拾えていない: ${line}`,
+    );
+  }
+});
+
+test('事実だけの投稿は誘導として拾わない', () => {
+  const issues = lintPost('ホエイはチーズを作るときに出る乳清が原料です。\n主産物ではありません。');
+
+  assert.equal(issues.some((i) => i.code === 'promo.cta'), false);
+});

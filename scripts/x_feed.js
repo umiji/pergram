@@ -18,7 +18,18 @@ import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
 import path from 'node:path';
 
-import { parseFeed, priceBalance, topicCounts, unusedTopics } from '../src/lib/x_feed.js';
+import {
+  familyCounts,
+  familyOf,
+  linkBalance,
+  nextTopics,
+  parseFeed,
+  priceBalance,
+  selfBalance,
+  topicCounts,
+  topicsOf,
+  unusedTopics,
+} from '../src/lib/x_feed.js';
 
 const CONFIG = 'config/x.json';
 const FETCH_TIMEOUT_MS = 15000;
@@ -110,6 +121,13 @@ const counts = topicCounts(recent).filter(([, n]) => n > 0);
 console.log('\n── 直近で話したトピック ──');
 console.log(counts.length === 0 ? '（判定できず）' : counts.map(([k, n]) => `${k} ×${n}`).join(' / '));
 
+console.log('\n── 族ごとの本数（同じ族を2本続けない） ──');
+console.log(
+  familyCounts(recent)
+    .map(([k, n]) => `${k} ×${n}`)
+    .join(' / '),
+);
+
 console.log('\n── まだ話していないトピック ──');
 const unused = unusedTopics(recent);
 console.log(
@@ -118,9 +136,30 @@ console.log(
     : unused.join(' / '),
 );
 
-// 🔒 単価はサービスの中心だが、それしか言わないと飽きられる（ミュート -58.8）
-const balance = priceBalance(recent);
+// 🔒 偏りは3つの軸で見る。単価ばかり / うちの話ばかり / 毎回リンクを貼っている
+const price = priceBalance(recent);
+const self = selfBalance(recent);
+const links = linkBalance(recent);
+
+console.log('\n── 配分（🔒 上限を超えたら次の1本では選ばない） ──');
 console.log(
-  `\n価格の話: ${balance.total} 本中 ${balance.price} 本` +
-    (balance.heavy ? ' ⚠️ 偏っている。次の1本は価格以外のトピックにする' : ''),
+  `価格の話: ${price.total} 本中 ${price.price} 本（上限 3本に1本）` +
+    (price.heavy ? ' ⚠️ 超過。次は価格以外' : ''),
 );
+console.log(
+  `うちの話: ${self.total} 本中 ${self.self} 本（上限 5本に1本）` +
+    (self.heavy ? ' ⚠️ 超過。次はサービスに触れない' : ''),
+);
+console.log(
+  `URL を貼った投稿: ${links.total} 本中 ${links.links} 本（上限 10本に1本）` +
+    (links.heavy ? ' ⚠️ 超過。告知は毎回しない' : ''),
+);
+
+// 🔒 「次に何を書くか」を印象で決めないための出力。ここが判断フローの入口
+console.log('\n── 次の1本の候補（上から順に検討する） ──');
+const recentFamilies = [...new Set(recent.slice(0, 2).flatMap((item) => topicsOf(item).map(familyOf)))];
+if (recentFamilies.length > 0) console.log(`直近2本の族: ${recentFamilies.join(' / ')}（この族は外した）`);
+for (const [i, candidate] of nextTopics(recent, 5).entries()) {
+  console.log(`${i + 1}. ${candidate.topic}（${candidate.family}）— ${candidate.reason}`);
+}
+console.log('\n候補を1つ選び、reference/topics.md の同じ見出しから種を取る。');

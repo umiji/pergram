@@ -11,11 +11,18 @@ import assert from 'node:assert/strict';
 
 import {
   PRICE_TOPICS,
+  SELF_TOPICS,
   SIMILAR_THRESHOLD,
+  TOPIC_FAMILIES,
   TOPIC_LEXICON,
+  familyCounts,
+  familyOf,
+  linkBalance,
   mostSimilar,
+  nextTopics,
   normalizeForCompare,
   parseFeed,
+  selfBalance,
   similarity,
   priceBalance,
   topicCounts,
@@ -129,23 +136,116 @@ test('直近で話したトピックと、まだ話していないトピック�
   const counts = new Map(topicCounts(items));
 
   assert.equal(counts.get('単価の出し方'), 1);
-  assert.ok(unusedTopics(items).includes('買い物の実務'));
+  assert.ok(unusedTopics(items).includes('買い方の実務'));
 });
 
-// 以前はトピック一覧が13項目とも価格の言い換えで、どれを選んでも単価の話になった。
-// 「毎回同じことを言っている」状態は、この一覧が痩せることから始まる。
-test('🔒 トピック一覧の過半数が価格の話にならないようにする', () => {
+// 一覧が痩せると、アカウントが1つの話しかしなくなる。最初の版は13項目すべてが
+// 価格の言い換えで、どれを選んでも単価の話になった。次の版は「うちのデータ」「うちの作業」
+// が半分を占め、どれを選んでもサービスの紹介に着地した（読み手からは宣伝に見える）。
+test('🔒 ジャンル一覧が価格にも自社にも偏らないようにする', () => {
   const all = Object.keys(TOPIC_LEXICON).length;
 
-  assert.ok(all >= 8, `トピックが ${all} 個しかない`);
-  assert.ok(PRICE_TOPICS.length * 2 < all, '価格系のトピックが多すぎる');
+  assert.ok(all >= 16, `ジャンルが ${all} 個しかない`);
+  assert.ok(PRICE_TOPICS.length * 4 < all, '価格系のジャンルが多すぎる');
+  assert.ok(SELF_TOPICS.length * 4 < all, '自社の話のジャンルが多すぎる');
 });
 
-test('価格の話に偏っていたら数で示す', () => {
+test('🔒 すべてのジャンルがどれかの族に属している', () => {
+  const orphans = Object.keys(TOPIC_LEXICON).filter((topic) => familyOf(topic) === 'その他');
+
+  assert.deepEqual(orphans, [], `族に入っていないジャンル: ${orphans.join(' / ')}`);
+
+  // 逆向き。族の側に、実在しないジャンル名が残っていないか
+  const unknown = Object.values(TOPIC_FAMILIES)
+    .flat()
+    .filter((topic) => !(topic in TOPIC_LEXICON));
+
+  assert.deepEqual(unknown, [], `語が定義されていないジャンル: ${unknown.join(' / ')}`);
+});
+
+test('価格の話に偏っていたら数で示す（上限は3本に1本）', () => {
   const price = { text: 'タンパク質1gあたりの単価で並べています' };
   const other = { text: '栄養成分表示の基準が2つ書いてあるときの読み方' };
 
   assert.equal(priceBalance([price, price, price]).heavy, true);
   assert.equal(priceBalance([price, other, other]).heavy, false);
   assert.equal(priceBalance([]).heavy, false);
+});
+
+// 🔒 ステマ感はここで出る。全部の投稿がうちの話だと、読み手には宣伝しか見えない
+test('🔒 うちの話に偏っていたら数で示す（上限は5本に1本）', () => {
+  const self = { text: '商品説明文から自動で読み取れたのは100件中34件でした' };
+  const other = { text: 'ホエイはチーズを作るときに出る乳清が原料です' };
+
+  assert.equal(selfBalance([self, self, self]).heavy, true);
+  assert.equal(selfBalance([self, other, other, other, other]).heavy, false);
+  assert.equal(selfBalance([]).heavy, false);
+});
+
+// 🔒 告知は毎回しない。URL を貼った投稿の本数で見る
+test('🔒 URL を貼った投稿が10本に1本を超えたら示す', () => {
+  const link = { text: '一覧はこちら https://example.test/ja/' };
+  const plain = { text: '乳清はチーズの副産物です' };
+  const ten = Array.from({ length: 9 }, () => plain);
+
+  assert.equal(linkBalance([link, ...ten]).heavy, false);
+  assert.equal(linkBalance([link, link, ...ten]).heavy, true);
+  assert.equal(linkBalance([link, link]).heavy, false, '母数が少ないうちは判定しない');
+});
+
+test('族ごとの本数を数える。1投稿が同じ族の2ジャンルに当たっても1本', () => {
+  const counts = new Map(familyCounts([{ text: 'セール前後で単価がどう動いたかを取り直しました' }]));
+
+  assert.equal(counts.get('お金の話'), 1);
+  assert.equal(counts.get('読み方'), 0);
+});
+
+// 🔒 「次に何を書くか」を印象で決めないための出力。ここが判断フローの入口になる
+test('次の1本の候補から、直近2本と同じ族を外す', () => {
+  const items = [
+    { text: 'タンパク質1gあたりの単価で並べています' },
+    { text: 'セール前後で単価がどう動いたか' },
+  ];
+
+  const families = new Set(nextTopics(items, 5).map((c) => c.family));
+
+  assert.ok(!families.has('お金の話'), '直近2本と同じ族が候補に残っている');
+});
+
+test('価格の話に偏っていたら、候補から価格系を外す', () => {
+  const price = { text: 'タンパク質1gあたりの単価で並べています' };
+
+  const topics = nextTopics([price, price, price], 22).map((c) => c.topic);
+
+  for (const key of PRICE_TOPICS) assert.ok(!topics.includes(key), `${key} が候補に残っている`);
+});
+
+test('うちの話に偏っていたら、候補から族⑤を外す', () => {
+  const self = { text: '商品説明文から自動で読み取れたのは100件中34件でした' };
+
+  const topics = nextTopics([self, self, self], 22).map((c) => c.topic);
+
+  for (const key of SELF_TOPICS) assert.ok(!topics.includes(key), `${key} が候補に残っている`);
+});
+
+test('まだ話していないジャンルが先に来る', () => {
+  const items = [{ text: 'ホエイはチーズを作るときに出る乳清が原料です' }];
+
+  const [first] = nextTopics(items, 5);
+
+  assert.equal(first.used, 0);
+  assert.equal(first.reason, '直近では話していない');
+});
+
+// 族を回すための出力なのに、候補が1つの族で埋まっていたら選びようがない
+test('候補は族ごとに1つずつ拾う', () => {
+  const items = [
+    { text: 'タンパク質1gあたりの単価で並べています' },
+    { text: '商品説明文から自動で読み取れたのは100件中34件でした' },
+  ];
+
+  // 直近2本の族（お金の話 / うちの話）を外すと残りは3族。その3つが1つずつ並ぶ
+  const families = nextTopics(items, 3).map((c) => c.family);
+
+  assert.equal(new Set(families).size, 3, `族が重複している: ${families.join(' / ')}`);
 });
