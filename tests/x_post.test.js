@@ -9,6 +9,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  FOLD_LINES,
   POST_LIMIT,
   WEIGHTED_LIMIT,
   hasError,
@@ -16,6 +17,7 @@ import {
   lintThread,
   postLength,
   splitDraft,
+  timelineLayout,
 } from '../src/lib/x_post.js';
 
 const codes = (issues) => issues.map((i) => i.code);
@@ -124,4 +126,48 @@ test('画像の中の文言も同じチェックに掛けられる（長さ以�
 
   assert.ok(codes(issues).includes('copy.kouka'));
   assert.ok(codes(issues).includes('voice.tool'));
+});
+
+/* ── タイムラインでの見え方 ── */
+
+// 最後の1つだけ伏せる型は、どこで「さらに表示」に切れるかが分かって初めて設計できる。
+// 目視で数えると、伏せたつもりの行が見えていたり、見せたい行が隠れていたりする。
+test('🔒 折りたたみの位置を出す。伏せた行と見える行を取り違えない', () => {
+  const post = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '答えはこれ'].join('\n');
+
+  const layout = timelineLayout(post);
+
+  assert.equal(layout.lineCount, 11);
+  assert.equal(layout.folded, true);
+  assert.equal(layout.visible.length, FOLD_LINES);
+  assert.deepEqual(layout.hidden, ['答えはこれ']);
+});
+
+test('9行以内は全端末で全文。折りたたみは無い', () => {
+  const layout = timelineLayout(Array.from({ length: 9 }, (_, i) => `行${i}`).join('\n'));
+
+  assert.equal(layout.folded, false);
+  assert.deepEqual(layout.hidden, []);
+});
+
+test('折りたたみが起きたら warn で位置を知らせる（error にはしない。意図的な引きもあるため）', () => {
+  const issues = lintPost(['あ', 'い', 'う', 'え', 'お', 'か', 'き', 'く', 'け', 'こ', '伏せた行'].join('\n'));
+  const fold = issues.find((i) => i.code === 'layout.fold');
+
+  assert.equal(fold.severity, 'warn');
+  assert.match(fold.message, /伏せた行/);
+});
+
+// 1行目が折り返すとフックが2行に割れて、指が止まらない。
+test('1行目が長すぎたら warn。スマホは20〜25文字で折り返す', () => {
+  const issues = lintPost(`${'あ'.repeat(30)}\n2行目`);
+
+  assert.ok(issues.some((i) => i.code === 'layout.firstLine'));
+  assert.equal(lintPost(`${'あ'.repeat(20)}\n2行目`).some((i) => i.code === 'layout.firstLine'), false);
+});
+
+test('長い行の位置を返す（箇条書きが折り返していないか見る）', () => {
+  const layout = timelineLayout(`短い\n${'あ'.repeat(40)}`);
+
+  assert.deepEqual(layout.longLines, [1]);
 });

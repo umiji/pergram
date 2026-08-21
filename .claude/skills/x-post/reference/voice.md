@@ -62,6 +62,9 @@ CLAUDE.md「コピーの規則」＋ [docs/Marketing/X_post_strategy.md](../../.
 
 ## 型
 
+構造そのもの（三段＋引き、会話ログ、図解など、いまよく見る型）は
+[formats.md](formats.md) に分けてある。ここに置くのは骨格だけ。
+
 **単発（会話を増やす / URL なし）**
 
 ```

@@ -45,11 +45,11 @@ npm run x:card -- --type rank --headline "…" --png   # 16:9 のアイキャッ
 | `src/templates/products/` | 製品一覧（`/ja/protein/`）。カード表示とリスト表示は**同じマークアップ**を CSS のグリッドだけで組み替える。2つ描き分けない |
 | `src/templates/products/item.js` | ⚠️ **β版限定の暫定措置が入っている。** 他ストアの価格表に `PLACEHOLDER_MERCHANTS`（Amazon / Yahoo! / 公式）の行を必ず足す。**🔒 金額は作らない** — 実データが無い欄は `¥X` / `¥XXXX` を出し、リンクも張らない。表示例であることは `products.betaNoData` で画面に明示する。楽天以外の実データが入ったら定数ごと削り、`market.merchants` を回すだけに戻す |
 | `src/assets/products.js` | 絞り込みは `hidden` の付け外しだけ。並べ替えを足さない。状態は URL にだけ持ち、localStorage を使わない |
-| `src/lib/x_post.js` | X 投稿の機械チェック（文字数・禁止語・URL の位置）の唯一の出所。禁止語を skill 側に書き写さない。**日本語1文字は加重2、URL は長さに関わらず 23** — 素の `length` で数えない |
+| `src/lib/x_post.js` | X 投稿の機械チェック（文字数・禁止語・URL の位置・「さらに表示」の折りたたみ位置）の唯一の出所。禁止語を skill 側に書き写さない。**日本語1文字は加重2、URL は長さに関わらず 23** — 素の `length` で数えない。折りたたみは端末差があるので、9行以内か否かの2択でしか扱わない |
 | `src/lib/x_feed.js` | 過去投稿フィードの読み取りと重複判定。RSS 2.0 / Atom / 二重エスケープのどれでも本文が取れること。読めないと重複チェックが**落ちずに素通りする** |
 | `scripts/x_facts.js` | 投稿に書いてよい数字の唯一の出所。🔒 ここに出ない数字を SNS に書かない。価格は毎日動くので、記憶や前回の投稿から写した数字はそれだけで有利誤認になる |
 | `scripts/make_x_card.js` | アイキャッチ（1600×900）。🔒 **生成モデルを使わない。数字を作らない。**色は `tokens.css` から読む（16進数を直書きしない）。`rank` / `focus` は実データが無ければ作らずに落ちる |
-| `.claude/skills/x-post/` | X 投稿文の作り方。戦略は `docs/Marketing/`、語彙は CLAUDE.md が勝つ。⚠️ 戦略文書の例文は禁止語（コスパ最強 / 個人開発 等）を含むので、そのまま使わない。**画像は明示的に頼まれたときだけ作る** |
+| `.claude/skills/x-post/` | X 投稿文の作り方。戦略は `docs/Marketing/`、語彙は CLAUDE.md が勝つ。⚠️ 戦略文書の例文は禁止語（コスパ最強 / 個人開発 等）を含むので、そのまま使わない。**画像は明示的に頼まれたときだけ作る**。流行の型は `reference/formats.md`（寿命があるので古びたら書き直す） |
 | `wrangler.toml` | Cloudflare のバインディングの唯一の出所。**このファイルがあるとダッシュボードの設定は無視される。**配信は Workers（`main` + `[assets]`）。`pages_build_output_dir` に戻さない |
 
 | ドキュメント | 役割 |

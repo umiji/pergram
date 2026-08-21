@@ -19,7 +19,16 @@
 import { readFile, stat } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
 
-import { hasError, lintThread, postLength, splitDraft, POST_LIMIT, WEIGHTED_LIMIT } from '../src/lib/x_post.js';
+import {
+  FOLD_LINES,
+  POST_LIMIT,
+  WEIGHTED_LIMIT,
+  hasError,
+  lintThread,
+  postLength,
+  splitDraft,
+  timelineLayout,
+} from '../src/lib/x_post.js';
 import { mostSimilar, SIMILAR_THRESHOLD } from '../src/lib/x_feed.js';
 
 const CONFIG = 'config/x.json';
@@ -67,11 +76,19 @@ const issues = lintThread(posts);
 for (const [i, post] of posts.entries()) {
   const { chars, weighted, urls } = postLength(post);
   const over = chars > POST_LIMIT || weighted > WEIGHTED_LIMIT;
+  const layout = timelineLayout(post);
+
   console.log(
     `── ${i + 1}投稿目: ${chars} 文字 / 加重 ${weighted}（上限 ${POST_LIMIT} / ${WEIGHTED_LIMIT}）${over ? ' ✗' : ' ✓'}` +
+      ` / ${layout.lineCount} 行` +
       (urls.length > 0 ? ` / URL ${urls.length}件` : ''),
   );
-  console.log(post.split('\n').map((line) => `   ${line}`).join('\n'));
+
+  // タイムラインでの見え方。折りたたみの位置に線を引く（「引き」を作る型はここで設計する）
+  for (const [n, line] of layout.lines.entries()) {
+    if (n === FOLD_LINES) console.log(`   ${'─'.repeat(12)} ここから「さらに表示」の向こう側 ${'─'.repeat(12)}`);
+    console.log(`   ${line}`);
+  }
 }
 
 console.log('');

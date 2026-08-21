@@ -76,7 +76,7 @@ Node 22 以上。**依存パッケージなし**（テストは `node:test`、�
 | `npm run d1:waitlist` | Waitlist（ウェイトリスト）登録データを確認 |
 | `npm run x:facts` | X 投稿に書いてよい「今の数字」を実データから出す |
 | `npm run x:feed` | 過去の X 投稿をフィードから取り、使った切り口・未使用の切り口を並べる |
-| `npm run x:lint` | 投稿下書きの文字数・禁止語・URL の位置・過去投稿との重複をチェック |
+| `npm run x:lint` | 投稿下書きの文字数・禁止語・URL の位置・「さらに表示」で切れる位置・過去投稿との重複をチェック |
 | `npm run x:card` | X 用アイキャッチ（16:9 / 1600×900）を実データとデザイントークンから生成 |
 
 待機リストの API ごと動かすなら。手順は [docs/ops/deploy.md](docs/ops/deploy.md)。

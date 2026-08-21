@@ -107,6 +107,51 @@ export const SUSPECT = [
   { code: 'claim.symptom', pattern: /症状|不調|悩み/, hint: 'N-01 症状の文脈に入らない' },
 ];
 
+/**
+ * タイムラインで折りたたまれる行。
+ *
+ * ブラウザは「140文字以下かつ10行以下なら全文、11行目以降は『さらに表示』の向こう側」。
+ * スマホアプリは仕様変更が続いていて、10行前後で折りたたまれるという報告もある。
+ * ⚠️ 端末とバージョンで違うので、**9行以内なら全端末で全文**、それを超えたら
+ *    「隠れる前提で組む」の2択で扱う。行数を厳密に当てにいかない。
+ */
+export const FOLD_LINES = 10;
+
+/**
+ * 1行に収まる文字数の目安。スマホで 20〜25文字（iPhone は 22 前後）。
+ * 1行目がこれを超えると、フックが2行に割れて読み飛ばされる。
+ */
+export const LINE_CHARS = 25;
+
+/**
+ * タイムラインでどう見えるか。
+ *
+ * 🔒 「引き」を作る型（最後の1つだけ伏せる、オチを2投稿目に置く）は、
+ *    どこで切れるかが分かって初めて設計できる。切れる位置を目視で当てない。
+ *
+ * @param {string} text
+ */
+export function timelineLayout(text) {
+  const lines = String(text ?? '').split('\n');
+  const folded = lines.length > FOLD_LINES;
+
+  return {
+    lines,
+    lineCount: lines.length,
+    /** 折りたたまれるか。ブラウザで 11 行目以降が隠れる */
+    folded,
+    /** 「さらに表示」を押す前に見える行 */
+    visible: folded ? lines.slice(0, FOLD_LINES) : lines,
+    /** 押さないと見えない行 */
+    hidden: folded ? lines.slice(FOLD_LINES) : [],
+    /** 折り返しが起きる長い行（0 始まりの行番号） */
+    longLines: lines
+      .map((line, i) => ({ i, over: [...line].length > LINE_CHARS }))
+      .filter(({ over }) => over)
+      .map(({ i }) => i),
+  };
+}
+
 const HASHTAG_PATTERN = /(?:^|[\s　])[#＃][^\s　#＃]+/g;
 
 /** スキーム無しのドメイン。X は自動リンクし、23 文字として数える */
@@ -162,6 +207,22 @@ export function lintPost(text, options = {}) {
   const bare = body.match(BARE_DOMAIN_PATTERN);
   if (bare) {
     add('warn', 'url.bare', `「${bare[1]}」は X がリンクにして 23 文字として数える。意図した URL か確かめる`);
+  }
+
+  const layout = timelineLayout(source);
+  if ([...layout.lines[0]].length > LINE_CHARS) {
+    add(
+      'warn',
+      'layout.firstLine',
+      `1行目が ${[...layout.lines[0]].length} 文字。スマホでは ${LINE_CHARS} 文字前後で折り返すので、フックが2行に割れる`,
+    );
+  }
+  if (layout.folded) {
+    add(
+      'warn',
+      'layout.fold',
+      `${layout.lineCount} 行。${FOLD_LINES + 1}行目以降は「さらに表示」の向こう側になる（隠れるのは「${layout.hidden[0]}」から）。意図した位置か確かめる`,
+    );
   }
 
   const position = options.position ?? null;

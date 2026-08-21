@@ -12,7 +12,7 @@ pergram 公式アカウントの投稿文を書く。**サプリ・プロテイ�
 
 | 何を | どこで担保するか |
 |---|---|
-| 文字数・禁止語・URL の位置 | `npm run x:lint`（機械。**目視で数えない**） |
+| 文字数・禁止語・URL の位置・折りたたみの位置 | `npm run x:lint`（機械。**目視で数えない**） |
 | 投稿に書く数字 | `npm run x:facts`（実データ。**記憶から書かない**） |
 | 直近の投稿との重複 | `npm run x:feed`（フィード。**印象で判断しない**） |
 | 画像の色と数字 | `npm run x:card`（トークンと実データ。生成モデルを使わない） |
@@ -94,7 +94,19 @@ npm run x:feed
 
 ### 5. 下書きを書く
 
-`reference/voice.md` の語彙と型に従って書く。`---` だけの行でツリーを区切る。
+語彙と終わり方は [reference/voice.md](reference/voice.md)、**構造**は
+[reference/formats.md](reference/formats.md)（いまタイムラインでよく見る型と、
+pergram で使える形への置き換え）。`---` だけの行でツリーを区切る。
+
+構造で押さえるのは3つだけ。
+
+- **1行目は1行に収める**（20〜25文字。折り返すとフックが割れる）
+- **9行以内なら全端末で全文。**超えるなら「さらに表示」の境目を意図して置く
+  （最後の1つだけ伏せる型はこれを使っている）
+- **🔒 伏せた先に実質を置く。**開いて損する投稿はミュート（-58.8）される
+
+🔒 **同じ型を続けない。**3回続いたら別の型に変える。型の繰り返しは、内容の繰り返しと
+同じ速さで飽きられる。
 
 ### 6. 機械に通す
 
@@ -155,5 +167,6 @@ lint が落とすが、機械が拾えるのは書かれた語だけなので、
 |---|---|
 | [reference/facts.md](reference/facts.md) | サービス仕様。何が言えて何が言えないか |
 | [reference/voice.md](reference/voice.md) | 文体・フック・型・使う語／使わない語 |
+| [reference/formats.md](reference/formats.md) | 投稿の構造。よく見る型と、pergram で使える形への置き換え |
 | [reference/image.md](reference/image.md) | アイキャッチの4構図と作り方 |
 | [docs/Marketing/X_algorithm_2026.md](../../../docs/Marketing/X_algorithm_2026.md) | 重みの一次資料。**インプレッションの根拠はここだけ** |
