@@ -49,7 +49,7 @@ npm run x:card -- --type rank --headline "…" --png   # 16:9 のアイキャッ
 | `src/lib/x_feed.js` | 過去投稿フィードの読み取りと重複判定。RSS 2.0 / Atom / 二重エスケープのどれでも本文が取れること。読めないと重複チェックが**落ちずに素通りする** |
 | `scripts/x_facts.js` | 投稿に書いてよい数字の唯一の出所。🔒 ここに出ない数字を SNS に書かない。価格は毎日動くので、記憶や前回の投稿から写した数字はそれだけで有利誤認になる |
 | `scripts/make_x_card.js` | アイキャッチ（1600×900）。🔒 **生成モデルを使わない。数字を作らない。**色は `tokens.css` から読む（16進数を直書きしない）。`rank` / `focus` は実データが無ければ作らずに落ちる |
-| `.claude/skills/x-post/` | X 投稿文の作り方。戦略は `docs/Marketing/`、語彙は CLAUDE.md が勝つ。⚠️ 戦略文書の例文は禁止語（コスパ最強 / 個人開発 等）を含むので、そのまま使わない |
+| `.claude/skills/x-post/` | X 投稿文の作り方。戦略は `docs/Marketing/`、語彙は CLAUDE.md が勝つ。⚠️ 戦略文書の例文は禁止語（コスパ最強 / 個人開発 等）を含むので、そのまま使わない。**画像は明示的に頼まれたときだけ作る** |
 | `wrangler.toml` | Cloudflare のバインディングの唯一の出所。**このファイルがあるとダッシュボードの設定は無視される。**配信は Workers（`main` + `[assets]`）。`pages_build_output_dir` に戻さない |
 
 | ドキュメント | 役割 |
@@ -62,6 +62,7 @@ npm run x:card -- --type rank --headline "…" --png   # 16:9 のアイキャッ
 | [docs/research/validation-plan.md](docs/research/validation-plan.md) | 先行需要検証プラン |
 | [docs/ops/deploy.md](docs/ops/deploy.md) | Cloudflare Workers + D1 のデプロイ手順。バインディングの出所は `wrangler.toml` ひとつ |
 | [docs/ops/google-ads-first-campaign.md](docs/ops/google-ads-first-campaign.md) | 初回の Google 検索広告出稿の手順書。判定基準は validation-plan.md をそのまま使う |
+| [docs/Marketing/X_algorithm_2026.md](docs/Marketing/X_algorithm_2026.md) | X のスコアの重み（2026-08 公開コード）。**インプレッションの根拠はここだけ。二次記事の数字を使わない** |
 | [docs/Marketing/X_post_strategy.md](docs/Marketing/X_post_strategy.md) | X の投稿・リプライ戦略。**狙いの出所**。例文の語彙は CLAUDE.md が上書きする |
 | [docs/Marketing/X_eyecatch_image_method.md](docs/Marketing/X_eyecatch_image_method.md) | アイキャッチの構図の考え方。プロンプト部分は `scripts/make_x_card.js` に置き換え済み |
 | [docs/tasks/README.md](docs/tasks/README.md) | **タスク台帳。進捗の唯一の出所**。索引は [docs/task-list-pergram.csv](docs/task-list-pergram.csv)、詳細は `docs/tasks/T-XXX.md` |

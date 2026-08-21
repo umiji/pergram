@@ -144,6 +144,10 @@ npm run x:card -- --type rank --headline "袋の値段では、順位は出な�
 過去投稿のフィード URL は `config/x.json`。取得できないときは `.cache/x_posts.json`
 （gitignore 済み）で続行し、キャッシュを使ったことを表示する。
 
+アイキャッチは `/image` か明示的に頼んだときだけ作る。インプレッションの根拠は
+[docs/Marketing/X_algorithm_2026.md](docs/Marketing/X_algorithm_2026.md)（2026年8月に
+公開されたコードの重み）に置いてあり、二次記事の数字は使わない。
+
 ### 検証段階の設定
 
 - `dist/robots.txt` は全面 `Disallow`。広告と計測にだけ使い、インデックスさせない。公開時に外す
