@@ -110,6 +110,9 @@ export const SUSPECT = [
   // 人格（reference/voice.md の △ 列）。詳しい友達であって、テンションの高い人ではない
   { code: 'voice.hype', pattern: /ガチで|やばい|やばすぎ|ｗｗ|www|うおお|神です|バズ/, hint: '淡々と。テンションで押さない' },
   { code: 'voice.today', pattern: /今日の(最安|1\s?[gｇ]単価|価格)|本日の/, hint: '🔒 価格の取得日が今日でないなら「今日の」と書かない（x:facts の取得日を見る）' },
+  // 🔒 AI っぽい文章。対句・倒置・抽象名詞・余韻の語尾でごまかしていないか
+  //    （reference/voice.md「AI slop の型」）。拾えるのは形だけなので、残りは人が見る
+  { code: 'voice.poem', pattern: /(じゃなくて|ではなく)、[^。\n]{0,24}だった|という(こと|話)(です|だ)?。|な気がする/, hint: 'ポエムになっている。口で言うならどう言うかに置き換える' },
   { code: 'claim.absorb', pattern: /吸収(が|率|力)/, hint: '成分の性質を語らない（N-02）' },
   { code: 'claim.symptom', pattern: /症状|不調|悩み/, hint: 'N-01 症状の文脈に入らない' },
 ];
@@ -184,8 +187,9 @@ const BASIS_PATTERN = /\/\s?[gｇ]\b|\/[^\n]{0,10}1\s?[gｇ]|1\s?[gｇ]あたり
  * 投稿1件を機械チェックする。
  *
  * @param {string} text
- * @param {{position?: number, isThread?: boolean}} [options]
+ * @param {{position?: number, isTail?: boolean}} [options]
  *   position は1始まり。ツリーの1投稿目に URL があると error になる。
+ *   isTail はツリーの最後の投稿。誘導の言い回しはそこだけ許す。
  * @returns {Array<{severity: 'error'|'warn', code: string, message: string}>}
  */
 export function lintPost(text, options = {}) {
@@ -213,16 +217,29 @@ export function lintPost(text, options = {}) {
     if (hit) add('warn', code, `要検討「${hit[0]}」— ${hint}`);
   }
 
-  // 🔒 誘導は2投稿目の仕事。単発と1投稿目に混ざると、毎回宣伝しているように見える
-  if ((options.position ?? null) !== 2) {
+  // 🔒 誘導はツリーの後ろの投稿の仕事。単発と1投稿目に混ざると、毎回宣伝しているように見える
+  if (!options.isTail) {
     const promo = body.match(PROMO_PATTERN);
     if (promo) {
       add(
         'warn',
         'promo.cta',
-        `誘導の言い回し「${promo[0]}」— 告知は毎回しない。誘導するならツリーの2投稿目に置き、しないなら落とす`,
+        `誘導の言い回し「${promo[0]}」— 告知は毎回しない。誘導するならツリーの最後の投稿に置き、しないなら落とす`,
       );
     }
+  }
+
+  // 🔒 一応公式アカウントなので、読者への問いかけだけは敬語にする。
+  //    本文はラフでよい（reference/voice.md「読み手への問いかけ・呼びかけは敬語」）
+  for (const line of body.split('\n')) {
+    const asking = line.trim();
+    if (!/[?？]\s*$/.test(asking)) continue;
+    if (/(ます|ません|ました|です|でした|でしょう|ましょう)(か)?[?？]\s*$/.test(asking)) continue;
+    add(
+      'warn',
+      'voice.casualQuestion',
+      `問いかけ「${asking}」が敬語になっていない。読者への問いは「みなさんは〜していますか？」の形にする`,
+    );
   }
 
   const hashtags = body.match(HASHTAG_PATTERN) ?? [];
@@ -284,25 +301,30 @@ export function lintThread(posts) {
   if (list.length === 0) {
     return [{ severity: 'error', code: 'thread.empty', message: '投稿が1件もない', post: null }];
   }
-  if (list.length > 2) {
+  if (list.length > 3) {
     issues.push({
       severity: 'warn',
       code: 'thread.length',
-      message: `${list.length} 投稿。ツリーは2段までに収める`,
+      message: `${list.length} 投稿。ツリーは3段までに収める（1気になる → 2なるほど → 3だから pergram か）`,
       post: null,
     });
   }
-  if (list.length === 2 && postLength(list[1]).urls.length === 0) {
-    issues.push({
-      severity: 'error',
-      code: 'thread.noUrl',
-      message: '2投稿目に URL がない。ツリーにするのは誘導のためで、URL が無いなら単発にする',
-      post: 2,
-    });
+
+  // 🔒 ツリーは「文字数超過による分割」ではない。1投稿目は引きとして設計する。
+  //    以前は「2投稿目に URL が無ければ error」にしていたが、それは誘導のための
+  //    ツリーしか想定していなかった。クリフハンガー型の2投稿目は答えであって URL ではない。
+  if (list.length > 1) {
+    const last = list[list.length - 1];
+    if (last.trim() === '') {
+      issues.push({ severity: 'error', code: 'thread.emptyTail', message: '最後の投稿が空', post: list.length });
+    }
   }
 
   for (const [i, post] of list.entries()) {
-    for (const issue of lintPost(post, { position: list.length > 1 ? i + 1 : null })) {
+    for (const issue of lintPost(post, {
+      position: list.length > 1 ? i + 1 : null,
+      isTail: list.length > 1 && i === list.length - 1,
+    })) {
       issues.push({ ...issue, post: i + 1 });
     }
   }

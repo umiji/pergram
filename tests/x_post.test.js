@@ -113,10 +113,16 @@ test('単発の投稿では URL を置いてよい', () => {
   assert.equal(hasError(lintThread(['本文 https://example.com/'])), false);
 });
 
-test('ツリーなのに2投稿目に URL が無ければ error（誘導にならない）', () => {
-  assert.ok(codes(lintThread(['本文', '補足だけ'])).includes('thread.noUrl'));
-});
+test('クリフハンガー型のツリーは、2投稿目に URL が無くても通る', () => {
+  // 以前は「2投稿目に URL が無ければ error」にしていたが、それは誘導のためのツリーしか
+  // 想定していなかった。クリフハンガー型の2投稿目は答えであって URL ではない。
+  const issues = lintThread([
+    '「大容量＝お得」だと思ってた。\n\nところが、比較してみると👇',
+    'タンパク質1gあたりで並べ直すと、順位が入れ替わります。',
+  ]);
 
+  assert.equal(hasError(issues), false, JSON.stringify(issues));
+});
 test('下書きは --- の行で投稿ごとに割れる', () => {
   assert.deepEqual(splitDraft('1つ目\n\n---\n2つ目\n'), ['1つ目', '2つ目']);
 });
@@ -245,4 +251,43 @@ test('中の人が普通に喋っている文は素通りする', () => {
   const draft = 'これ、意外でした。\n\n普通に考えるとAなんですが、データを見るとBでした。\n\nみなさんはどうですか？';
 
   assert.deepEqual(lintPost(draft), []);
+});
+
+test('ツリーは3段まで。4段目から warn', () => {
+  const post = 'プロテインの単価の話。';
+
+  assert.equal(lintThread([post, post, post]).some((i) => i.code === 'thread.length'), false);
+  assert.ok(lintThread([post, post, post, post]).some((i) => i.code === 'thread.length'));
+});
+
+// 🔒 一応公式アカウント。本文はラフでよいが、読者への問いかけだけは敬語にする
+test('🔒 読者への問いかけが敬語でなければ warn', () => {
+  assert.ok(lintPost('みんなはどこで決めてる？').some((i) => i.code === 'voice.casualQuestion'));
+  assert.ok(lintPost('どっち派？').some((i) => i.code === 'voice.casualQuestion'));
+
+  for (const ok of ['みなさんはどこで決めていますか？', 'みなさんはどうですか？', 'これ、気になりませんか？']) {
+    assert.equal(
+      lintPost(ok).some((i) => i.code === 'voice.casualQuestion'),
+      false,
+      `敬語なのに拾われた: ${ok}`,
+    );
+  }
+});
+
+// 🔒 AI っぽい文章。対句・倒置・抽象名詞・余韻の語尾
+test('🔒 ポエムになっている書き方を warn で拾う', () => {
+  for (const line of [
+    '比べてるのは値段じゃなくて、何を買っているかだった。',
+    'つまり単価の問題ではなく、単位の問題だった。',
+    '結局、基準が2つあるということです。',
+    '順位が変わるだけな気がする。',
+  ]) {
+    assert.ok(lintPost(line).some((i) => i.code === 'voice.poem'), `拾えていない: ${line}`);
+  }
+});
+
+test('普通に喋っている結論はポエム判定しない', () => {
+  const plain = '値段だけ見ても比較にならないので、結局そこまで全部見ないといけない。';
+
+  assert.equal(lintPost(plain).some((i) => i.code === 'voice.poem'), false);
 });
