@@ -231,9 +231,15 @@ export function lintPost(text, options = {}) {
 
   // 🔒 一応公式アカウントなので、読者への問いかけだけは敬語にする。
   //    本文はラフでよい（reference/voice.md「読み手への問いかけ・呼びかけは敬語」）
-  for (const line of body.split('\n')) {
-    const asking = line.trim();
+  //
+  // ⚠️ **フックの独り言まで敬語にしない。**「これ普通に売っていいの？」のような
+  //    1行目の自問は、敬語にした瞬間に指が止まらなくなる（reference/formats.md 型H）。
+  //    読者への問いと見なすのは「最終行の問い」か「読者を指す語を含む問い」だけ。
+  const lines = body.split('\n').map((line) => line.trim()).filter((line) => line !== '');
+  for (const [i, asking] of lines.entries()) {
     if (!/[?？]\s*$/.test(asking)) continue;
+    const toReader = i === lines.length - 1 || /みんな|みなさん|皆さん|あなた|どっち派|どちら派/.test(asking);
+    if (!toReader) continue;
     if (/(ます|ません|ました|です|でした|でしょう|ましょう)(か)?[?？]\s*$/.test(asking)) continue;
     add(
       'warn',

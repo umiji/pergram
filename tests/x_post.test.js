@@ -291,3 +291,20 @@ test('普通に喋っている結論はポエム判定しない', () => {
 
   assert.equal(lintPost(plain).some((i) => i.code === 'voice.poem'), false);
 });
+
+// ⚠️ フックの独り言まで敬語にすると、型H（正体当てクイズ）の1行目が作れなくなる。
+//    実測サンプル S-01 の「これ普通に売っていいの？」がまさにこれ。
+test('🔒 敬語チェックは読者への問いだけを見る。1行目の自問は素通りする', () => {
+  const hook = 'これ普通に売っていいの？\nスーパーで見つけたとんでもない栄養成分表示。';
+
+  assert.equal(hook.includes('？'), true);
+  assert.equal(
+    lintPost(hook).some((i) => i.code === 'voice.casualQuestion'),
+    false,
+    'フックの自問を敬語扱いしている',
+  );
+
+  // 最終行の問いと、読者を指す問いは今までどおり拾う
+  assert.ok(lintPost('プロテインの話。\nみんなはどこで決めてる？').some((i) => i.code === 'voice.casualQuestion'));
+  assert.ok(lintPost('みなさんはどっち派？\n自分は前者です。').some((i) => i.code === 'voice.casualQuestion'));
+});
