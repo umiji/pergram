@@ -89,6 +89,10 @@ export const BANNED = [
   // 🔒 ブランド表記
   { code: 'brand.case', pattern: /Pergram|PerGram|PERGRAM|pergram(?=[a-z])/, hint: 'pergram（全て小文字）' },
 
+  // 人格（reference/voice.md の × 列）。企業アカウントの定型文で書かない
+  { code: 'voice.corporate', pattern: /当社|弊社|このたび|ローンチ|ご利用ください|くださいませ|いただければ幸い|皆様|お客様/, hint: '中の人が普通に喋る。企業の定型文にしない' },
+  { code: 'voice.recommend', pattern: /絶対[^。\n]{0,10}(買|選|使)|買ったほうがいい|買うべき/, hint: '優劣を断定しない。事実を置いて判断は読み手に渡す' },
+
   // 🔒 やってはいけないこと
   { code: 'n02.claim', pattern: /筋肥大|免疫|疲労回復|脂肪燃焼|痩せ|やせ|美肌|代謝が/, hint: 'N-02 成分の効能を書かない' },
   { code: 'n03.score', pattern: /総合スコア|品質スコア|独自スコア|点満点/, hint: 'N-03 独自スコアを作らない' },
@@ -103,6 +107,9 @@ export const BANNED = [
  */
 export const SUSPECT = [
   { code: 'claim.superlative', pattern: /最強|神コスパ|圧倒的|ナンバー(ワン|1)|No\.?1|ベスト/, hint: '「最安」は事実。順位の断定は計算結果に限る' },
+  // 人格（reference/voice.md の △ 列）。詳しい友達であって、テンションの高い人ではない
+  { code: 'voice.hype', pattern: /ガチで|やばい|やばすぎ|ｗｗ|www|うおお|神です|バズ/, hint: '淡々と。テンションで押さない' },
+  { code: 'voice.today', pattern: /今日の(最安|1\s?[gｇ]単価|価格)|本日の/, hint: '🔒 価格の取得日が今日でないなら「今日の」と書かない（x:facts の取得日を見る）' },
   { code: 'claim.absorb', pattern: /吸収(が|率|力)/, hint: '成分の性質を語らない（N-02）' },
   { code: 'claim.symptom', pattern: /症状|不調|悩み/, hint: 'N-01 症状の文脈に入らない' },
 ];
@@ -116,7 +123,7 @@ export const SUSPECT = [
  *    ツリーの2投稿目は誘導のために置く場所なので、ここでは見ない。
  */
 export const PROMO_PATTERN =
-  /詳しくは|チェックして|覗いて|使ってみて|見てみて|作りました|公開しました|リリースしました|(ぜひ|よければ|よかったら)[^。]{0,14}(使|見|試|どうぞ)/;
+  /詳しくは|チェックして|覗いて|使ってみて|見てみて|作りました|作ってます|作っています|公開しました|リリースしました|(ぜひ|よければ|よかったら)[^。]{0,14}(使|見|試|どうぞ)/;
 
 /**
  * タイムラインで折りたたまれる行。

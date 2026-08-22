@@ -205,3 +205,44 @@ test('事実だけの投稿は誘導として拾わない', () => {
 
   assert.equal(issues.some((i) => i.code === 'promo.cta'), false);
 });
+
+// 🔒 人格。「企業アカウントだけど、中の人が普通に喋っている」から外れたら落とす
+test('🔒 企業の定型文は error', () => {
+  for (const line of [
+    '当社独自のデータ分析により算出しました。',
+    'このたび新サービスをローンチしました。',
+    '是非ともご利用くださいませ。',
+  ]) {
+    const issue = lintPost(line).find((i) => i.code === 'voice.corporate');
+    assert.ok(issue, `拾えていない: ${line}`);
+    assert.equal(issue.severity, 'error');
+  }
+});
+
+test('🔒 優劣の推奨は error', () => {
+  for (const line of ['絶対買ったほうがいい。', 'これは買うべき。']) {
+    const issue = lintPost(line).find((i) => i.code === 'voice.recommend');
+    assert.ok(issue, `拾えていない: ${line}`);
+    assert.equal(issue.severity, 'error');
+  }
+});
+
+test('テンションで押す書き方は warn', () => {
+  const issue = lintPost('これガチで神です。').find((i) => i.code === 'voice.hype');
+
+  assert.equal(issue.severity, 'warn');
+});
+
+// 🔒 価格は毎日動く。取得日が古いまま「今日の」と書くと有利誤認になる
+test('🔒 「今日の最安」は取得日の確認を促す warn', () => {
+  assert.ok(lintPost('今日の最安はこれ。').some((i) => i.code === 'voice.today'));
+  assert.ok(lintPost('今日の1g単価を見ていた。').some((i) => i.code === 'voice.today'));
+  assert.equal(lintPost('1g単価を見ていた。').some((i) => i.code === 'voice.today'), false);
+});
+
+// ○ 列の口調は素通りする。人格の側を機械が邪魔しない
+test('中の人が普通に喋っている文は素通りする', () => {
+  const draft = 'これ、意外でした。\n\n普通に考えるとAなんですが、データを見るとBでした。\n\nみなさんはどうですか？';
+
+  assert.deepEqual(lintPost(draft), []);
+});

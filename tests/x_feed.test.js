@@ -10,8 +10,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  ANNOUNCE_TYPE,
+  POST_TYPES,
   PRICE_TOPICS,
   SELF_TOPICS,
+  SELF_TYPES,
   SIMILAR_THRESHOLD,
   TOPIC_FAMILIES,
   TOPIC_LEXICON,
@@ -26,6 +29,10 @@ import {
   similarity,
   priceBalance,
   topicCounts,
+  typeBalance,
+  typeOf,
+  nextTypes,
+  untypedCount,
   unusedTopics,
 } from '../src/lib/x_feed.js';
 
@@ -178,7 +185,7 @@ test('🔒 うちの話に偏っていたら数で示す（上限は5本に1本�
   const other = { text: 'ホエイはチーズを作るときに出る乳清が原料です' };
 
   assert.equal(selfBalance([self, self, self]).heavy, true);
-  assert.equal(selfBalance([self, other, other, other, other]).heavy, false);
+  assert.equal(selfBalance([self, other, other, other, other, other, other]).heavy, false);
   assert.equal(selfBalance([]).heavy, false);
 });
 
@@ -188,9 +195,11 @@ test('🔒 URL を貼った投稿が10本に1本を超えたら示す', () => {
   const plain = { text: '乳清はチーズの副産物です' };
   const ten = Array.from({ length: 9 }, () => plain);
 
-  assert.equal(linkBalance([link, ...ten]).heavy, false);
-  assert.equal(linkBalance([link, link, ...ten]).heavy, true);
-  assert.equal(linkBalance([link, link]).heavy, false, '母数が少ないうちは判定しない');
+  const nineteen = Array.from({ length: 19 }, () => plain);
+
+  assert.equal(linkBalance([link, ...nineteen]).heavy, false);
+  assert.equal(linkBalance([link, link, ...nineteen]).heavy, true);
+  assert.equal(linkBalance([link, link, ...ten.slice(0, 5)]).heavy, false, '母数が少ないうちは判定しない');
 });
 
 test('族ごとの本数を数える。1投稿が同じ族の2ジャンルに当たっても1本', () => {
@@ -248,4 +257,66 @@ test('候補は族ごとに1つずつ拾う', () => {
   const families = nextTopics(items, 3).map((c) => c.family);
 
   assert.equal(new Set(families).size, 3, `族が重複している: ${families.join(' / ')}`);
+});
+
+// 🔒 第一の軸は「何のために書くか」。ここが偏ると、題材を変えても宣伝アカウントに見える
+test('🔒 投稿タイプの比率が 85:10:5 になっている', () => {
+  const share = Object.fromEntries(POST_TYPES.map((t) => [t.key, t.share]));
+  const sum = POST_TYPES.reduce((total, t) => total + t.share, 0);
+
+  assert.equal(Number(sum.toFixed(2)), 1);
+  // 読み物（①〜④）85% / 開発日記 10% / 告知 5%
+  const reading = share.discover + share.compare + share.empathy + share.data;
+  assert.equal(Number(reading.toFixed(2)), 0.85);
+  assert.equal(share.dev, 0.1);
+  assert.equal(share.announce, 0.05);
+});
+
+test('🔒 うちの話（⑤⑥）が合計15%を超えない', () => {
+  const self = POST_TYPES.filter((t) => SELF_TYPES.includes(t.key)).reduce((n, t) => n + t.share, 0);
+
+  assert.ok(Number(self.toFixed(2)) <= 0.15, `うちの話が ${self} を占めている`);
+  assert.ok(SELF_TYPES.includes(ANNOUNCE_TYPE), '告知は「うちの話」に数える');
+});
+
+test('投稿タイプを1件につき1つに決める', () => {
+  assert.equal(typeOf({ text: 'プロテインあるある。結局いつもと同じやつを買う' }), 'empathy');
+  assert.equal(typeOf({ text: 'タンパク質1gあたりで見ると順位が変わる' }), 'compare');
+  assert.equal(typeOf({ text: '作っていて気づいた。価格比較、思ってたより難しい' }), 'dev');
+  assert.equal(typeOf({ text: '一覧はこちら https://example.test/ja/' }), 'announce');
+  assert.equal(typeOf({ text: '今日は暑い' }), null, '判定できないものを無理に振り分けない');
+});
+
+// 告知は URL でも語でも拾う。ここが漏れると 5% の枠が守られない
+test('告知は URL が無くても拾う', () => {
+  assert.equal(typeOf({ text: 'pergram、β版を公開しました' }), 'announce');
+});
+
+test('タイプ別の実績と目標のずれを出す', () => {
+  const compare = { text: 'タンパク質1gあたりの単価で並べています' };
+  const rows = new Map(typeBalance([compare, compare, compare, compare, compare]).map((r) => [r.key, r]));
+
+  assert.equal(rows.get('compare').count, 5);
+  assert.equal(rows.get('compare').over, true, '目標25%に対して100%は出しすぎ');
+  assert.ok(rows.get('empathy').gap > 0, '出していないタイプは足りない側に出る');
+});
+
+test('判定できなかった投稿の数を返す', () => {
+  assert.equal(untypedCount([{ text: '今日は暑い' }, { text: 'タンパク質1gあたり' }]), 1);
+});
+
+// 目的が同じ投稿が連続すると、題材が違っても同じ投稿に見える
+test('次に書くタイプは、足りていない順。直前と同じタイプは同率なら後ろ', () => {
+  const compare = { text: 'タンパク質1gあたりの単価で並べています' };
+
+  const [first] = nextTypes([compare, compare, compare, compare], 3);
+
+  assert.notEqual(first.key, 'compare');
+  assert.ok(first.gap > 0);
+});
+
+test('投稿が1件も無いときは、比率の高いタイプから出す', () => {
+  const [first] = nextTypes([], 3);
+
+  assert.ok(['discover', 'compare'].includes(first.key), `${first.key} が先頭になっている`);
 });

@@ -23,11 +23,15 @@ import {
   familyOf,
   linkBalance,
   nextTopics,
+  nextTypes,
   parseFeed,
   priceBalance,
   selfBalance,
   topicCounts,
   topicsOf,
+  typeBalance,
+  typeOf,
+  untypedCount,
   unusedTopics,
 } from '../src/lib/x_feed.js';
 
@@ -117,8 +121,26 @@ for (const [i, item] of recent.entries()) {
   if (item.link) console.log(`    ${item.link}`);
 }
 
+// 🔒 第一の軸は「何のために書くか」。ここが偏ると、題材を変えても宣伝アカウントに見える
+console.log('\n── 投稿タイプの配分（目標との差） ──');
+for (const row of typeBalance(recent)) {
+  const target = Math.round(row.target * 100);
+  const actual = Math.round(row.share * 100);
+  const mark = row.over ? ' ⚠️ 出しすぎ' : row.gap > 0.05 ? ' ← 足りない' : '';
+  console.log(`${row.name}: ${row.count} 本 / ${actual}%（目標 ${target}%）${mark}`);
+}
+const untyped = untypedCount(recent);
+if (untyped > 0) console.log(`（タイプを判定できなかった投稿: ${untyped} 本）`);
+
+console.log('\n── 次に書くタイプ（足りていない順） ──');
+const lastType = recent.length > 0 ? typeOf(recent[0]) : null;
+if (lastType) console.log(`直前の1本: ${lastType}（同率なら後ろに回した）`);
+for (const [i, row] of nextTypes(recent, 3).entries()) {
+  console.log(`${i + 1}. ${row.name} — ${row.note}`);
+}
+
 const counts = topicCounts(recent).filter(([, n]) => n > 0);
-console.log('\n── 直近で話したトピック ──');
+console.log('\n── 直近で話した題材 ──');
 console.log(counts.length === 0 ? '（判定できず）' : counts.map(([k, n]) => `${k} ×${n}`).join(' / '));
 
 console.log('\n── 族ごとの本数（同じ族を2本続けない） ──');
@@ -128,38 +150,38 @@ console.log(
     .join(' / '),
 );
 
-console.log('\n── まだ話していないトピック ──');
+console.log('\n── まだ話していない題材 ──');
 const unused = unusedTopics(recent);
 console.log(
   unused.length === 0
-    ? '（一巡している。同じトピックを別の角度・別の型で書く）'
+    ? '（一巡している。同じ題材を別の角度・別のタイプで書く）'
     : unused.join(' / '),
 );
 
-// 🔒 偏りは3つの軸で見る。単価ばかり / うちの話ばかり / 毎回リンクを貼っている
+// 🔒 題材の側の偏りも見る。単価ばかり / うちの話ばかり / 毎回リンクを貼っている
 const price = priceBalance(recent);
 const self = selfBalance(recent);
 const links = linkBalance(recent);
 
-console.log('\n── 配分（🔒 上限を超えたら次の1本では選ばない） ──');
+console.log('\n── 題材の配分（🔒 上限を超えたら次の1本では選ばない） ──');
 console.log(
   `価格の話: ${price.total} 本中 ${price.price} 本（上限 3本に1本）` +
     (price.heavy ? ' ⚠️ 超過。次は価格以外' : ''),
 );
 console.log(
-  `うちの話: ${self.total} 本中 ${self.self} 本（上限 5本に1本）` +
+  `うちの話: ${self.total} 本中 ${self.self} 本（上限 15%）` +
     (self.heavy ? ' ⚠️ 超過。次はサービスに触れない' : ''),
 );
 console.log(
-  `URL を貼った投稿: ${links.total} 本中 ${links.links} 本（上限 10本に1本）` +
+  `URL を貼った投稿: ${links.total} 本中 ${links.links} 本（上限 20本に1本）` +
     (links.heavy ? ' ⚠️ 超過。告知は毎回しない' : ''),
 );
 
-// 🔒 「次に何を書くか」を印象で決めないための出力。ここが判断フローの入口
-console.log('\n── 次の1本の候補（上から順に検討する） ──');
+console.log('\n── 題材の候補（タイプを決めてから、この中で選ぶ） ──');
 const recentFamilies = [...new Set(recent.slice(0, 2).flatMap((item) => topicsOf(item).map(familyOf)))];
 if (recentFamilies.length > 0) console.log(`直近2本の族: ${recentFamilies.join(' / ')}（この族は外した）`);
 for (const [i, candidate] of nextTopics(recent, 5).entries()) {
   console.log(`${i + 1}. ${candidate.topic}（${candidate.family}）— ${candidate.reason}`);
 }
-console.log('\n候補を1つ選び、reference/topics.md の同じ見出しから種を取る。');
+console.log('\n① タイプを上の候補から選び、② 題材をこの候補から選ぶ。');
+console.log('  タイプの書き方は reference/post_types.md、題材の種は reference/topics.md。');
