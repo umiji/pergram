@@ -11,8 +11,13 @@
  * 🔒 2026-02-10 の認証基盤刷新でドメインと認証方式が変わった。
  *    旧 `app.rakuten.co.jp/services/api/` + 19桁の applicationId 単独では 400 になる。
  *    現行は openapi ドメイン + UUID の applicationId + accessKey + Referer ヘッダ。
+ *
+ * 🔒 **版（末尾の日付）は楽天が予告して廃止する。** 廃止されると認証もリファラ審査も
+ *    通ったうえで 400 `API Configuration not found` が返る。認証情報が正しくても返るので
+ *    「キーが失効した」ように見えるが、実際は版が消えている。版だけを差し替えれば直る。
+ *    2026-08-17 に 20220601 が廃止され、日次の価格更新が7日間止まった。
  */
-export const ENDPOINT = 'https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20220601';
+export const ENDPOINT = 'https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20260401';
 
 /**
  * 問い合わせ URL を組む。
