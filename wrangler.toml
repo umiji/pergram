@@ -15,6 +15,11 @@ compatibility_date = "2026-08-01"
 [assets]
 directory = "./dist"
 binding = "ASSETS"
+# 🔒 既定では静的ファイルが先に返され、Worker は呼ばれない。それだと旧ドメインからの
+#    恒久転送が /ja/ のような実在するパスで効かない（ファイルが先に返るため）。
+#    全要求を Worker に通し、転送対象でなければ env.ASSETS へ渡す。
+#    旧ドメインを畳んだら false に戻してよい。
+run_worker_first = true
 
 # --- 本番 -----------------------------------------------------------------
 # worker/waitlist.js が env.DB として使う。

@@ -9,6 +9,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { REQUESTS_MAX } from '../src/lib/waitlist_fields.js';
+import { SITE_ORIGIN } from '../src/lib/site.js';
 
 import worker from '../worker/index.js';
 
@@ -192,4 +193,57 @@ test('API 以外のパスは静的ファイルの担当に渡す', async () => {
     const res = await worker.fetch(new Request(`https://pergram.example${path}`), env);
     assert.equal(res.headers.get('x-from'), path, `${path} が静的側に渡っていません`);
   }
+});
+
+const LEGACY_ORIGIN = 'https://pergram.pergram-official.workers.dev';
+
+test('旧ドメインへの要求はパスとクエリを保ったまま新ドメインへ 301 で転送する', async () => {
+  const { env } = makeEnv();
+  const cases = [
+    ['/', '/'],
+    ['/ja/', '/ja/'],
+    ['/ja/protein/', '/ja/protein/'],
+    ['/ja/protein/?type=whey', '/ja/protein/?type=whey'],
+    ['/assets/lp.css', '/assets/lp.css'],
+  ];
+
+  for (const [from, to] of cases) {
+    const res = await worker.fetch(new Request(`${LEGACY_ORIGIN}${from}`), env);
+    assert.equal(res.status, 301, `${from} が恒久転送になっていません`);
+    assert.equal(res.headers.get('Location'), `${SITE_ORIGIN}${to}`);
+  }
+});
+
+test('🔒 転送先は SITE_ORIGIN と一致する（canonical と食い違わせない）', async () => {
+  const { env } = makeEnv();
+  const res = await worker.fetch(new Request(`${LEGACY_ORIGIN}/ja/`), env);
+
+  assert.equal(new URL(res.headers.get('Location')).origin, SITE_ORIGIN);
+});
+
+test('🔒 プレビューの workers.dev は転送しない（末尾一致で巻き込まない）', async () => {
+  const { env } = makeEnv();
+  const res = await worker.fetch(
+    new Request('https://pergram-preview.pergram-official.workers.dev/ja/'),
+    env,
+  );
+
+  assert.equal(res.status, 200);
+  assert.equal(res.headers.get('x-from'), '/ja/');
+});
+
+test('🔒 旧ドメインへの POST は 308 で転送する（301 だと GET に化けて登録が消える）', async () => {
+  const { env, writes } = makeEnv();
+  const res = await worker.fetch(
+    new Request(`${LEGACY_ORIGIN}/api/waitlist`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'a@example.com', nutrients: ['creatine'] }),
+    }),
+    env,
+  );
+
+  assert.equal(res.status, 308);
+  assert.equal(res.headers.get('Location'), `${SITE_ORIGIN}/api/waitlist`);
+  assert.equal(writes.length, 0);
 });

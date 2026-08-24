@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: write
+  issues: write # 失敗を Issue で知らせる
 
 jobs:
   refresh:
@@ -45,3 +46,34 @@ jobs:
           git add data/price_snapshots.json
           git diff --staged --quiet || git commit -m "chore(data): 価格スナップショットを更新"
           git push
+
+      # 🔒 失敗を黙って見逃さない仕掛け。
+      #    2026-08-17〜23 は楽天が API の版を廃止したことで7回連続で失敗したのに、
+      #    誰も気づかないまま価格が8日間止まった。既定のメール通知だけでは足りない。
+      #    Issue が既にあればコメントを足す。日数分の Issue を並べても読まれない。
+      - name: 失敗を Issue で知らせる
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: 価格の日次更新が失敗しています
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          BODY="$RUNNER_TEMP/issue-body.md"
+          {
+            echo "日次の価格更新が失敗しました。"
+            echo
+            echo "- 失敗したログ: $RUN_URL"
+            echo
+            echo "**まず疑うところ:** 楽天は商品検索 API の版（エンドポイント末尾の日付）を予告して廃止する。"
+            echo "廃止されると認証もリファラ審査も通ったうえで 400 API Configuration not found が返るため、"
+            echo "認証情報が失効したように見える。その場合は scripts/rakuten_api.js の ENDPOINT の版を"
+            echo "差し替えれば直る（2026-08-17 に 20220601 が廃止された前例あり）。"
+            echo
+            echo "復旧したらこの Issue を閉じてください。"
+          } > "$BODY"
+          NUMBER=$(gh issue list --state open --json number,title --jq "map(select(.title == \"$TITLE\")) | .[0].number // empty")
+          if [ -n "$NUMBER" ]; then
+            gh issue comment "$NUMBER" --body-file "$BODY"
+          else
+            gh issue create --title "$TITLE" --body-file "$BODY"
+          fi
