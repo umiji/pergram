@@ -36,7 +36,7 @@ npm run validate  # data/ のバリデーションのみ
 | `src/build/crawl.js` | robots.txt / sitemap.xml / llms.txt の**唯一の出所**。公開範囲は `crawlPolicy()` ひとつに書き、3ファイルすべてをそこから導く。**別々に書くと「robots.txt で塞いだ URL をサイトマップに載せる」事故が静かに起きる**（検索エンジンは矛盾を報告しない）。⚠️ 現在 `/ja/protein/` を塞いでいるのはβ版のプレースホルダ価格が出ているため。`PLACEHOLDER_MERCHANTS` を消すのと同時に `blocked` から `open` へ移す。llms.txt に成分の働きを書かない（N-02）、独自スコアを書かない（N-03） |
 | `src/lib/jsonld.js` | 構造化データ。`aggregateRating` / `review` を入れない（N-08）。**LP のヒーローに ItemList を付けない** — `HERO_PRODUCT_IDS` の手動指定で表示順が単価順と一致しておらず、構造化データにすると誤った順位を機械に断言することになる。`<` のエスケープを外さない（生の `<` があるとブラウザがそこでスクリプトを打ち切る） |
 | `src/build/headers.js` | CSP と配信ヘッダ。外部から読み込むものを足したら必ずここに許可を書く。**忘れるとブラウザが黙ってブロックし、画面には何も出ない。**許可するオリジンは設定から導き、ドメインを2箇所に書かない |
-| `worker/index.js` | Worker の入り口。配信は **Pages ではなく Workers**。`functions/` は使えない。ルートは `ROUTES` に足す |
+| `worker/index.js` | Worker の入り口。配信は **Pages ではなく Workers**。`functions/` は使えない。ルートは `ROUTES` に足す。⚠️ `wrangler.toml` の `run_worker_first` により**静的ファイルを含む全要求がここを通る** — 旧ドメイン（`pergram.pergram-official.workers.dev`）からの恒久転送のため。転送先は `src/lib/site.js` の `SITE_ORIGIN` と同じ値に保つ（`tests/worker.test.js` が突き合わせている）。**閲覧は 301、それ以外は 308** — 301 はブラウザが POST を GET に作り替えるので、待機リストの登録が静かに消える |
 | `src/templates/products/` | 製品一覧（`/ja/protein/`）。カード表示とリスト表示は**同じマークアップ**を CSS のグリッドだけで組み替える。2つ描き分けない |
 | `src/templates/products/item.js` | ⚠️ **β版限定の暫定措置が入っている。** 他ストアの価格表に `PLACEHOLDER_MERCHANTS`（Amazon / Yahoo! / 公式）の行を必ず足す。**🔒 金額は作らない** — 実データが無い欄は `¥X` / `¥XXXX` を出し、リンクも張らない。表示例であることは `products.betaNoData` で画面に明示する。楽天以外の実データが入ったら定数ごと削り、`market.merchants` を回すだけに戻す |
 | `src/assets/products.js` | 絞り込みは `hidden` の付け外しだけ。並べ替えを足さない。状態は URL にだけ持ち、localStorage を使わない |
