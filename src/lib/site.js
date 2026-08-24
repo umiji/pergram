@@ -10,7 +10,7 @@
  */
 
 /** 本番の配信元。docs/ops/deploy.md の Workers 配信先と同じ値に保つ。 */
-export const SITE_ORIGIN = process.env.SITE_ORIGIN ?? 'https://pergram.pergram-official.workers.dev';
+export const SITE_ORIGIN = process.env.SITE_ORIGIN ?? 'https://pergram.site';
 
 /**
  * OGP 画像。

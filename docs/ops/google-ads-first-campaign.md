@@ -475,5 +475,5 @@ Day 1〜7、配信中に毎日追記していく実施ログ。判定（6-1）�
 
 - GA4測定ID: `G-VNXR1NWKDR`（`src/templates/layout.js` で読み込み）
 - LP計測イベント: `src/assets/lp.js`（`lp_view` / `demo_interact` / `scroll_depth` / `cta_click` / `waitlist_start` / `waitlist_submit`）
-- 本番URL: `https://pergram.pergram-official.workers.dev/ja/`
+- 本番URL: `https://pergram.site/ja/`
 - CSP許可リストの出所: `src/build/headers.js`（新しい外部スクリプトを足す場合は必ずここに追記）
