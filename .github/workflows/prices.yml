@@ -71,7 +71,7 @@ jobs:
             echo
             echo "復旧したらこの Issue を閉じてください。"
           } > "$BODY"
-          NUMBER=$(gh issue list --state open --json number,title --jq "map(select(.title == \"$TITLE\")) | .[0].number // empty")
+          NUMBER=$(gh issue list --state open --limit 100 --json number,title --jq "map(select(.title == \"$TITLE\")) | .[0].number // empty")
           if [ -n "$NUMBER" ]; then
             gh issue comment "$NUMBER" --body-file "$BODY"
           else
