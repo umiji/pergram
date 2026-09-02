@@ -8,7 +8,7 @@ media:
   primary_platform: x
 
 content:
-  posts_per_day: 3
+  posts_per_day: 2
   candidates_per_run: 3      # 1 回の生成で作る Post 候補の数
   similarity_threshold: 0.85 # この値以上の類似度を重複とみなす
   personas:
@@ -34,13 +34,13 @@ content:
     active: spread
 
 automation:
-  require_approval: false
+  require_approval: true
 
 policy:
   actions:
     post:
-      mode: auto             # auto / approval / disabled
-      max_per_day: 3
+      mode: approval         # auto / approval / disabled
+      max_per_day: 2
       max_per_hour: 2
     reply:
       mode: approval
