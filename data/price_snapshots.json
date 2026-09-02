@@ -2,7 +2,7 @@
   {
     "product_id": "rakuten:rakutensokuhaimart:10019793",
     "merchant": "rakuten",
-    "price": 3002,
+    "price": 2941,
     "currency": "JPY",
     "postage_included": false,
     "url": "https://hb.afl.rakuten.co.jp/hgc/g00ugynn.zbpeq3a5.g00ugynn.zbper7e8/?pc=https%3A%2F%2Fitem.rakuten.co.jp%2Frakutensokuhaimart%2F4902777314990%2F&m=http%3A%2F%2Fm.rakuten.co.jp%2Frakutensokuhaimart%2Fi%2F10019793%2F&rafcid=wsc_i_is_dc5bdc72-9f97-4834-b63f-52165ad1fc87",
@@ -192,7 +192,7 @@
   {
     "product_id": "rakuten:kanedestore:10013364",
     "merchant": "rakuten",
-    "price": 5567,
+    "price": 5656,
     "currency": "JPY",
     "postage_included": true,
     "url": "https://hb.afl.rakuten.co.jp/hgc/g00upfzn.zbpeq6a3.g00upfzn.zbper703/?pc=https%3A%2F%2Fitem.rakuten.co.jp%2Fkanedestore%2Fka556b6335d2%2F&m=http%3A%2F%2Fm.rakuten.co.jp%2Fkanedestore%2Fi%2F10013364%2F&rafcid=wsc_i_is_dc5bdc72-9f97-4834-b63f-52165ad1fc87",
@@ -272,12 +272,12 @@
   {
     "product_id": "rakuten:myprotein:10001200",
     "merchant": "rakuten",
-    "price": 8500,
+    "price": 7650,
     "currency": "JPY",
     "postage_included": false,
     "url": "https://hb.afl.rakuten.co.jp/hgc/g00t874n.zbpeq7c8.g00t874n.zbper96b/?pc=https%3A%2F%2Fitem.rakuten.co.jp%2Fmyprotein%2F10529721%2F&m=http%3A%2F%2Fm.rakuten.co.jp%2Fmyprotein%2Fi%2F10001200%2F&rafcid=wsc_i_is_dc5bdc72-9f97-4834-b63f-52165ad1fc87",
-    "in_stock": false,
-    "fetched_at": "2026-08-14"
+    "in_stock": true,
+    "fetched_at": "2026-09-02"
   },
   {
     "product_id": "rakuten:toyomarket:10000307",
@@ -442,12 +442,12 @@
   {
     "product_id": "rakuten:myprotein:10001199",
     "merchant": "rakuten",
-    "price": 3590,
+    "price": 3231,
     "currency": "JPY",
     "postage_included": false,
     "url": "https://hb.afl.rakuten.co.jp/hgc/g00t874n.zbpeq7c8.g00t874n.zbper96b/?pc=https%3A%2F%2Fitem.rakuten.co.jp%2Fmyprotein%2F10529701%2F&m=http%3A%2F%2Fm.rakuten.co.jp%2Fmyprotein%2Fi%2F10001199%2F&rafcid=wsc_i_is_dc5bdc72-9f97-4834-b63f-52165ad1fc87",
-    "in_stock": false,
-    "fetched_at": "2026-08-14"
+    "in_stock": true,
+    "fetched_at": "2026-09-02"
   },
   {
     "product_id": "rakuten:soukaidrink:10008928",
