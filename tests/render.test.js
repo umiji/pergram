@@ -647,6 +647,34 @@ test('🔒 できないことを書かない。利用目的と、リリースし
   assert.ok(html.includes(t('lp.form.noteRelease')), 'リリースしない場合の扱いがありません');
 });
 
+/**
+ * 🔒 上の検査は「今まさに描画されている HTML」しか見ない。
+ *    描画をやめたキー（T-020 でヒーローの注記を出さなくなった `lp.cta` /
+ *    `lp.ctaNote` など）は翻訳ファイルに残ったまま検査を素通りする。
+ *    誰かがその文言を画面へ復活させた瞬間に、実装していない約束が世に出る。
+ *    したがって翻訳ファイルそのものを、全ロケール・全キーで見る。
+ *    🔒 描画側の検査を置き換えるものではない。両方を残すこと。
+ */
+test('🔒 できないことを書かない。翻訳ファイルに眠っている文言も全ロケール検査する', async () => {
+  // 配信停止の窓口はどのロケールにも実装されていない。できると書かない
+  const CLAIMS = ['配信停止', '解除', '退会', 'unsubscribe', 'opt out', 'opt-out'];
+
+  for (const locale of ['ja', 'en']) {
+    const messages = JSON.parse(
+      await readFile(path.join('locales', `${locale}.json`), 'utf8'),
+    );
+    for (const [key, value] of Object.entries(messages)) {
+      const haystack = String(value).toLowerCase();
+      for (const claim of CLAIMS) {
+        assert.ok(
+          !haystack.includes(claim.toLowerCase()),
+          `locales/${locale}.json の ${key} が、実装していない「${claim}」を約束しています`,
+        );
+      }
+    }
+  }
+});
+
 test('🔒 LP のフォームは同一ページ内で完了状態に切り替わる', () => {
   const html = renderLp();
   assert.ok(html.includes('class="waitlist__done"'));

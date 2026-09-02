@@ -77,15 +77,21 @@ export async function handleWaitlist(request, env) {
   const requests = freeText(payload.requests, REQUESTS_MAX);
 
   try {
-    // 同じメールアドレスの再送信は上書きする（重複行を作らない）
+    // 同じメールアドレスの2度目以降は**同じ行へ追記する**（重複行を作らない）。
+    //
+    // 🔒 空で上書きしない。フォームは2段階（T-011）で、ステップ1はメールアドレスだけを
+    //    送る。素直に excluded で上書きすると、ステップ2に答えたあとで誰かが同じ
+    //    メールアドレスをもう一度ステップ1から送った瞬間に、集めた回答が消える。
+    //    **「送られてきた値が空なら、今ある値を残す」**が正しい。
+    //    値を消す UI は無いので、これで失われる操作は存在しない。
     await env.DB.prepare(
       `INSERT INTO waitlist (email, nutrients, channel, nutrients_other, requests, created_at)
        VALUES (?1, ?2, ?3, ?4, ?5, ?6)
        ON CONFLICT(email) DO UPDATE SET
-         nutrients       = excluded.nutrients,
-         channel         = excluded.channel,
-         nutrients_other = excluded.nutrients_other,
-         requests        = excluded.requests`,
+         nutrients       = COALESCE(NULLIF(excluded.nutrients, ''), waitlist.nutrients),
+         channel         = COALESCE(NULLIF(excluded.channel, ''), waitlist.channel),
+         nutrients_other = COALESCE(excluded.nutrients_other, waitlist.nutrients_other),
+         requests        = COALESCE(excluded.requests, waitlist.requests)`,
     )
       .bind(
         email,
