@@ -15,3 +15,12 @@ docs/design/mockups
 docs/design/LP_mockups/
 docs/design/Product_page_pc_mock/
 docs/design/Product_page_sp_mock/
+
+# --- Media Agent ---
+.media-agent/**/data/
+.media-agent/**/logs/
+.media-agent/**/memory/
+.env
+.env.*
+!.env.example
+# --- /Media Agent ---
