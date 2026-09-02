@@ -94,7 +94,7 @@ publisher:
   # dummy_x: 送信ペイロードを data/outbox/ に記録するだけ（既定・実配信しません）
   # buffer : Buffer 経由で実配信します。X の API は直接呼びません。
   #          API キーは .env.local の BUFFER_API_KEY から読みます（config には書きません）。
-  connector: dummy_x
+  connector: buffer
   buffer:
     channel_id:              # 未指定なら service が一致する最初のチャンネルを使います
     service: twitter         # Buffer 側の識別子。X は互換性のため twitter のままです
@@ -103,7 +103,7 @@ publisher:
     #   now  : 即時投稿する                       / draft: 下書き保存（公開されません）
     # 「木曜 08:15」のようなスロット表そのものは publish.buffer.com の画面で設定します
     # （Buffer の API に投稿スケジュールを変更する手段がないため）。
-    schedule: queue
+    schedule: draft
     timeout_seconds: 30.0
   retry_attempts: 3
   retry_interval_seconds: 1.0
