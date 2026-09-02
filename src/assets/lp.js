@@ -94,6 +94,12 @@
 
   var emailInput = stepOne.querySelector('input[name="email"]');
   var doneEl = document.querySelector('.waitlist__done');
+  /*
+   * 🔒 完了の知らせの1文。**フォーカスを当てるのはここであって、
+   *    これを包む .waitlist__done ではない。** 器の側を focus すると、
+   *    支援技術がその中身（ステップ2のフォーム一式）をまるごと読み上げる。R-011-1
+   */
+  var doneText = doneEl ? doneEl.querySelector('.waitlist__done-text') : null;
   var stepTwo = doneEl ? doneEl.querySelector('.waitlist--step2') : null;
   var stepTwoDone = doneEl ? doneEl.querySelector('.waitlist__step2-done') : null;
   var started = false;
@@ -201,7 +207,7 @@
         track('waitlist_submit', {});
         stepOne.hidden = true;
         doneEl.hidden = false;
-        doneEl.focus();
+        (doneText || doneEl).focus();
         // 到達。ここを分母にしてステップ2の回答率を出す
         if (stepTwo) track('waitlist_step2_view', {});
       })

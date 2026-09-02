@@ -7,6 +7,12 @@
  *   ステップ1 = `.waitlist--step1`   メールアドレスだけ。ここを送った時点で登録は成立する
  *   ステップ2 = `.waitlist--step2`   完了状態（`.waitlist__done`）の中。見たい成分・購入先・要望
  *
+ * 🔒 **通知（live region）は完了の1文だけ。**`role="status"` を置くのは
+ *    `.waitlist__done-text` であって、それを包む `.waitlist__done` ではない。
+ *    器の側に付けると、hidden を外した瞬間に**ステップ2のフォーム一式（チェック
+ *    ボックス16個・入力欄・注記・ボタン）が通知として読み上げられる**。
+ *    同じ理由で `.waitlist__step2-done` も器の外側に live region を重ねない
+ *    （live region の入れ子は仕様上定まっていない）。R-011-1
  * 🔒 入力は3つまで。年齢・性別・体調は取らない（要配慮個人情報であり、必要もない）。
  * 🔒 送信後は同一ページ内で完了状態に切り替える。別ページに飛ばさない。
  *    **ステップ2も別ページにしない。** 完了状態の中に置く
@@ -162,8 +168,10 @@ export function waitlist(t, { support = null } = {}) {
       <p class="form-note">${escapeHtml(t('lp.form.noteRelease'))}</p>
     </form>
 
-    <div class="waitlist__done" role="status" tabindex="-1" hidden>
-      <p class="waitlist__done-text">${escapeHtml(t('lp.form.done'))}</p>
+    <div class="waitlist__done" hidden>
+      <p class="waitlist__done-text" role="status" tabindex="-1">${escapeHtml(
+        t('lp.form.done'),
+      )}</p>
       ${stepTwo(t)}
       ${supportEmbed(t, support)}
     </div>
