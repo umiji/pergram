@@ -16,7 +16,14 @@ content:
     # 書かなければ従来どおり strategy.md だけで生成します。
     # 実行のたびではなく曜日で固定するのは、あとから「火曜の伸びが良い」と
     # 比較できるようにするためです。--persona でその回だけ上書きできます。
-    schedule: {}
+    schedule:
+      mon: price-shock
+      tue: price-shock
+      wed: sale-hunter
+      thu: price-shock
+      fri: sale-hunter
+      sat: builder
+      sun: price-shock
     #  mon: cost-trainee
     #  tue: dieter
   playbooks:
@@ -24,7 +31,7 @@ content:
     # ペルソナと違い曜日で切り替えません（日替わりにすると効果を測れないため）。
     # `media-agent x learn` が作るのは playbooks/proposals/ 配下の「提案」で、
     # `media-agent playbook apply <id>` で人が採用するまで生成には使われません。
-    active:
+    active: spread
 
 automation:
   require_approval: false
@@ -48,11 +55,21 @@ policy:
 connectors:
   timeout_seconds: 15.0
   rss:
-    enabled: true
+    enabled: false
     feeds: []
   google_news:
-    enabled: false
-    queries: []
+    enabled: true
+    queries:
+    - プロテイン 値上げ
+    - プロテイン 価格
+    - ホエイプロテイン 原料
+    - プロテイン 新発売
+    - プロテインバー 新発売
+    - コンビニ プロテイン
+    - プロテイン 市場
+    - 筋トレ 市場
+    - 健康食品 広告 措置命令
+    - たんぱく質 摂取量
     language: ja
     region: JP
   web:
@@ -99,7 +116,7 @@ x_reader:
   # .env.local の X_READER_COOKIE / X_READER_HANDLE から読みます。
   # **必ず使い捨てのアカウントを使ってください。** 本体アカウントの Cookie を
   # 使うと、凍結したときに投稿チャネルそのものを失います。
-  enabled: false
+  enabled: true
   # syndication: 認証なし。本文・いいね・リプライ数まで（表示回数は取れません）
   # browser   : 捨てアカウントのブラウザ。表示回数・検索・トレンドはこちら
   routes: [syndication, browser]
@@ -115,7 +132,7 @@ x_reader:
   browser:
     channel: chrome        # 実ブラウザを使います。headless の既定は検出されます
     profile_dir:           # 未指定なら data/x-profile/ を使います
-    headless: false
+    headless: true
   pacing:
     # 安全弁です。既定値は保守的に置いてあります。緩めるのは明示的な判断で。
     min_wait_seconds: 4
