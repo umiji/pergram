@@ -122,7 +122,7 @@ x_reader:
   routes: [syndication, browser]
   # 指標を測る対象＝運用しているアカウントのハンドル（@ なし）。
   # 読み取りに使う捨てアカウント (X_READER_HANDLE) とは別物です。
-  own_handle:
+  own_handle: pergram_jp
   # クラウド / CI 環境からの読み取りを許可するか。**既定は false のままにしてください。**
   # X の読み取りは自宅回線から行う決まりです（データセンター IP は X 側の検出対象で、
   # 捨てアカウントの凍結確率が上がります）。CI / PaaS / サーバレスを検出すると
