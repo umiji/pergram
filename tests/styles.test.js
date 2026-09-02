@@ -498,3 +498,41 @@ test('完了条件6: 他の .btn--* のコントラスト比が変更前より�
       '共有トークン（--ink / --signal / --line 等）を動かすと他のボタンへ波及します',
   );
 });
+
+/* ---- 回帰テスト（T-017 の実装後に、実環境確認で確かめた挙動を固定する）------
+   受け入れテスト（完了条件1〜6）とは別の目的で置いてある。
+   下の2つは T-017 の完了条件が名指ししていないが、**修正の副作用として満たされた**もので、
+   何も守っていないと次の色いじりで黙って戻る。実環境（Chrome / DevTools Protocol）で
+   ブラウザが解決した実効色を測って確認した値をここへ落としてある。 */
+
+test('回帰: 従CTA のホバー時の文字がページ背景に対して 4.5:1 以上', async () => {
+  const { tokens, page, sheets } = await loadContext();
+  const colors = buttonColors(
+    sheets['lp.css'],
+    tokens,
+    ['.btn', '.btn--quiet', '.btn--quiet:hover'],
+    page,
+  );
+
+  assert.ok(colors?.text, 'lp.css の .btn--quiet:hover に color の宣言がありません');
+  const ratio = contrastRatio(colors.text, colors.fill);
+
+  assert.ok(
+    ratio >= TEXT_CONTRAST_MIN,
+    `.btn--quiet:hover の文字が ${round2(ratio)}:1 です（要 ${TEXT_CONTRAST_MIN}:1）。` +
+      'ホバーで文字色が --signal へ変わるため、--signal を明るい側へ戻すとここから先に落ちる。' +
+      'T-017 着手前は 3.41:1 で AA 未達だった。実環境確認で 4.96:1 になったことを測ってある',
+  );
+});
+
+test('回帰: --signal-hover は --signal より暗い（押下前後の差が消えない）', async () => {
+  const { tokens } = await loadContext();
+  const base = parseColor(resolveVars('var(--signal)', tokens));
+  const hover = parseColor(resolveVars('var(--signal-hover)', tokens));
+
+  assert.ok(
+    relativeLuminance(hover) < relativeLuminance(base),
+    '--signal-hover が --signal より暗くありません。同値・明るい側にすると、' +
+      'ポインタを乗せたときの変化が見えなくなります（tokens.css の 🔒 コメントと同じ約束）',
+  );
+});
