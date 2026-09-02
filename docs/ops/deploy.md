@@ -116,7 +116,8 @@ LP が 404 になるときは、まずここを疑う。
 npm run cf:deploy
 ```
 
-確認する URL:
+確認する URL（本番のオリジンは **`https://pergram.site`**。出所は
+[src/lib/site.js](../../src/lib/site.js) の `SITE_ORIGIN` ひとつ）:
 
 | URL | 中身 |
 |---|---|
@@ -227,8 +228,17 @@ npx wrangler d1 execute pergram --local --command "SELECT * FROM waitlist"
   あるため、Google が URL のみで登録する可能性は残る（`noindex` はクロールを
   許可しないと読まれないので両立しない）。被リンクの少ないうちは実害が小さいと判断している。
 - **Search Console 未登録**。所有権確認タグは `GOOGLE_SITE_VERIFICATION` を
-  渡せば入る（未設定なら出力されない）。独自ドメインへ移す予定があるなら、
-  移行後にまとめて登録するほうが二度手間にならない。
-- **独自ドメイン** 未取得。当面は `*.workers.dev` で動かす。
+  渡せば入る（未設定なら出力されない）。登録するときのプロパティは
+  **`https://pergram.site/`**。旧 `*.workers.dev` では登録しない（下記のとおり転送元でしかなく、
+  移行時に全 URL の申告をやり直すことになる）。
+- **旧ドメインを畳む時期**は決めていない。**独自ドメイン `pergram.site` は取得済みで、
+  2026-08-24 から本番として稼働している**（実測 2026-09-02: `/robots.txt` `/sitemap.xml`
+  `/llms.txt` はいずれも 200。`robots.txt` の `Sitemap:` 行と `sitemap.xml` の `<loc>` も
+  `https://pergram.site/` を指している）。旧 `pergram.pergram-official.workers.dev` は
+  [worker/index.js](../../worker/index.js) が `pergram.site` へ恒久転送している
+  （実測 2026-09-02: 301。🔒 **閲覧は 301、それ以外のメソッドは 308** — 301 はブラウザが
+  POST を GET に作り替えるので、待機リストの登録が静かに消える）。転送は
+  `wrangler.toml` の `run_worker_first = true` が前提で、**旧ドメインを畳んだら
+  `false` に戻してよい。**
 - **CSP の `script-src 'unsafe-inline'`**（`_headers`）。GA4 の初期化スニペットがインラインなため。
   静的ビルドではリクエストごとの nonce を発行できない。GA4 を使わないなら外せる。
