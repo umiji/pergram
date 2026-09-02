@@ -428,14 +428,18 @@ test('ベータ版への導線はヘッダとヒーローの両方に出る', ()
     html.includes(t('lp.hero.beta', { nutrient: NUTRIENT_NAME })),
     'ヒーローのベータ導線がありません',
   );
-  // 2026-08-10 に主従を入れ替えた。ヒーローの主 CTA は製品一覧、Waitlist は一段弱い面。
+  // 2026-09-02（T-010）に主従を再度入れ替えた。ヒーローの主 CTA は待機リスト、
+  // 製品一覧（ベータ版）は一段弱い面。2026-08-10 の逆の主従（主 CTA = 製品一覧）は失効している。
+  // 理由: ベータ版の遷移先 /ja/protein/ は PLACEHOLDER_MERCHANTS でプレースホルダ価格（¥X）を出し、
+  // robots.txt でもクロールを塞いでいる状態にある。実データが揃うまで主導線にはできない。
+  // 実データが入って主導線を戻すときは、T-010 の決定ログを覆す決定を先に残すこと。
   // 見張るのは「どちらが強いか」だけ。class 名の綴りではなく主従の関係を固定する。
   const heroBeta = html.match(/<a class="btn ([^"]*)hero__beta"/);
   const heroWaitlist = html.match(/<a class="btn ([^"]*)hero__waitlist"/);
   assert.ok(heroBeta, 'ヒーローの製品一覧ボタンがありません');
   assert.ok(heroWaitlist, 'ヒーローの Waitlist ボタンがありません');
-  assert.ok(heroBeta[1].includes('btn--signal'), 'ヒーローの主 CTA は製品一覧である');
-  assert.ok(!heroWaitlist[1].includes('btn--signal'), 'Waitlist を主 CTA と同じ強さにしない');
+  assert.ok(!heroBeta[1].includes('btn--signal'), 'ベータ版（製品一覧）を主 CTA と同じ強さにしない');
+  assert.ok(heroWaitlist[1].includes('btn--signal'), 'ヒーローの主 CTA は待機リストである');
   // Waitlist 本体のフォーム側 CTA は主のまま
   assert.ok(html.includes('<button type="submit" class="btn btn--signal btn--block">'));
 });
