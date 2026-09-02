@@ -120,8 +120,11 @@
   font-size: 15px;
 }
 
+/* ヒーローの唯一の CTA（β版）。T-020 で待機リストのボタンを外したので、
+   上の余白は .hero__actions が持つ。ここで重ねて付けない。
+   面（色のトーン）は .btn--dark 。ヘッダのβ版（.btn--quiet）と変えてある。 */
 .hero__beta {
-  margin-top: var(--space-2);
+  margin-top: 0;
 }
 
 /* ---- ヘッダ ---------------------------------------------------------- */
@@ -268,17 +271,6 @@
 .hero__actions {
   order: 5;
   margin-top: var(--space-6);
-}
-
-.hero__waitlist {
-  margin-top: var(--space-3);
-}
-
-.hero__note {
-  font-size: 12px;
-  color: var(--muted-faint);
-  margin: var(--space-3) 0 0;
-  text-align: center;
 }
 
 .rank-card__head {
@@ -1015,11 +1007,6 @@
     display: inline-flex;
     width: auto;
     padding: var(--space-4) 28px;
-  }
-  .hero__note {
-    text-align: left;
-    font-size: 12.5px;
-    margin-top: 14px;
   }
 
   .rank-card {

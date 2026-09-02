@@ -428,26 +428,38 @@ test('ベータ版への導線はヘッダとヒーローの両方に出る', ()
     html.includes(t('lp.hero.beta', { nutrient: NUTRIENT_NAME })),
     'ヒーローのベータ導線がありません',
   );
-  // 2026-09-02（T-010）に主従を再度入れ替えた。ヒーローの主 CTA は待機リスト、
-  // 製品一覧（ベータ版）は一段弱い面。2026-08-10 の逆の主従（主 CTA = 製品一覧）は失効している。
-  // 理由: ベータ版の遷移先 /ja/protein/ は PLACEHOLDER_MERCHANTS でプレースホルダ価格（¥X）を出し、
-  // robots.txt でもクロールを塞いでいる状態にある。実データが揃うまで主導線にはできない。
-  // 実データが入って主導線を戻すときは、T-010 の決定ログを覆す決定を先に残すこと。
-  // 見張るのは「どちらが強いか」だけ。class 名の綴りではなく主従の関係を固定する。
+  // === 2026-09-02（T-020）PO の指示でヒーローをβ版1本にした ===
+  // それまで（T-010, 同日）は「ヒーローの主 CTA は待機リスト、β版は一段弱い面」だった。
+  // PO が見せ方の実験として、**ヒーローからは待機リストのボタンを外し、β版だけを残す**
+  // と決めた。T-010 のこの部分（ヒーローの主従）は失効している。
+  // **待機リストへの導線はヘッダとページ下部のフォームに残っており、登録の受け皿は消えていない。**
+  // 戻すときは T-020 の決定ログを覆す決定を先に残すこと。
+  //
+  // ⚠️ 同じ不変条件を tests/lp_cta.test.js も持っている（data-cta 側から固定している）。
+  //    片方だけ直すともう片方で必ず落ちる。両方を同時に直すこと。
   const heroBeta = html.match(/<a class="btn ([^"]*)hero__beta"/);
-  const heroWaitlist = html.match(/<a class="btn ([^"]*)hero__waitlist"/);
-  assert.ok(heroBeta, 'ヒーローの製品一覧ボタンがありません');
-  assert.ok(heroWaitlist, 'ヒーローの Waitlist ボタンがありません');
-  assert.ok(!heroBeta[1].includes('btn--signal'), 'ベータ版（製品一覧）を主 CTA と同じ強さにしない');
-  assert.ok(heroWaitlist[1].includes('btn--signal'), 'ヒーローの主 CTA は待機リストである');
-  // Waitlist 本体のフォーム側 CTA は主のまま
+  assert.ok(heroBeta, 'ヒーローの製品一覧（β版）ボタンがありません');
+  assert.ok(
+    !html.includes('hero__waitlist'),
+    'ヒーローに Waitlist ボタンが残っています（T-020 で出力しないと決めた）',
+  );
+  assert.ok(
+    !html.includes('data-cta="hero_waitlist"'),
+    'ヒーローに data-cta="hero_waitlist" が残っています',
+  );
+  // signal（オレンジの塗り）は待機リストの色のまま。β版には当てない
+  assert.ok(!heroBeta[1].includes('btn--signal'), 'β版を待機リストと同じ signal の面にしない');
+  // ヘッダの待機リストと Waitlist 本体のフォーム側 CTA は主のまま
+  assert.ok(html.includes('data-cta="header_waitlist"'), 'ヘッダの待機リスト導線がありません');
   assert.ok(html.includes('<button type="submit" class="btn btn--signal btn--block">'));
 });
 
 test('製品一覧がまだ無いときはベータ版の導線を出さない', () => {
   const html = renderLp({ betaPath: null });
   assert.ok(!html.includes('/ja/protein/'));
-  assert.ok(!html.includes('ベータ版'));
+  // 2026-09-02（T-020）にヒーローの文言が「（ベータ版）」→「（β版）」へ変わった。
+  // 見張る中身は同じ（β版の導線の文言が漏れていないこと）。
+  assert.ok(!html.includes('β版'));
 });
 
 test('🔒 ヒーローのランキングは実データで、ol でマークアップされる', () => {
