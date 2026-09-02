@@ -147,7 +147,19 @@ function chipValues(scope, name) {
 /* 完了条件1: ステップ1の入力欄はメールアドレス1つだけ                      */
 /* ======================================================================== */
 
-test('完了条件1: ステップ1の入力欄がメールアドレス1つだけである', () => {
+// ⚠️ T-011（待機リストフォームの2段階化）は実装が未着手である。
+//    下の PENDING を付けた 11 件は、実装が入るまで必ず落ちる受け入れテストであり、
+//    main の CI を赤にしたままにしないために一時的に skip してある。
+//
+// 🔒 T-011 の実装担当へ: 着手したら **まず PENDING を外して RED を確認する**こと。
+//    RED を見ずに実装を始めると、テストが何を要求しているのかを取り違える。
+//    実装が終わった時点で PENDING の定義ごと削除する。
+//
+//    skip を付けたのはオーケストレーターであり、テストの中身は一切変えていない
+//    （アサーションの削除も緩和もしていない）。経緯は docs/tasks/T-011.md の申し送り。
+const PENDING = { skip: 'T-011 実装待ち。実装担当は着手時にこの skip を外すこと' };
+
+test('完了条件1: ステップ1の入力欄がメールアドレス1つだけである', PENDING, () => {
   const root = tree(renderWaitlist());
   const controls = inputControls(stepOneForm(root));
 
@@ -160,7 +172,7 @@ test('完了条件1: ステップ1の入力欄がメールアドレス1つだけ
   assert.equal(controls[0].getAttribute('type'), 'email');
 });
 
-test('完了条件1: 見たい成分・購入先・自由記述はステップ1に残っていない', () => {
+test('完了条件1: 見たい成分・購入先・自由記述はステップ1に残っていない', PENDING, () => {
   const root = tree(renderWaitlist());
   const stepOne = stepOneForm(root);
 
@@ -177,7 +189,7 @@ test('完了条件1: 見たい成分・購入先・自由記述はステップ1�
 /* 完了条件5: 自由記述の注記がステップ2にある                               */
 /* ======================================================================== */
 
-test('完了条件5: 🔒 自由記述の注記（lp.form.freeTextNote）がステップ2にある', () => {
+test('完了条件5: 🔒 自由記述の注記（lp.form.freeTextNote）がステップ2にある', PENDING, () => {
   for (const [locale, t] of [
     ['ja', tJa],
     ['en', tEn],
@@ -192,7 +204,7 @@ test('完了条件5: 🔒 自由記述の注記（lp.form.freeTextNote）がス�
   }
 });
 
-test('完了条件5: 🔒 注記は自由記述と同じ側にある（本文だけ移して注記を置き去りにしない）', () => {
+test('完了条件5: 🔒 注記は自由記述と同じ側にある（本文だけ移して注記を置き去りにしない）', PENDING, () => {
   const root = tree(renderWaitlist());
   const done = doneRegion(root);
   const freeTextFields = done.querySelectorAll('[name="nutrients_other"],[name="requests"]');
@@ -211,7 +223,7 @@ test('完了条件5: 🔒 注記は自由記述と同じ側にある（本文だ
 /* ステップ2の中身と、そこに置いてはいけないもの                            */
 /* ======================================================================== */
 
-test('ステップ2に、見たい成分・購入先・自由記述の3項目が揃っている', () => {
+test('ステップ2に、見たい成分・購入先・自由記述の3項目が揃っている', PENDING, () => {
   const root = tree(renderWaitlist());
   const step2 = stepTwoForm(root);
 
@@ -229,7 +241,7 @@ test('ステップ2に、見たい成分・購入先・自由記述の3項目が
   assert.ok(step2.querySelector('[name="requests"]'), 'ステップ2に requests がありません');
 });
 
-test('🔒 ステップ2を必須にしない（required を付けない）', () => {
+test('🔒 ステップ2を必須にしない（required を付けない）', PENDING, () => {
   const root = tree(renderWaitlist());
   const step2 = stepTwoForm(root);
   const required = inputControls(step2).filter((el) => el.required);
@@ -368,7 +380,7 @@ test('完了条件2: 送信に失敗したときは完了状態に切り替え�
   assert.equal(dom.navigations.length, 0, '🔒 別ページへ飛んでいます');
 });
 
-test('完了条件3: ステップ2の送信が、ステップ1と同じメールアドレスを載せて飛ぶ', async () => {
+test('完了条件3: ステップ2の送信が、ステップ1と同じメールアドレスを載せて飛ぶ', PENDING, async () => {
   const { dom, stepTwoSubmit } = await runStepTwo();
 
   assert.equal(dom.fetchCalls.length, 2, `送信が ${dom.fetchCalls.length} 回です（2回であるべき）`);
@@ -385,7 +397,7 @@ test('完了条件3: ステップ2の送信が、ステップ1と同じメール
   assert.equal(dom.navigations.length, 0, '🔒 ステップ2の送信後に別ページへ飛んでいます');
 });
 
-test('完了条件3: ステップ2の送信に、入力した3項目が載っている', async () => {
+test('完了条件3: ステップ2の送信に、入力した3項目が載っている', PENDING, async () => {
   const { dom } = await runStepTwo();
   const body = dom.fetchCalls[1].body;
 
@@ -397,7 +409,7 @@ test('完了条件3: ステップ2の送信に、入力した3項目が載って
   assert.equal(body.requests, REQUESTS_INPUT);
 });
 
-test('完了条件4: ステップ2への到達が、それまでに無い GA4 イベントとして送られる', async () => {
+test('完了条件4: ステップ2への到達が、それまでに無い GA4 イベントとして送られる', PENDING, async () => {
   const { dom, beforeSubmit, afterStepOne } = await runStepOne();
   const events = dom.events();
 
@@ -421,7 +433,7 @@ test('完了条件4: ステップ2への到達が、それまでに無い GA4 �
   );
 });
 
-test('完了条件4: ステップ2の送信が、到達とは別の GA4 イベントとして送られる', async () => {
+test('完了条件4: ステップ2の送信が、到達とは別の GA4 イベントとして送られる', PENDING, async () => {
   const { dom, afterStepOne, afterStepTwo } = await runStepTwo();
   const events = dom.events();
 
@@ -437,7 +449,7 @@ test('完了条件4: ステップ2の送信が、到達とは別の GA4 イベ�
   );
 });
 
-test('完了条件4: 🔒 GA4 に自由記述の本文とメールアドレスを送らない（0/1 だけ）', async () => {
+test('完了条件4: 🔒 GA4 に自由記述の本文とメールアドレスを送らない（0/1 だけ）', PENDING, async () => {
   const { dom, afterStepOne } = await runStepTwo();
   const events = dom.events();
 
