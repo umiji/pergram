@@ -24,3 +24,6 @@ docs/design/Product_page_sp_mock/
 .env.*
 !.env.example
 # --- /Media Agent ---
+
+# --- AI開発組織のスクリプトが作る中間ファイル ---
+.claude/scripts/__pycache__/
