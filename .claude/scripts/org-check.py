@@ -175,11 +175,22 @@ def is_blank(body: str) -> bool:
 
 
 def section(text: str, name: str) -> str:
-    """見出し `## name` から次の見出しまでの本文を返す。"""
-    out, inside = [], False
+    """見出し `## name` から、同じ深さ以上の次の見出しまでの本文を返す。
+
+    🔒 小見出し（`###` 以下）は節の内側として扱う。以前はここで `#` で始まる行を
+       すべて切れ目とみなしていたため、`### ...` で書き始めた節が丸ごと「空」と読まれ、
+       証拠を書いてある完了タスクに「証拠が空」の誤警告が出ていた（2026-09-02 修正）。
+    """
+    out, inside, depth = [], False, 0
     for line in text.splitlines():
-        if line.startswith("#"):
-            inside = line.strip().lstrip("#").strip() == name
+        stripped = line.strip()
+        if stripped.startswith("#"):
+            level = len(stripped) - len(stripped.lstrip("#"))
+            if inside and level > depth:
+                out.append(line)  # 小見出しは中身の一部
+                continue
+            inside = stripped.lstrip("#").strip() == name
+            depth = level if inside else 0
             continue
         if inside:
             out.append(line)
