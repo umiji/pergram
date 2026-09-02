@@ -64,10 +64,20 @@ jobs:
             echo
             echo "- 失敗したログ: $RUN_URL"
             echo
-            echo "**まず疑うところ:** 楽天は商品検索 API の版（エンドポイント末尾の日付）を予告して廃止する。"
-            echo "廃止されると認証もリファラ審査も通ったうえで 400 API Configuration not found が返るため、"
-            echo "認証情報が失効したように見える。その場合は scripts/rakuten_api.js の ENDPOINT の版を"
-            echo "差し替えれば直る（2026-08-17 に 20220601 が廃止された前例あり）。"
+            echo "**まずログの「心当たり:」の行を読む。** scripts/rakuten_api.js の describeApiFailure が"
+            echo "楽天の応答から原因の当たりを付けて出している。出ていない場合は下の表で切り分ける。"
+            echo
+            echo "楽天の応答は、原因が違っても揃って「認証情報が失効した」ように見える。**直す場所が違う。**"
+            echo
+            echo "| 応答 | 原因 | 直す場所 |"
+            echo "|---|---|---|"
+            echo "| 400 API Configuration not found | API の版（エンドポイント末尾の日付）が廃止された。認証もリファラ審査も通ったうえで返る | scripts/rakuten_api.js の ENDPOINT の版を差し替える（2026-08-17 に 20220601 が廃止された前例あり） |"
+            echo "| 403 HTTP_REFERRER_NOT_ALLOWED | Referer に載せた RAKUTEN_APP_URL が、楽天デベロッパー画面に登録したアプリ URL と一致していない。**値は届いている** | 両者を突き合わせる。**ドメインを移したときは GitHub 側の更新漏れを最初に疑う**（2026-08-24 の pergram.site への移行で、Environment pergram-dev の RAKUTEN_APP_URL だけが旧ドメインのまま残り、12日間止まった） |"
+            echo "| 403 REQUEST_CONTEXT_BODY_HTTP_REFERRER_MISSING | Referer が送られていない。上の NOT_ALLOWED とは別 | RAKUTEN_APP_URL が空でないか。Environment pergram-dev の宣言が workflow から消えていないか |"
+            echo "| 未設定: RAKUTEN_... | Environment pergram-dev の secret が読めていない | workflow の environment: pergram-dev の宣言と、secret 4つの存在を確認する |"
+            echo
+            echo "🔒 秘密の値をこの Issue やログに貼らないこと。突き合わせは楽天デベロッパー画面と"
+            echo "GitHub の設定画面の上で行う。"
             echo
             echo "復旧したらこの Issue を閉じてください。"
           } > "$BODY"

@@ -7,6 +7,8 @@
  *    実際にそれが起きた（収集は移行済み、価格更新は旧エンドポイントのまま）。
  */
 
+import { SITE_ORIGIN } from '../src/lib/site.js';
+
 /**
  * 🔒 2026-02-10 の認証基盤刷新でドメインと認証方式が変わった。
  *    旧 `app.rakuten.co.jp/services/api/` + 19桁の applicationId 単独では 400 になる。
@@ -47,6 +49,71 @@ export function apiHeaders({ appUrl, purpose }) {
     Referer: appUrl,
     Origin: new URL(appUrl).origin,
   };
+}
+
+/**
+ * 失敗した応答から、直す場所の当たりを付ける。**握り潰さない。**
+ * 呼び出し側は投げるエラーにこの一言を足すだけで、失敗はそのまま失敗として落ちる。
+ *
+ * 🔒 このワークフローは、まったく違う原因で2度止まっている。
+ *    2026-08-17 は版の廃止（400）、2026-08-25 は Referer の不一致（403）。
+ *    どちらも「認証情報が失効した」ように見えるのに、直す場所が別なので、
+ *    応答の見分け方をコード側に固定する。
+ *
+ * 🔒 手がかりに認証情報の実値を混ぜない（App URL も含む）。GitHub Actions の
+ *    ログにそのまま出る。一致するか否かだけを言い、値は言わない。
+ *
+ * @param {{status: number, body: string, appUrl?: string}} args
+ * @returns {string} 心当たりが無ければ空文字
+ */
+export function describeApiFailure({ status, body, appUrl }) {
+  const text = typeof body === 'string' ? body : '';
+
+  if (status === 400 && text.includes('API Configuration not found')) {
+    return (
+      'API の版（エンドポイント末尾の日付）が廃止されている疑いが濃い。' +
+      '認証もリファラ審査も通ったうえで返るため、キーが失効したように見える。' +
+      'scripts/rakuten_api.js の ENDPOINT の版を差し替える（2026-08-17 に 20220601 が廃止された前例あり）。'
+    );
+  }
+
+  if (text.includes('REQUEST_CONTEXT_BODY_HTTP_REFERRER_MISSING')) {
+    return (
+      'REQUEST_CONTEXT_BODY_HTTP_REFERRER_MISSING — Referer が送られていない。' +
+      'RAKUTEN_APP_URL が空でないか確認する。値が届いたうえで拒否される' +
+      'HTTP_REFERRER_NOT_ALLOWED とは別のエラーである。'
+    );
+  }
+
+  if (text.includes('HTTP_REFERRER_NOT_ALLOWED')) {
+    return (
+      'HTTP_REFERRER_NOT_ALLOWED — Referer に載せた RAKUTEN_APP_URL が、' +
+      '楽天デベロッパー画面に登録したアプリ URL と一致していない。' +
+      'Referer が届いていない場合（REQUEST_CONTEXT_BODY_HTTP_REFERRER_MISSING）とは別で、' +
+      '届いたうえで拒否されている。ドメインを移したのに RAKUTEN_APP_URL を' +
+      '更新していないときに起きる。' +
+      refererOriginNote(appUrl)
+    );
+  }
+
+  return '';
+}
+
+/** 送った Referer が正規ドメインかどうかだけを言う。値そのものは言わない。 */
+function refererOriginNote(appUrl) {
+  const canonicalHost = new URL(SITE_ORIGIN).hostname;
+  let sentHost = null;
+  try {
+    sentHost = new URL(appUrl).hostname;
+  } catch {
+    return '送信した Referer が URL として読めなかった。RAKUTEN_APP_URL の形式を確認する。';
+  }
+
+  return sentHost === canonicalHost
+    ? '送信した Referer のホストは、このサイトの正規ドメインと一致している。' +
+        'その場合は楽天デベロッパー画面のアプリ URL 側を確認する。'
+    : `送信した Referer のホストは、このサイトの正規ドメイン（${canonicalHost}）と一致していない。` +
+        'GitHub Environment `pergram-dev` の RAKUTEN_APP_URL が古い可能性が高い。';
 }
 
 /**

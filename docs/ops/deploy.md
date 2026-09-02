@@ -84,15 +84,23 @@ Cloudflare ダッシュボード → Workers & Pages → 対象の Worker → Se
 ### GitHub Secrets（日次の価格更新に要る）
 
 `.github/workflows/prices.yml` が毎朝 06:00 JST に `refresh_prices.js` を回す。
-リポジトリの Settings → Secrets and variables → Actions に4つとも登録する。
-**1つでも欠けると実行前に停止する**（値は `.env.local` と同じ）。
+
+🔒 **置き場は Repository secrets ではなく Environment `pergram-dev`。**
+Settings → Environments → `pergram-dev` → Environment secrets に4つとも登録する
+（画面の場所: Settings → Secrets and variables → Actions の **Environment secrets** 側）。
+workflow の `environment: pergram-dev` の宣言と対になっており、片方だけだと
+`secrets.*` が空文字で入って「未設定」で止まる。**値は `.env.local` と同じ。**
 
 | Secret | 備考 |
 |---|---|
 | `RAKUTEN_APP_ID` | UUID 形式 |
 | `RAKUTEN_ACCESS_KEY` | `pk_` で始まる |
-| `RAKUTEN_APP_URL` | Referer に載せるアプリ URL |
+| `RAKUTEN_APP_URL` | Referer に載せるアプリ URL。🔒 **楽天デベロッパー画面に登録したアプリ URL と一致していないと 403 `HTTP_REFERRER_NOT_ALLOWED` になる。ドメインを移したらここも必ず更新する**（2026-08-24 の `pergram.site` 移行で更新が漏れ、日次更新が12日間止まった） |
 | `RAKUTEN_AFFILIATE_ID` | 🔒 欠けると購入リンクを素の URL で全上書きしてしまうため必須 |
+
+**ドメインを移すときに一緒に直すもの**（`src/lib/site.js` の `SITE_ORIGIN` だけでは足りない）:
+Environment `pergram-dev` の `RAKUTEN_APP_URL` / 楽天デベロッパー画面のアプリ URL /
+ローカルの `.env.local` の `RAKUTEN_APP_URL`。**3つは常に同じホストに保つ。**
 
 ⚠️ このジョブは `data/price_snapshots.json` を更新して `main` にコミットするだけで、
 **デプロイはしない。**価格の更新を公開に反映するには別途デプロイが要る。
