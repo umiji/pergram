@@ -26,8 +26,10 @@ export function siteHeader(t, { locale, betaPath = null }) {
     (id) => `<a href="#${id}">${escapeHtml(t(`lp.nav.${id}`))}</a>`,
   ).join('\n      ');
 
+  // 🔒 ベータ版は従。主 CTA（待機リスト）と同じ btn--signal を当てない。
+  //    消さずに押せる状態のまま、面の強さだけ下げる（T-010）。
   const beta = betaPath
-    ? `<a class="btn btn--signal" href="${escapeHtml(betaPath)}" data-cta="header_beta">
+    ? `<a class="btn btn--quiet" href="${escapeHtml(betaPath)}" data-cta="header_beta">
       <span class="u-desktop">${escapeHtml(t('lp.nav.beta'))}</span>
       <span class="u-mobile">${escapeHtml(t('lp.nav.betaShort'))}</span>
     </a>`
@@ -41,7 +43,7 @@ export function siteHeader(t, { locale, betaPath = null }) {
     </nav>
     <div class="site-head__actions">
       ${beta}
-      <a class="btn btn--subtle" href="#waitlist" data-cta="header_waitlist">
+      <a class="btn btn--signal" href="#waitlist" data-cta="header_waitlist">
         <span class="u-desktop">${escapeHtml(t('lp.nav.cta'))}</span>
         <span class="u-mobile">${escapeHtml(t('lp.nav.ctaShort'))}</span>
       </a>
@@ -123,8 +125,11 @@ export function hero(ctx) {
 
   const card = rankCard(ctx);
 
+  // 🔒 ヒーローの btn--signal は待機リストの1つだけ。ベータ版は btn--quiet で従に置く。
+  //    測っているのは購入ではなくメール登録であり、ベータ版の遷移先は
+  //    まだプレースホルダ価格を含むため主導線にできない（T-010 の決定ログ）。
   const beta = betaPath
-    ? `<a class="btn btn--signal btn--block hero__beta" href="${escapeHtml(betaPath)}" data-cta="hero_beta">${escapeHtml(
+    ? `<a class="btn btn--quiet btn--block hero__beta" href="${escapeHtml(betaPath)}" data-cta="hero_beta">${escapeHtml(
         t('lp.hero.beta', { nutrient: nutrientName }),
       )}</a>`
     : '';
@@ -137,9 +142,9 @@ export function hero(ctx) {
       <h1>${escapeHtml(t('lp.h1'))}</h1>
       <p class="hero__lede">${escapeHtml(t('lp.lede'))}</p>
       <div class="hero__actions">
-        ${beta}
-        <a class="btn btn--subtle btn--block hero__waitlist" href="#waitlist" data-cta="hero_waitlist">${escapeHtml(t('lp.cta'))}</a>
+        <a class="btn btn--signal btn--block hero__waitlist" href="#waitlist" data-cta="hero_waitlist">${escapeHtml(t('lp.cta'))}</a>
         <p class="hero__note">${escapeHtml(t('lp.ctaNote'))}</p>
+        ${beta}
       </div>
     </div>
     ${card}
