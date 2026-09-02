@@ -78,14 +78,27 @@
 
   /* ---- 待機リスト ----------------------------------------------------- */
 
-  var form = document.querySelector('.waitlist');
-  if (!form) return;
+  /*
+   * 2段階（T-011）。
+   *   ステップ1 … メールアドレスだけ。**ここを送った時点で登録は成立する**
+   *   ステップ2 … 完了状態の中。見たい成分・購入先・要望。任意
+   *
+   * 🔒 ステップ2はステップ1と同じメールアドレスを載せて同じ `/api/waitlist` へ送る。
+   *    Worker が同一レコードへ追記する（新しい行を作らない）。
+   * 🔒 到達（waitlist_step2_view）と送信（waitlist_step2_submit）を**別のイベント**で
+   *    数える。同じ名前にすると到達率が出せない。
+   */
 
-  var emailInput = form.querySelector('input[name="email"]');
-  var errorEl = form.querySelector('.form-error');
+  var stepOne = document.querySelector('.waitlist--step1');
+  if (!stepOne) return;
+
+  var emailInput = stepOne.querySelector('input[name="email"]');
   var doneEl = document.querySelector('.waitlist__done');
-  var button = form.querySelector('button[type="submit"]');
+  var stepTwo = doneEl ? doneEl.querySelector('.waitlist--step2') : null;
+  var stepTwoDone = doneEl ? doneEl.querySelector('.waitlist__step2-done') : null;
   var started = false;
+  /** ステップ1で登録できたメールアドレス。ステップ2の追記先を指す */
+  var registeredEmail = null;
 
   emailInput.addEventListener('focus', function () {
     if (started) return;
@@ -95,8 +108,8 @@
 
   // 「その他」の自由記述に書いたのにチップを選び忘れる、を防ぐ。
   // 逆（チップを外したら本文を消す）はやらない — 書いたものを勝手に捨てない。
-  var otherText = form.querySelector('[name="nutrients_other"]');
-  var otherCheck = form.querySelector('input[name="nutrients"][value="other"]');
+  var otherText = stepTwo && stepTwo.querySelector('[name="nutrients_other"]');
+  var otherCheck = stepTwo && stepTwo.querySelector('input[name="nutrients"][value="other"]');
   if (otherText && otherCheck) {
     otherText.addEventListener('input', function () {
       if (otherText.value.trim() !== '') otherCheck.checked = true;
@@ -106,20 +119,31 @@
     });
   }
 
-  function showError(message) {
+  function showError(form, message) {
+    var errorEl = form.querySelector('.form-error');
+    if (!errorEl) return;
     errorEl.textContent = message;
     errorEl.hidden = false;
   }
 
+  function clearError(form) {
+    var errorEl = form.querySelector('.form-error');
+    if (errorEl) errorEl.hidden = true;
+  }
+
+  function submitButton(form) {
+    return form.querySelector('button[type="submit"]');
+  }
+
   /** 自由記述。空欄は null にして、送信本文に空文字を混ぜない */
-  function fieldValue(name) {
+  function fieldValue(form, name) {
     var el = form.querySelector('[name="' + name + '"]');
     if (!el) return null;
     var value = el.value.trim();
     return value === '' ? null : value;
   }
 
-  function checkedValues(name) {
+  function checkedValues(form, name) {
     return Array.prototype.slice
       .call(form.querySelectorAll('input[name="' + name + '"]:checked'))
       .map(function (input) {
@@ -127,26 +151,11 @@
       });
   }
 
-  form.addEventListener('submit', function (event) {
-    event.preventDefault();
-    errorEl.hidden = true;
-
-    var email = emailInput.value.trim();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      showError(form.dataset.errorEmail);
-      emailInput.focus();
-      return;
-    }
-
-    var nutrients = checkedValues('nutrients');
-    // 購入先は掛け持ちが普通なので複数選択。1つに丸めない
-    var channels = checkedValues('channel');
-    var nutrientsOther = fieldValue('nutrients_other');
-    var requests = fieldValue('requests');
-
-    button.disabled = true;
-
-    // ネットワークが返らないまま押せない状態が続くのを避ける
+  /**
+   * 待機リストへの送信。ステップ1もステップ2もここを通る。
+   * ネットワークが返らないまま押せない状態が続くのを避けるため、時間で打ち切る。
+   */
+  function postWaitlist(payload) {
     var controller = typeof AbortController === 'function' ? new AbortController() : null;
     var timer = controller
       ? window.setTimeout(function () {
@@ -154,39 +163,94 @@
         }, REQUEST_TIMEOUT_MS)
       : null;
 
-    fetch('/api/waitlist', {
+    return fetch('/api/waitlist', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: email,
-        nutrients: nutrients,
-        channel: channels,
-        nutrients_other: nutrientsOther,
-        requests: requests,
-      }),
+      body: JSON.stringify(payload),
       signal: controller ? controller.signal : undefined,
     })
       .then(function (res) {
         if (!res.ok) throw new Error('request_failed');
+        return res;
+      })
+      .finally(function () {
+        if (timer !== null) window.clearTimeout(timer);
+      });
+  }
+
+  stepOne.addEventListener('submit', function (event) {
+    event.preventDefault();
+    clearError(stepOne);
+
+    var email = emailInput.value.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      showError(stepOne, stepOne.dataset.errorEmail);
+      emailInput.focus();
+      return;
+    }
+
+    var button = submitButton(stepOne);
+    if (button) button.disabled = true;
+
+    // 🔒 送るのはメールアドレスだけ。ステップ2の項目は空で上書きしない
+    //    （Worker 側も空では既存の回答を消さない）。
+    postWaitlist({ email: email })
+      .then(function () {
+        registeredEmail = email;
+        // 🔒 メールアドレスは送らない。登録できたという事実だけを数える。
+        track('waitlist_submit', {});
+        stepOne.hidden = true;
+        doneEl.hidden = false;
+        doneEl.focus();
+        // 到達。ここを分母にしてステップ2の回答率を出す
+        if (stepTwo) track('waitlist_step2_view', {});
+      })
+      .catch(function () {
+        if (button) button.disabled = false;
+        showError(stepOne, stepOne.dataset.errorSend);
+      });
+  });
+
+  if (!stepTwo) return;
+
+  stepTwo.addEventListener('submit', function (event) {
+    event.preventDefault();
+    clearError(stepTwo);
+    if (!registeredEmail) return;
+
+    var nutrients = checkedValues(stepTwo, 'nutrients');
+    // 購入先は掛け持ちが普通なので複数選択。1つに丸めない
+    var channels = checkedValues(stepTwo, 'channel');
+    var nutrientsOther = fieldValue(stepTwo, 'nutrients_other');
+    var requests = fieldValue(stepTwo, 'requests');
+
+    var button = submitButton(stepTwo);
+    if (button) button.disabled = true;
+
+    postWaitlist({
+      // 🔒 ステップ1と同じメールアドレス。これが同一レコードへの追記の鍵になる
+      email: registeredEmail,
+      nutrients: nutrients,
+      channel: channels,
+      nutrients_other: nutrientsOther,
+      requests: requests,
+    })
+      .then(function () {
         // 🔒 メールアドレスは送らない。選択内容のみ。
         //    自由記述は**本文を送らない**。書かれたかどうかだけを数える
         //    （症状や固有名詞が GA4 に流れる経路を作らない）。
-        track('waitlist_submit', {
-          selected_nutrients: nutrients.join(','),
+        track('waitlist_step2_submit', {
+          selected_nutrients: nutrients.join(',') || '(none)',
           purchase_channel: channels.join(',') || '(none)',
           has_nutrients_other: nutrientsOther ? 1 : 0,
           has_requests: requests ? 1 : 0,
         });
-        form.hidden = true;
-        doneEl.hidden = false;
-        doneEl.focus();
+        stepTwo.hidden = true;
+        if (stepTwoDone) stepTwoDone.hidden = false;
       })
       .catch(function () {
-        button.disabled = false;
-        showError(form.dataset.errorSend);
-      })
-      .finally(function () {
-        if (timer !== null) window.clearTimeout(timer);
+        if (button) button.disabled = false;
+        showError(stepTwo, stepTwo.dataset.errorSend);
       });
   });
 })();
