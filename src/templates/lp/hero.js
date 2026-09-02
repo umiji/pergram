@@ -125,11 +125,17 @@ export function hero(ctx) {
 
   const card = rankCard(ctx);
 
-  // 🔒 ヒーローの btn--signal は待機リストの1つだけ。ベータ版は btn--quiet で従に置く。
-  //    測っているのは購入ではなくメール登録であり、ベータ版の遷移先は
-  //    まだプレースホルダ価格を含むため主導線にできない（T-010 の決定ログ）。
+  // 🔒 ヒーローの CTA はβ版（製品一覧）の1つだけ。待機リストのボタンはここには出さない
+  //    （2026-09-02 T-020、PO の指示による見せ方の実験）。**CSS で隠すのではなく出力しない。**
+  //    隠すと読み上げには残り、「見えないボタン」になる。
+  //    待機リストへの導線はヘッダ（header_waitlist）とページ下部のフォームに残っている。
+  // 🔒 面は btn--dark（--ink の塗り）。ヘッダのβ版（btn--quiet の透明な面）と変えて
+  //    ヒーローでだけ目立たせるためで、signal（オレンジ）は待機リストの色として空けてある。
+  // ⚠️ ラベルは locales 側で literal にしてある。`{nutrient}` を置くと成分名の
+  //    「タンパク質」になり、PO の指定した「プロテイン」にならないためである。
+  //    引数は残してあるので、`{nutrient}` を含む文言へ戻せば従来どおり置換される。
   const beta = betaPath
-    ? `<a class="btn btn--quiet btn--block hero__beta" href="${escapeHtml(betaPath)}" data-cta="hero_beta">${escapeHtml(
+    ? `<a class="btn btn--dark btn--block hero__beta" href="${escapeHtml(betaPath)}" data-cta="hero_beta">${escapeHtml(
         t('lp.hero.beta', { nutrient: nutrientName }),
       )}</a>`
     : '';
@@ -142,8 +148,6 @@ export function hero(ctx) {
       <h1>${escapeHtml(t('lp.h1'))}</h1>
       <p class="hero__lede">${escapeHtml(t('lp.lede'))}</p>
       <div class="hero__actions">
-        <a class="btn btn--signal btn--block hero__waitlist" href="#waitlist" data-cta="hero_waitlist">${escapeHtml(t('lp.cta'))}</a>
-        <p class="hero__note">${escapeHtml(t('lp.ctaNote'))}</p>
         ${beta}
       </div>
     </div>
