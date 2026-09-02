@@ -101,11 +101,14 @@
   border-color: var(--signal);
 }
 
-/* ベータ版（製品一覧）への副次 CTA */
+/* ベータ版（製品一覧）への副次 CTA。面を持たないので、押せることを示すのは輪郭だけ。
+   🔒 その輪郭は --line-control（紙地に対して 3.35:1）である。装飾の罫線 --line は
+   1.23:1 しかなく、WCAG 2.2 AA の SC 1.4.11 を満たさない。--line へ戻さない。
+   主従は保つ: 主（待機リスト）は面のある .btn--signal 、従はこの輪郭だけの表現。 */
 .btn--quiet {
   background: transparent;
   color: var(--ink);
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-control);
   border-radius: var(--radius-cta);
 }
 .btn--quiet:hover {
