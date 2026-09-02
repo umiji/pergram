@@ -1,0 +1,163 @@
+# Media Agent プロジェクト設定
+# 未知のキーは検証エラーになります (FR-4)。設定できる項目は README とスキーマを参照。
+
+project:
+  name: "pergram"
+
+media:
+  primary_platform: x
+
+content:
+  posts_per_day: 3
+  candidates_per_run: 3      # 1 回の生成で作る Post 候補の数
+  similarity_threshold: 0.85 # この値以上の類似度を重複とみなす
+  personas:
+    # 曜日ごとに読み手を割り当てます。値は personas/<id>.md の <id> です。
+    # 書かなければ従来どおり strategy.md だけで生成します。
+    # 実行のたびではなく曜日で固定するのは、あとから「火曜の伸びが良い」と
+    # 比較できるようにするためです。--persona でその回だけ上書きできます。
+    schedule: {}
+    #  mon: cost-trainee
+    #  tue: dieter
+  playbooks:
+    # 採用中の投稿の型。値は playbooks/<id>.md の <id> です。
+    # ペルソナと違い曜日で切り替えません（日替わりにすると効果を測れないため）。
+    # `media-agent x learn` が作るのは playbooks/proposals/ 配下の「提案」で、
+    # `media-agent playbook apply <id>` で人が採用するまで生成には使われません。
+    active:
+
+automation:
+  require_approval: false
+
+policy:
+  actions:
+    post:
+      mode: auto             # auto / approval / disabled
+      max_per_day: 3
+      max_per_hour: 2
+    reply:
+      mode: approval
+    repost:
+      mode: approval
+    like:
+      mode: disabled
+  forbidden_topics: []
+  forbidden_users: []
+  approval_required_topics: []
+
+connectors:
+  timeout_seconds: 15.0
+  rss:
+    enabled: true
+    feeds: []
+  google_news:
+    enabled: false
+    queries: []
+    language: ja
+    region: JP
+  web:
+    enabled: false
+    urls: []
+    respect_robots_txt: true
+  x_search:
+    # X の検索結果を Source へ昇格させます（research / run のネタ元になります）。
+    # 有効にすると research のたびにブラウザ経路が動くので、既定は false です。
+    # x_reader.enabled も true でないと動きません（安全弁は 2 重）。
+    enabled: false
+    queries: []
+    limit: 20
+    min_impressions: 0
+
+ai:
+  provider: claude_code      # claude_code / stub
+  command: claude
+  timeout_seconds: 120.0
+
+publisher:
+  # dummy_x: 送信ペイロードを data/outbox/ に記録するだけ（既定・実配信しません）
+  # buffer : Buffer 経由で実配信します。X の API は直接呼びません。
+  #          API キーは .env.local の BUFFER_API_KEY から読みます（config には書きません）。
+  connector: dummy_x
+  buffer:
+    channel_id:              # 未指定なら service が一致する最初のチャンネルを使います
+    service: twitter         # Buffer 側の識別子。X は互換性のため twitter のままです
+    # 投稿 1 件ごとの配信タイミング
+    #   queue: スロット表の次の空きに入れる（既定） / next: 次の空きへ割り込む
+    #   now  : 即時投稿する                       / draft: 下書き保存（公開されません）
+    # 「木曜 08:15」のようなスロット表そのものは publish.buffer.com の画面で設定します
+    # （Buffer の API に投稿スケジュールを変更する手段がないため）。
+    schedule: queue
+    timeout_seconds: 30.0
+  retry_attempts: 3
+  retry_interval_seconds: 1.0
+
+x_reader:
+  # X を読む経路（Epic 14）。**既定は無効です。**
+  # ここを true にしない限り X へのアクセスは起きません。
+  #
+  # 資格情報はここに書きません。読み取り用アカウントの Cookie は
+  # .env.local の X_READER_COOKIE / X_READER_HANDLE から読みます。
+  # **必ず使い捨てのアカウントを使ってください。** 本体アカウントの Cookie を
+  # 使うと、凍結したときに投稿チャネルそのものを失います。
+  enabled: false
+  # syndication: 認証なし。本文・いいね・リプライ数まで（表示回数は取れません）
+  # browser   : 捨てアカウントのブラウザ。表示回数・検索・トレンドはこちら
+  routes: [syndication, browser]
+  # 指標を測る対象＝運用しているアカウントのハンドル（@ なし）。
+  # 読み取りに使う捨てアカウント (X_READER_HANDLE) とは別物です。
+  own_handle:
+  # クラウド / CI 環境からの読み取りを許可するか。**既定は false のままにしてください。**
+  # X の読み取りは自宅回線から行う決まりです（データセンター IP は X 側の検出対象で、
+  # 捨てアカウントの凍結確率が上がります）。CI / PaaS / サーバレスを検出すると
+  # 読み取り経路の組み立て自体を止めます。モバイルからは Remote Control で
+  # 自宅の PC を動かす形にしてください。
+  allow_cloud_execution: false
+  browser:
+    channel: chrome        # 実ブラウザを使います。headless の既定は検出されます
+    profile_dir:           # 未指定なら data/x-profile/ を使います
+    headless: false
+  pacing:
+    # 安全弁です。既定値は保守的に置いてあります。緩めるのは明示的な判断で。
+    min_wait_seconds: 4
+    max_wait_seconds: 11
+    max_requests_per_run: 8
+    max_requests_per_day: 30
+    # この回数だけ連続で失敗すると経路を無効化します。
+    # 無効化は人が `media-agent x reset` するまで解除されません。
+    circuit_breaker_failures: 3
+  search:
+    default_limit: 20
+    # 検索タブです。live = 新着順（既定） / top = 人気順。
+    # **人気順は検索語に厳密一致しない「関連する投稿」を混ぜて返します。**
+    # 「筋トレ」で恋愛論の投稿が上位に残るのはこのタブの仕様どおりの動きです。
+    # 新着順は厳密一致なので、話題のずれが混ざりません。
+    # **ただし新着順は「新しい順」なので、検索語だけを渡すとまだ伸びていない
+    # 投稿ばかりが集まります。** 下の filters に min_faves:N を必ず入れてください
+    # （X 側が先に母集団を絞るので、伸びている投稿が新しい順で返ります）。
+    tab: live
+    # 収穫した後にこちら側で落とす表示回数の下限です（検索演算子ではありません）。
+    # 0 なら絞りません。**下の filters と役割が違います** — filters は X に投げる
+    # 絞り込み、こちらは受け取った後の絞り込みです。表示回数の下限は X の
+    # 検索演算子としては存在しないので、絞るならここを使います。
+    # **新着順で使うときは filters の min_faves と併用してください。**
+    # 素の検索語＋ここだけだと、新着は表示回数が 1 桁なので全部落ちます。
+    min_impressions: 0
+    # 毎回の検索に足す検索演算子です。空なら何も足しません。
+    # **すべて新着順タブ (f=live) で実測済みです。**
+    # 効くもの:
+    #   min_faves:N / min_retweets:N / min_replies:N / lang:ja / -filter:replies
+    # **効かないもの**（演算子として存在せず、その文字列の検索になります）:
+    #   min_impressions:N ... 表示回数の下限は指定できません
+    #   followers_count:N ... フォロワー数の下限も指定できません
+    # 表示回数で絞りたい場合は min_faves: が代わりになります。
+    # 例: ["min_faves:1000", "lang:ja", "-filter:replies"]
+    filters: []
+    # 一覧ページの本文は途中までになることがあります。長すぎて「さらに表示」に
+    # 畳まれている場合と、続きが次の投稿にある（連投）場合の 2 通りです。
+    # 後者は一覧からは見分けられないので、**表示回数の上位からこの件数だけ**
+    # 投稿ごとのページを開いて本文を完全にします（連投の続きも繋ぎます）。
+    # **1 件につきリクエストが 1 件増えます**（1 実行の上限は下の
+    # pacing.max_requests_per_run）。0 にすると個別ページを一切開きません。
+    expand_top_posts: 3
+  trends:
+    woeid: 23424856        # 日本
