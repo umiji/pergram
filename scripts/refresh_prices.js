@@ -17,7 +17,14 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import { validateDataset } from '../src/lib/validate.js';
-import { apiHeaders, buildApiUrl, pickBuyUrl, pickPostageIncluded, readCredentials } from './rakuten_api.js';
+import {
+  apiHeaders,
+  buildApiUrl,
+  describeApiFailure,
+  pickBuyUrl,
+  pickPostageIncluded,
+  readCredentials,
+} from './rakuten_api.js';
 
 const REQUEST_INTERVAL_MS = 1100;
 const DATA = 'data';
@@ -63,7 +70,12 @@ async function fetchByItemCode({ appId, accessKey, affiliateId, appUrl, itemCode
   const res = await fetch(url, { headers: apiHeaders({ appUrl, purpose: 'price refresh' }) });
   if (res.status === 404) return null;
   if (!res.ok) {
-    throw new Error(`楽天 API が ${res.status} を返しました: ${await res.text()}`);
+    // 🔒 手がかりを足すだけ。リトライもフォールバックもしない。失敗は失敗のまま落とす。
+    const body = await res.text();
+    const hint = describeApiFailure({ status: res.status, body, appUrl });
+    throw new Error(
+      `楽天 API が ${res.status} を返しました: ${body}${hint ? `\n\n心当たり: ${hint}` : ''}`,
+    );
   }
 
   const json = await res.json();
