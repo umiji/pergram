@@ -351,7 +351,7 @@
 |---|---|
 | 実データ | 未収集。**LP（`/ja/`）は常に出力される。**20件揃うまで出ないのはヒーローのランキングカードだけ（`build.js` の `MIN_HERO_PRODUCTS`） |
 | 製品画像のライセンス | 取得元の規約を確認中。実装側は URL 欠損時の代替表現を用意済み |
-| ドメイン | 未取得 |
+| ドメイン | **`pergram.site` を取得済み。2026-08-24 から本番稼働**（当初は `*.workers.dev` 直下だった）。未確定なのは**旧 `pergram.pergram-official.workers.dev` を畳む時期**のほうで、畳むまでは `worker/index.js` が恒久転送する。手順と実測は [ops/deploy.md](../ops/deploy.md) の「決めていないこと」 |
 | 書体 | Noto Sans JP / JetBrains Mono に確定。**ただし §8 の self-host は未達**（下記） |
 | ロゴ | JetBrains Mono 700 のワードマーク。ルーラーティックは廃止 |
 
