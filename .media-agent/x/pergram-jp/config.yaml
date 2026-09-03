@@ -19,11 +19,11 @@ content:
     schedule:
       mon: price-shock
       tue: price-shock
-      wed: sale-hunter
+      wed: beauty-first
       thu: price-shock
       fri: sale-hunter
       sat: builder
-      sun: price-shock
+      sun: beauty-first
     #  mon: cost-trainee
     #  tue: dieter
   playbooks:
@@ -31,7 +31,7 @@ content:
     # ペルソナと違い曜日で切り替えません（日替わりにすると効果を測れないため）。
     # `media-agent x learn` が作るのは playbooks/proposals/ 配下の「提案」で、
     # `media-agent playbook apply <id>` で人が採用するまで生成には使われません。
-    active: spread
+    active: unit-price
 
 automation:
   require_approval: true
