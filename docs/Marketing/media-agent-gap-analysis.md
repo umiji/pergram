@@ -465,3 +465,61 @@ phrases: 18        ← すべて「## 禁止事項」節の長文。「## 禁止
 | `docs/Marketing/X_kgi_2weeks.md` | §9（型の効果の測り方）、C-2、L165-166 |
 | `docs/decisions-index.md` | 「計測 / X運用」節（T-027・2026-09-02） |
 | `dist/_redirects` | 現在 1 行のみ |
+
+---
+
+## 訂正 — G-06 / G-07 は誤りだった（2026-09-03、PO の指摘による）
+
+**Buffer の API はツリー投稿と画像添付の両方に対応している。** 本書 §2 の G-06 / G-07 を
+「経路が無い ── Blocker」と判定したのは誤りであり、§4.1 の「手当てをしても機構では解けない」も
+成り立たない。**§3.2 の B-07 / B-08 が「Buffer の API が対応しているか未確認」と書いていた
+とおり、未確認のまま §2 で Blocker と断定していた。**
+
+### 何を根拠に誤ったか
+
+調査したのは **`media-agent` 側のクライアント実装** `connectors/buffer.py` だけである。
+`_CREATE_POST` が組み立てる入力フィールドは `text` / `channelId` / `schedulingType` /
+`mode` / `dueAt` / `saveToDraft` の6つしかなく、返信先も画像も無い。
+**そこから「Buffer にその機能が無い」と結論した。これは根拠の種類の取り違えである** ——
+クライアントが送っていないことは、API が受け付けないことの証明にならない。
+
+### 実際の API 仕様（Buffer GraphQL API のドキュメント）
+
+| 型 | フィールド | 意味 |
+|---|---|---|
+| `TwitterPostMetadataInput` | **`thread: [ThreadedPostInput!]`** | 「スレッドを構成する投稿の順序付きリスト」 |
+| `ThreadedPostInput` | `text: String` | ツリー各投稿の本文 |
+| `ThreadedPostInput` | **`assets: [AssetInput!]!`** | 「この threaded post に付く順序付きのアセット」 |
+| `AssetInput` | `image: ImageAssetInput` ほか | 画像・動画・ドキュメント |
+
+`createPost` は `metadata` フィールドで各ネットワーク固有の設定を受け取り、
+X/Twitter は `metadata.twitter` に上記が入る。
+
+出典: [TwitterPostMetadataInput](https://developers.buffer.com/types/TwitterPostMetadataInput.html) /
+[ThreadedPostInput](https://developers.buffer.com/types/ThreadedPostInput.html) /
+[AssetInput](https://developers.buffer.com/types/AssetInput.html) /
+[Posts & Scheduling](https://developers.buffer.com/guides/posts-and-scheduling.html)
+
+### 訂正後の判定
+
+| ID | 訂正前 | **訂正後** |
+|---|---|---|
+| G-06 画像 | Blocker「経路が無い」 | **Major「こちらのクライアントが送っていないだけ」。** API は `assets` を受け取る |
+| G-07 ツリー | Blocker「経路が無い」 | **Major「こちらのクライアントが送っていないだけ」。** API は `metadata.twitter.thread` を受け取る |
+
+**残る本当の制約は「投稿の削除・更新の mutation が無い」ことと「スロット表を API から変えられない」ことだけである。**
+この2つは本書の他の箇所で実測しており、訂正の対象ではない。
+
+### この訂正が動かすもの
+
+- **T-037（下書き登録スクリプト）** が、`BufferConnector` を再利用せず **`metadata.twitter.thread` を
+  自前で組み立てる**ことで、ツリーを1回の呼び出しで登録できる。**本体（リポジトリ外）を触らずに解ける**
+- **T-041（カード画像）** の成果物を `assets` に載せられる。配信時刻の手作業が不要になりうる
+- **Q-008（画像とツリーを手作業で運用に入れるか）の前提が崩れた。** 差し戻して問い直す
+
+### 未確認のまま残るもの
+
+- `ImageAssetInput` が**公開 URL を受け取るのか、先に別のアップロードを要するのか**。
+  画像を自動化できるかは、ここで決まる
+- **`saveToDraft: true` と `metadata.twitter.thread` を同時に指定できるか。**
+  下書き＋人の目視という安全弁を保ったままツリーを組めるかは、これに依存する
