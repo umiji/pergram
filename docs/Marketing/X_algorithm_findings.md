@@ -113,7 +113,7 @@ README の行動一覧も `favorite / reply / repost / quote / share / share via
 |---|---|---|
 | **W-1** | **最も重い正の行動は「リンクをコピーして人に送る」（20.0）である。**「保存」ではない | `X_growth_design.md` §5.4 |
 | **W-2** | **プロフィールクリックの重みは 0.0 である。** 押されても**次の露出は1ミリも増えない** | §2.4 / §6.6 の判定指標 |
-| **W-3** | **相互フォローの相手からのリプは重み20.0（通常の4倍）になる。** 相互フォローを作ることは、その相手のフィードで自分が有利になることを意味する | 新規（§2.6 として追加） |
+| **W-3** | **相互フォローの相手の投稿に対しては、閲覧者がリプする確率の重みが 5.0 → 20.0（4倍）になる。** つまり**相互フォローの相手のフィードで、自分の投稿が有利になる**（重みが掛かるのは「相手が自分にリプする確率」の側である。向きを間違えないこと） | 新規（§2.7 として追加） |
 
 **W-2 について誤読しないこと。** プロフィールクリックは pergram の**流入の導線としては依然として正しい**
 （プロフィール → 固定ポスト → LP）。無価値になったのは「アルゴリズム上の見返り」であって、
@@ -175,20 +175,41 @@ README の行動一覧も `favorite / reply / repost / quote / share / share via
 
 適格条件（`cold_start_base_eligible` と `apply_cold_start` の `filter` 節をそのまま読んだもの）:
 
-| # | 条件 | 定数 | @pergram_jp（フォロワー16）は |
+| # | 条件 | 定数 / 関数 | @pergram_jp（フォロワー16）は |
 |---|---|---|---|
 | C-1 | **著者のフォロワー数が 1,000 以下** | `ColdStartFollowerCap = 1000` | **満たす** |
 | C-2 | **その投稿のホーム表示回数が 1,000 未満** | `ColdStartImpressionThreshold = 1000` | **満たす**（17imp） |
-| C-3 | **投稿が24時間以内** | `ColdStartMaxPostAgeSecs = 86400` | 満たす |
-| C-4 | **リプライではない**（`in_reply_to_tweet_id.is_none()`） | — | 自前ポストのみ **満たす** |
-| C-5 | **リポストではない**（`retweeted_tweet_id.is_none()`） | — | 満たす |
-| C-6 | その閲覧者への素点が、素点のある候補の上位85%に入っている | `LowImpressionsMaxPositionRatio = 0.85` | 不明 |
+| C-3 | **リプライではない**（`in_reply_to_tweet_id.is_none()`） | `cold_start_base_eligible` | 自前ポストのみ **満たす** |
+| C-4 | **リポストではない**（`retweeted_tweet_id.is_none()`） | `cold_start_base_eligible` | 満たす |
+| C-5 | その閲覧者への素点が、素点のある候補の上位85%に入っている | `LowImpressionsMaxPositionRatio = 0.85` | 不明 |
+| **C-6** | **🔴 閲覧者の実験群と、著者のバケットが噛み合っている** | `cold_start_corpus_eligible` | **不明**（下記） |
+| **C-7** | **投稿が24時間以内** | `ColdStartMaxPostAgeSecs = 86400` | **Treatment 群の閲覧者にしか掛からない**（下記） |
+
+**C-6 — これは実験中の機能である。** `cold_start_corpus_eligible` は次のとおり。
+
+| 閲覧者の群（`ViewerArm`） | 著者に要求されること |
+|---|---|
+| `Holdout` | 著者のバケットは問わない（候補が Phoenix MoE 由来でなければよい） |
+| `Control` | **著者が `AuthorCorpus::Control` に入っていること** |
+| `Treatment` | **著者が `AuthorCorpus::Treatment` に入っていること** |
+
+著者のバケットは `AuthorRulesEvaluator` が `AuthorIsControl` / `AuthorIsTreatment` で決める。
+**あるアカウントがどれに入っているかを、外から知る手段は無い。**
+
+**C-7 — 24時間の窓は全員には掛からない。** `cold_start_freshness_eligible` は
+`if arm != ViewerArm::Treatment { return true; }` で始まる。
+**Holdout / Control の閲覧者に対しては、投稿の年齢を一切見ない**（それでも §2.2 T-3 の
+`AgeFilter` 48時間は前段で効く）。
 
 **効果**: 条件を満たした候補のうち1件が、そのリクエストの**15〜16番目のスロット相当の点数まで引き上げられる**
-（`ColdStartSlotMin = 15` / `ColdStartSlotMax = 16`）。既定で有効（`EnableViewerColdStart = true`）。
+（`ColdStartSlotMin = 15` / `ColdStartSlotMax = 16`）。スイッチ自体は既定で有効（`EnableViewerColdStart = true`）。
 
 **これは「フォロワーがいないから配信されない」という前提を、一次情報が正面から否定している。**
-X は**フォロワー1,000人以下の著者を、明示的に優遇している。**
+X は**フォロワー1,000人以下の著者を優遇する仕組みを持っている。**
+
+**⚠ ただし「仕組みがある」と「それが自分に適用されている」は別である。**
+C-6 のとおり、これは実験中の機能であり、**適用されているかどうかは観測できない。**
+`X_growth_design.md` §10 U-8 では、これを原因の候補の3つ目として明示した。
 
 ### 3.2 ただし、この経路はリプライには効かない
 
@@ -233,19 +254,29 @@ README の Filtering 節にも `OONRetweetReplyFilter` として同じことが�
 |---|---|---|---|
 | `TaskReplyRankingFilter` | `FOLLOWER_COUNT_THRESHOLD_FOR_REPLY_RANKING` | **120,000** | **元投稿または直接の親の著者のフォロワーが 12万を「超える」とき**だけ、Grok によるリプライの採点が走る。12万以下は `low_blast_radius` として**スキップされる** |
 | `TaskSpamFilter` | `FOLLOWER_COUNT_THRESHOLD_FOR_SPAM_DETECTION` | **120,000** | 逆に、両方が **12万以下**のときだけリプライのスパム判定が走る |
-| `TaskCoordinatedSpamFilter` | `FOLLOWER_COUNT_THRESHOLD_FOR_SPAM_DETECTION` | **5,000** | 元投稿の著者が **5,000以上**、かつリプが2階層以上の深さのときだけ協調スパム判定が走る |
+| `TaskCoordinatedSpamFilter` | `FOLLOWER_COUNT_THRESHOLD_FOR_SPAM_DETECTION` | **5,000** | **まず `len(ancestors) >= 2`（返信への返信）であること。** それを通ったうえで元投稿の著者が **5,000以上**のときだけ協調スパム判定が走る。**順番が重要。**詳細は §4.3 |
 
 採点のプロンプトには `large_account_follower_threshold` として **100,000** が渡される
-（[`prompts.py`](https://github.com/xai-org/x-algorithm/blob/9b0dc319691b76088266d0d2b48faf22d2b8a82a/grox/flows/reply_spam/prompts.py)）。
+（呼び出し側は
+[`classifier_reply_ranking.py`](https://github.com/xai-org/x-algorithm/blob/9b0dc319691b76088266d0d2b48faf22d2b8a82a/grox/flows/reply_spam/classifier_reply_ranking.py)
+の `reply_scoring_system_prompt(100_000)`。受け取り側は
+[`prompts.py`](https://github.com/xai-org/x-algorithm/blob/9b0dc319691b76088266d0d2b48faf22d2b8a82a/grox/flows/reply_spam/prompts.py)）。
 **プロンプト本文（`.j2`）は「ゲームされるのを防ぐため」意図的に非公開である**と README に書かれているので、
 **何が高く採点されるかは一次情報では読めない。**
 
 **運用上の意味 — ここが本調査の中心である。**
 
-| 相手のフォロワー | リプ欄で何が起きるか | こちらの取るべき手 |
+| 相手のフォロワー | **一次情報から言えること** | ⚠ ここから先は推論 |
 |---|---|---|
-| **12万超** | **Grok が1件ずつリプを採点し、その点で並ぶ。** 中身の質が順位を決める | **内容で勝負できる。** 早さは順位を直接には決めない（採点の入力に投稿時刻があるかは非公開） |
-| **12万以下** | 採点は走らない。代わりに**スパム判定が走る** | 順位はモデルで決まらないので**早さと運**。かつ**文面の重複が直接の危険になる** |
+| **12万超** | **Grok がこちらのリプを1件ずつ採点し、その結果を Manhattan へ書き出す**（`PlanReplyRanking` の `task_write_reply_ranking_manhattan`） | 採点があるなら**中身の質が順位に効く**はず。**ただし「書き出された点がリプ欄の並び順になる」経路はリポジトリに含まれない**（§11 P-3）。**早さが効くかどうかも分からない** |
+| **12万以下** | **採点は走らない**（`low_blast_radius`）。代わりに**スパム判定が走る**（`TaskSpamFilter`） | 順位を決めるモデルが無い以上、**こちらから順位を制御する手段が無い。**かつ**文面の重複が直接の危険になる**（§4.2） |
+
+**この表の左列だけが一次情報である。** 右列は「採点が走るなら、その点は使われているはずだ」という
+推論であり、**裏は取れていない**（§7 X-3 / §11 P-3）。
+
+**それでも露出層の軸を12万へ移す判断は成立する。** 判断に必要なのは
+「12万超のスレッドでだけ、こちらのリプが個別に評価される対象になる」という**左列の事実だけ**であり、
+その点がどう順位へ変換されるかを知る必要は無いからである。
 
 ---
 
@@ -259,8 +290,8 @@ README の Filtering 節にも `OONRetweetReplyFilter` として同じことが�
 
 | 段 | 名前 | 規則数 | 適用先 |
 |---|---|---|---|
-| 基本 | `TimelineHome` | 27 | **すべての投稿**（フォロワーのフィードを含む） |
-| 追加 | `TimelineHomeRecommendations` | 基本の27 **＋ 26** | **フォローしていない相手へ推薦するときだけ** |
+| 基本 | `TimelineHome` | **28** | **すべての投稿**（フォロワーのフィードを含む） |
+| 追加 | `TimelineHomeRecommendations` | 基本の28 **＋ 26 = 54** | **フォローしていない相手へ推薦するときだけ** |
 
 追加の26に含まれる、この運用に関係するもの:
 
@@ -279,6 +310,8 @@ README:
 
 > A further set of rules applies **only when the post is a recommendation from an account the viewer does not follow**,
 > and those rules can only drop … The same post is allowed to a follower.
+
+（件数は `registry.rs` の当該テストが列挙している名前を数えたもの。**2026-09-04 のレビューで 27 → 28 に訂正した。**）
 
 **@pergram_jp にとっては「一部が減る」ではなく「全部が消える」に等しい。**
 フォロワーが16人なので、露出はほぼ全量が推薦面から来ている。
@@ -310,11 +343,28 @@ jobName == "bbq_duplicate_text_characters_replies_cjk"
 **推測ではなく一次情報で裏が取れた。** しかも日本語では判定が厳しい側にある。
 **テンプレは骨格としてのみ使い、本文は毎回書き直す。**
 
-### 4.3 協調スパム判定は「相手が5,000フォロワー以上」で初めて走る
+### 4.3 協調スパム判定の引き金は「深さ2以上」であって、相手の大きさではない
 
-`TaskCoordinatedSpamFilter` は、元投稿の著者が 5,000フォロワー**未満**なら `low_blast_radius` として
-スキップされる（§3.4 の表）。つまり**大きいアカウントのスレッドに深いリプを重ねるほど、
-協調スパムとして見られる余地が開く。** 打つのは1スレッドに1件までにする。
+`TaskCoordinatedSpamFilter._eligible_with_post` は**2つの条件を順番に見る。順番が重要である。**
+
+```python
+if len(post.ancestors) < 2:          # ← 先に評価される
+    ...  reason="one_level_deep";  return False
+root_user_follower_count = post.ancestors[0].user.follower_count or 0
+if root_user_follower_count < cls.FOLLOWER_COUNT_THRESHOLD_FOR_SPAM_DETECTION:  # 5000
+    ...  reason="low_blast_radius"; return False
+```
+
+**したがって引き金は「相手が大きいこと」ではなく「深さ2以上であること」である。**
+元投稿へ直接付けたリプは `ancestors` が1件しかないので、**この判定は一度も走らない。**
+相手のフォロワー数（5,000以上）は、深さ条件を通った**後に**掛かる第2の条件にすぎない。
+
+**深さ2以上とは、実務では「他人のリプへ返すとき」である。**
+高 PageRank ユーザーと灰色バッジのユーザーはこの判定から除外されるが、**このアカウントはどちらでもない。**
+
+**運用上の意味**: 会話を続けること自体は必要である（`X_growth_design.md` §9-10）。
+守るのは「自分に返ってきたリプにだけ返す」「同じスレッドで3往復を超えたら移す」
+「深さ2以上のリプでこそ文面を使い回さない」の3つ（同 §4.2）。
 
 ### 4.4 通報・ブロックの重みを恐れすぎないこと
 
@@ -428,6 +478,17 @@ X 自身がコード内コメントで、この誤読と「大量通報で到達
 | 6 | §5.8（新設） | ツリーは2投稿を維持する判定 |
 | 7 | §10 | U-8〜U-11 を追加（裏が取れなかった論点のうち、設計を動かしうるもの） |
 | 8 | §11 | `watchlist` を新語として登録 |
+
+**2026-09-04 のレビュー（T-044 往復1回目）で直した点**
+
+| # | 何を直したか |
+|---|---|
+| 1 | **協調スパム判定の適用条件の誤読**（本書 §4.3 / design §2.2 §4.2）。引き金は「相手が5,000以上」ではなく **`len(ancestors) >= 2`**。design 側は「1スレッド1件」の根拠をこの判定に置いていたが、**元投稿への直リプでは一度も走らない。**根拠を運用上の理由へ書き換え、**本当の引き金（返信への返信）に対する注意を design §4.2 へ新設した** |
+| 2 | **リプ欄の並び順が中身で決まる、という推論を事実と分離**（本書 §3.4 / design §2.2）。一次情報が示すのは「採点が走る」ことまでで、**採点結果が並び順になる経路はリポジトリに無い**（§11 P-3）。**軸を12万へ移す結論は左列の事実だけで支持できるので変えていない** |
+| 3 | **新規著者ブーストの実験群の条件が落ちていた**（本書 §3.1 C-6 / C-7、design §2.6）。適格性は閲覧者の群と著者のバケットに依存し、**24時間の窓は Treatment 群にしか掛からない。**これにより design §10 U-8 に**第三の可能性（そもそも適用されていない）**を追加した |
+| 4 | **可視性規則の件数**（本書 §4.1）。`TimelineHome` は 27 → **28**、合計 **54** |
+| 5 | **「経過が短い順に打つ」が未検証の前提であることを明示**（design §4.3 / §3.2 / §8-N、§10 U-12 を新設）。§7 X-3 を根拠として使ってしまっていた |
+| 6 | `large_account_follower_threshold = 100000` の出典（本書 §3.4）と、W-3 の向き（本書 §1.3） |
 
 ---
 
