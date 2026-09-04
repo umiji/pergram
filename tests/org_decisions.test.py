@@ -184,6 +184,34 @@ class TestSupersedeAmongSameDayDecisions(SupersedeCase):
         self.assertEqual(warn, [])
 
 
+    def test_同じだけ一致する候補が複数あれば_どれも失効させずに警告する(self):
+        """**同じ日に同じ `対象` の決定が2件あると起きる。**特殊な入力ではない。
+
+        ここで黙って1件を選ぶことは、このスクリプトが直した不具合そのものの形である。
+        """
+        state, warn = self.resolve({
+            "T-001": """
+### 2026-09-03 リプライ本文に URL を貼らない
+- 対象: X運用 / リプライ
+- 決定: 相手が聞いた場合を除き貼らない
+
+### 2026-09-03 リプライは1日12件を超えない
+- 対象: X運用 / リプライ
+- 決定: 12件を上限にする
+""",
+            "T-002": """
+### 2026-09-04 リプライの扱いを変える
+- 対象: X運用 / リプライ
+- 決定: 変える
+- 上書き対象: T-001 2026-09-03（X運用 / リプライ）
+""",
+        })
+        self.assertEqual(state["リプライ本文に URL を貼らない"], org.ACTIVE)
+        self.assertEqual(state["リプライは1日12件を超えない"], org.ACTIVE)
+        self.assertEqual(len(warn), 1)
+        self.assertIn("同じだけ一致する", warn[0])
+
+
 class TestBackwardCompatibility(SupersedeCase):
     """**過去の決定ログは書き換えない規約なので、旧来の書き方は読めなければならない。**"""
 
