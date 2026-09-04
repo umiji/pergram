@@ -106,8 +106,16 @@ HEADING = re.compile(r"^\s{0,3}#{3,6}\s+(.*\S)\s*$")
 DATE_HEAD = re.compile(r"^(\d{4}-\d{2}-\d{2})\s*[-—:：]?\s*(.*)$")
 # 「- 対象: 認証」。全角のコロンも許す。
 META_LINE = re.compile(r"^\s*[-*]\s*([^:：]+?)\s*[:：]\s*(.*?)\s*$")
-# 「T-003 2026-05-10」
-SUPERSEDE_REF = re.compile(r"(T-\d+)\s+(\d{4}-\d{2}-\d{2})")
+# 「T-003 2026-05-10」。**1つのタスクは同じ日に決定を複数持ちうる**ので、タスクIDと
+# 日付だけでは指し先が定まらないことがある。括弧を付けて1件へ絞れる:
+#     T-003 2026-05-10（対象 または 要約）
+# 括弧は省略できる（同じ日の決定が1件しか無ければ、それだけで定まるため）。
+SUPERSEDE_REF = re.compile(
+    r"(T-\d+)\s+(\d{4}-\d{2}-\d{2})\s*(?:[（(]\s*([^（()）]*?)\s*[）)])?"
+)
+# 照合のときだけ落とす飾り。書式のゆれ（バッククォート・強調・全角空白）で
+# 指し先を取り違えないようにする。
+DECORATION = re.compile(r"[\s`*_「」]+")
 
 HTML_COMMENT = re.compile(r"<!--.*?-->", re.S)
 
@@ -180,7 +188,7 @@ def parse_decisions(task_id: str, body: str, warn: list) -> list:
     数えると、索引が雛形で埋まる。
     """
     body = HTML_COMMENT.sub("", body)
-    decisions, current = [], None
+    decisions, current, last_key = [], None, None
 
     def close():
         if current is not None:
@@ -190,7 +198,7 @@ def parse_decisions(task_id: str, body: str, warn: list) -> list:
         head = HEADING.match(line)
         if head:
             close()
-            current = None
+            current, last_key = None, None
             title = head.group(1)
             m = DATE_HEAD.match(title)
             if not m:
@@ -213,9 +221,16 @@ def parse_decisions(task_id: str, body: str, warn: list) -> list:
         meta = META_LINE.match(line)
         if meta:
             key, value = meta.group(1).strip(), meta.group(2).strip()
+            last_key = key
             if key in ("対象", "決定", "上書き対象"):
                 current[key] = value
-        elif line.strip() and current["決定"] and not current["対象"]:
+        elif not line.strip():
+            last_key = None
+        elif last_key == "上書き対象" and current["上書き対象"]:
+            # 括弧の中身が次の行へ折り返されている場合を拾う。**折り返しを捨てると
+            # 括弧が閉じないまま読むことになり、指し先を絞る手がかりが消える。**
+            current["上書き対象"] += " " + line.strip()
+        elif current["決定"] and not current["対象"]:
             # 「- 決定: 一行目」の続きが字下げで書かれている場合を拾う
             current["決定"] += " " + line.strip()
 
@@ -254,12 +269,86 @@ def collect(root: str, warn: list) -> list:
 # 失効の解決
 # --------------------------------------------------------------------------
 
+def normalize_for_match(text: str) -> str:
+    """照合用に飾りを落とす。書式のゆれで指し先を取り違えないため。"""
+    return DECORATION.sub("", text)
+
+
+def resolve_target(source: dict, task_id: str, date: str, hint: str,
+                   candidates: list, warn: list):
+    """`上書き対象` が指す決定を1件に決める。決められなければ None。
+
+    **決められないときに、どれか1件を勝手に選んではならない。** 索引は「決定が
+    失効した」ことを伝える唯一の手段なので、取り違えると担当エージェントは
+    失効した決定に従い、生きている決定を無視する。**黙って間違えるより、
+    警告を出して何も失効させないほうが安い。**
+    """
+    where = "{} {}: `- 上書き対象: {} {}`".format(
+        source["タスク"], source["日付"], task_id, date)
+
+    if not candidates:
+        warn.append(
+            "{} が指す決定が見つからない（タスクIDと日付の両方が一致する決定を指すこと。"
+            "1つのタスクが決定を複数持ちうるため日付まで要る）".format(where)
+        )
+        return None
+
+    # 同じ日の決定が1件しか無ければ、それで定まる。**括弧を書かない従来の
+    # 書き方は、この経路でそのまま読める。**
+    if len(candidates) == 1:
+        return candidates[0]
+
+    if not hint:
+        warn.append(
+            "{} の指し先が一意に定まらない（{} は同じ日に決定を {} 件持つ）。"
+            "どれも失効させなかった。`{} {}（対象 または 要約）` のように括弧で1件へ絞る"
+            .format(where, task_id, len(candidates), task_id, date)
+        )
+        return None
+
+    normalized_hint = normalize_for_match(hint)
+    scored = []
+    for c in candidates:
+        matched = 0
+        for field in ("対象", "要約"):
+            key = normalize_for_match(c[field])
+            if key and key in normalized_hint:
+                matched = max(matched, len(key))
+        if matched:
+            scored.append((matched, c))
+
+    if not scored:
+        warn.append(
+            "{} の括弧が、その日のどの決定とも一致しない（候補 {} 件）。どれも失効させなかった。"
+            "括弧には、指したい決定の `対象` か見出しの要約をそのまま書く: {}"
+            .format(where, len(candidates), flatten(hint))
+        )
+        return None
+
+    # 対象が入れ子（`A / B` と `A / B / C`）のときは、長く一致したほうが指し先である。
+    best = max(score for score, _ in scored)
+    winners = [c for score, c in scored if score == best]
+    if len(winners) > 1:
+        warn.append(
+            "{} の括弧が {} 件の決定に同じだけ一致する。どれも失効させなかった。"
+            "括弧の中身を、その1件だけに当てはまる語にする: {}"
+            .format(where, len(winners), flatten(hint))
+        )
+        return None
+    return winners[0]
+
+
 def apply_supersede(decisions: list, warn: list) -> None:
     """`上書き対象` を読んで、古い側の状態を「置き換え済み」に変える。
 
     **書き換えるのは索引の行だけで、タスク別ファイルには一切触らない。**
+
+    **1つのタスクは同じ日に決定を複数持ちうる**ので、(タスク, 日付) は決定を
+    一意に指さない。候補が複数あるときは、括弧の中身（対象 または 要約）で絞る。
     """
-    by_key = {(d["タスク"], d["日付"]): d for d in decisions}
+    by_key: dict = {}
+    for d in decisions:
+        by_key.setdefault((d["タスク"], d["日付"]), []).append(d)
     for d in decisions:
         d["状態"] = ACTIVE
     for d in decisions:
@@ -270,18 +359,14 @@ def apply_supersede(decisions: list, warn: list) -> None:
         if not hits:
             warn.append(
                 "{} {}: `- 上書き対象:` の書き方が読めない（`T-003 2026-05-10` の形で書く。"
+                "同じ日に決定が複数あるときは `T-003 2026-05-10（対象 または 要約）`。"
                 "複数あれば ` / ` で区切る）: {}".format(d["タスク"], d["日付"], flatten(ref))
             )
             continue
-        for task_id, date in hits:
-            target = by_key.get((task_id, date))
+        for task_id, date, hint in hits:
+            target = resolve_target(
+                d, task_id, date, hint, by_key.get((task_id, date), []), warn)
             if target is None:
-                warn.append(
-                    "{} {}: `- 上書き対象: {} {}` が指す決定が見つからない"
-                    "（タスクIDと日付の両方が一致する決定を指すこと。1つのタスクが"
-                    "決定を複数持ちうるため日付まで要る）"
-                    .format(d["タスク"], d["日付"], task_id, date)
-                )
                 continue
             target["状態"] = SUPERSEDED.format(d["タスク"])
 
