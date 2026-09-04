@@ -37,6 +37,7 @@ npm run validate  # data/ のバリデーションのみ
 | [docs/ops/deploy.md](docs/ops/deploy.md) | Cloudflare Workers + D1 のデプロイ手順。バインディングの出所は `wrangler.toml` ひとつ |
 | [docs/ops/google-ads-first-campaign.md](docs/ops/google-ads-first-campaign.md) | 初回の Google 検索広告出稿の手順書。判定基準は validation-plan.md をそのまま使う |
 | [docs/Marketing/X_kgi_2weeks.md](docs/Marketing/X_kgi_2weeks.md) | **X運用の KGI と14日の実行計画**。数字の定義・Day7ゲート・投稿の型。型と数字は `.media-agent/x/pergram-jp/strategy.md` にも転記済み（投稿生成が読むのはそちら） |
+| [docs/Marketing/X_algorithm_findings.md](docs/Marketing/X_algorithm_findings.md) | **X のアルゴリズムの一次調査**（`xai-org/x-algorithm` を直接読んだ結果）。露出の取り方の根拠はここが正。二次情報と食い違ったらこちらを採る |
 | [docs/tasks/README.md](docs/tasks/README.md) | **タスク台帳。進捗の唯一の出所**。索引は [docs/task-list-pergram.csv](docs/task-list-pergram.csv)、詳細は `docs/tasks/T-XXX.md` |
 
 ドキュメント間は相対リンクで相互参照している。**ファイルを移動・改名する場合は全参照を更新すること。**
