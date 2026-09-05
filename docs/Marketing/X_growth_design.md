@@ -6,6 +6,12 @@
 [.claude/rules/pergram-ui-copy.md](../../.claude/rules/pergram-ui-copy.md) /
 [.media-agent/x/pergram-jp/rules.md](../../.media-agent/x/pergram-jp/rules.md)
 
+> **2026-09-05 追記（T-046）。** PO の判断で骨格が変わった —— **リプライは PO が手動で行う。
+> 機構は自前ポストの露出に集中する。** 本書の §3.2〜§3.3 のうちリプライに関する手順（意図層リプ・
+> 露出層リプ・watchlist の運用）は、機構が管理する日次運用としては**もう有効ではない。**
+> **自前ポストで露出を取る方法は [X_own_post_method.md](X_own_post_method.md) を見る。**
+> 単体で実行できる。本書の一次情報の解説・型の定義・禁止語やブランド表記は引き続き有効。
+
 ---
 
 ## 0. この文書の位置づけ
