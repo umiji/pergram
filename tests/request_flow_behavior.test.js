@@ -27,7 +27,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { loadTranslator } from '../src/lib/i18n.js';
-import { requestCta, requestFlow } from '../src/templates/products/request.js';
+import { requestCta, requestFlow } from '../src/templates/request.js';
 import { market } from './fixtures.js';
 import { DomEvent, runLpScript } from './mini_dom.js';
 

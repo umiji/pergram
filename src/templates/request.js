@@ -17,16 +17,16 @@
  *    このページで出すのはここ1箇所だけにする。
  */
 
-import { escapeHtml } from '../../lib/i18n.js';
-import { optionChips } from '../lp/parts.js';
-import { supportEmbed } from '../lp/support.js';
+import { escapeHtml } from '../lib/i18n.js';
+import { optionChips } from './lp/parts.js';
+import { supportEmbed } from './lp/support.js';
 import {
   CHANNEL_CHIPS,
   NUTRIENT_CHIPS,
   NUTRIENT_OTHER,
   NUTRIENTS_OTHER_MAX,
   REQUESTS_MAX,
-} from '../../lib/waitlist_fields.js';
+} from '../lib/waitlist_fields.js';
 
 /** 段（アンケート / メール / 支援）を包む器の id。ボタンの aria-controls が指す */
 export const REQUEST_FLOW_ID = 'request-flow';
@@ -45,21 +45,27 @@ export const REQUEST_FLOW_ID = 'request-flow';
 export function requestCta(t, { location }) {
   return `<section class="request-band">
   <div class="request-band__inner">
-    <p class="request-band__lede">${escapeHtml(t('products.request.lede'))}</p>
+    <p class="request-band__lede">${escapeHtml(t('request.lede'))}</p>
     <button class="btn btn--signal request-band__button" type="button"
       data-request-cta data-cta="${escapeHtml(location)}"
       aria-controls="${REQUEST_FLOW_ID}" aria-expanded="false"
-      data-label-received="${escapeHtml(t('products.request.received'))}">${escapeHtml(
-        t('products.request.cta'),
+      data-label-received="${escapeHtml(t('request.received'))}">${escapeHtml(
+        t('request.cta'),
       )}</button>
-    <p class="request-band__note">${escapeHtml(t('products.request.note'))}</p>
+    <p class="request-band__note">${escapeHtml(t('request.note'))}</p>
   </div>
 </section>`;
 }
 
 /**
- * 「見たい成分」の選択肢。「その他」はチップの1つで、自由記述欄はその横に並べる
- * （LP のフォームと同じ形。理由は src/templates/lp/form.js のコメント）。
+ * 「見たい成分」の選択肢。
+ *
+ * 🔒 「その他」はチップの1つであり、自由記述欄はその**横**に並べる。独立した欄にすると、
+ *    チップを1つも選ばずに書かれた要望が「成分の希望」なのか判別できなくなる。
+ * ⚠️ まとめる枠のクラス名は `check-other` で固定する。LP の旧フォームから引き継いだ名前で、
+ *    「その他チップと自由記述が同じ枠にある」ことを見張る唯一の検査
+ *    （tests/render.test.js「「その他」は成分チップの1つで、自由記述欄がその横に並ぶ」）が
+ *    この綴りを見ている。**周りの request-* に合わせて改名すると、その検査が黙って落ちる。**
  */
 function nutrientChoices(t) {
   const chips = NUTRIENT_CHIPS.filter((key) => key !== NUTRIENT_OTHER);
@@ -72,7 +78,7 @@ function nutrientChoices(t) {
     multiple: true,
     className: 'request-chip',
   })}
-      <div class="request-chip-other">
+      <div class="check-other">
 ${optionChips({
   name: 'nutrients',
   keys: [NUTRIENT_OTHER],
@@ -106,8 +112,8 @@ function surveyStep(t) {
   return step(
     'survey',
     `    <form class="request-form" data-request-survey novalidate>
-      <h2 class="request-flow__heading" tabindex="-1">${escapeHtml(t('products.request.surveyHeading'))}</h2>
-      <p class="request-flow__lede">${escapeHtml(t('products.request.surveyLede'))}</p>
+      <h2 class="request-flow__heading" tabindex="-1">${escapeHtml(t('request.surveyHeading'))}</h2>
+      <p class="request-flow__lede">${escapeHtml(t('request.surveyLede'))}</p>
 
       <fieldset class="request-form__group">
         <legend class="request-form__legend">${escapeHtml(t('lp.form.nutrients'))}</legend>
@@ -138,16 +144,16 @@ ${optionChips({
       )}</p>
 
       <div class="request-form__actions">
-        <button class="btn btn--signal" type="submit">${escapeHtml(
-          t('products.request.surveySubmit'),
+        <button type="submit" class="btn btn--signal">${escapeHtml(
+          t('request.surveySubmit'),
         )}</button>
         <button class="link-button" type="button" data-request-skip="survey">${escapeHtml(
-          t('products.request.surveySkip'),
+          t('request.surveySkip'),
         )}</button>
       </div>
     </form>
     <p class="request-flow__done" role="status" hidden>${escapeHtml(
-      t('products.request.surveyDone'),
+      t('request.surveyDone'),
     )}</p>`,
   );
 }
@@ -166,8 +172,8 @@ function emailStep(t) {
     `    <form class="request-form" data-request-email novalidate
           data-error-email="${escapeHtml(t('lp.form.errorEmail'))}"
           data-error-send="${escapeHtml(t('lp.form.errorSend'))}">
-      <h2 class="request-flow__heading" tabindex="-1">${escapeHtml(t('products.request.emailHeading'))}</h2>
-      <p class="request-flow__lede">${escapeHtml(t('products.request.emailLede'))}</p>
+      <h2 class="request-flow__heading" tabindex="-1">${escapeHtml(t('request.emailHeading'))}</h2>
+      <p class="request-flow__lede">${escapeHtml(t('request.emailLede'))}</p>
 
       <label class="request-form__field">
         <span class="request-form__legend">${escapeHtml(t('lp.form.email'))}</span>
@@ -178,11 +184,11 @@ function emailStep(t) {
       <p class="request-form__error" role="alert" hidden></p>
 
       <div class="request-form__actions">
-        <button class="btn btn--signal" type="submit">${escapeHtml(
-          t('products.request.emailSubmit'),
+        <button type="submit" class="btn btn--signal">${escapeHtml(
+          t('request.emailSubmit'),
         )}</button>
         <button class="link-button" type="button" data-request-skip="email">${escapeHtml(
-          t('products.request.emailSkip'),
+          t('request.emailSkip'),
         )}</button>
       </div>
 
@@ -191,7 +197,7 @@ function emailStep(t) {
       <p class="request-form__note">${escapeHtml(t('lp.form.noteRelease'))}</p>
     </form>
     <p class="request-flow__done" role="status" hidden>${escapeHtml(
-      t('products.request.emailDone'),
+      t('request.emailDone'),
     )}</p>`,
   );
 }
@@ -207,8 +213,8 @@ function supportStep(t, support) {
 
   return step(
     'support',
-    `    <h2 class="request-flow__heading" tabindex="-1">${escapeHtml(t('products.request.supportHeading'))}</h2>
-    <p class="request-flow__lede">${escapeHtml(t('products.request.supportLede'))}</p>
+    `    <h2 class="request-flow__heading" tabindex="-1">${escapeHtml(t('request.supportHeading'))}</h2>
+    <p class="request-flow__lede">${escapeHtml(t('request.supportLede'))}</p>
     ${supportEmbed(t, support)}`,
   );
 }

@@ -14,7 +14,7 @@ import { layout, wordmark } from './layout.js';
 import { filters } from './products/filters.js';
 import { productItem } from './products/item.js';
 import { affiliateNotice, appHeader, explainer, pageHead, toolbar } from './products/head.js';
-import { requestCta, requestFlow } from './products/request.js';
+import { requestCta, requestFlow } from './request.js';
 import { supportScript } from './lp/support.js';
 import { breadcrumbList, itemList } from '../lib/jsonld.js';
 
@@ -102,24 +102,20 @@ export function productsPage(ctx) {
     }`;
 
   /**
-   * 待機リストの案内と、要望の導線。
+   * 要望の導線。
    *
-   * 🔒 案内は**製品リストより前**に置く（T-050 完了条件2）。以前はリストの後ろにあり、
-   *    広告で来た人が最後まで読まないと存在に気付けなかった。
+   * 🔒 **意思表示の入口はこの1種類だけにする（T-051）。** 以前はここに
+   *    「リリース通知を受け取る」の案内（`.waitlist-banner`）が並んでいた。
+   *    メールアドレスという重い対価を求める入口が、1クリックの軽い入口の隣にあると、
+   *    **軽くした意味が打ち消される。** 案内は復活させないこと。
+   * 🔒 上のボタンは**ツールバー（絞り込み・表示切替）より前**に置く（T-051 完了条件4）。
+   *    操作の道具より後ろにあると、絞り込みを触りに来た人の視線の外へ落ちる。
    * 🔒 要望ボタンはリストの前と後ろの2箇所。`data-cta` の値を違えて、
    *    どちらから押されたかを GA4 で分けて数える。
    * 🔒 LP が無いとき（waitlistPath なし）は一式まるごと出さない。
-   *    メールの段の送り先も支援の案内も、LP の待機リストと同じ経路だからである。
+   *    メールの段の送り先も支援の案内も、LP の要望の導線と同じ経路だからである。
    */
   const support = ctx.support ?? market.support ?? null;
-  const waitlistBanner = waitlistPath
-    ? `<aside class="waitlist-banner">
-    <p>${escapeHtml(t('products.waitlistNote'))}</p>
-    <a class="btn btn--ghost" href="${escapeHtml(waitlistPath)}">${escapeHtml(
-      t('products.waitlistCta'),
-    )}</a>
-  </aside>`
-    : '';
   const ctaTop = waitlistPath ? requestCta(t, { location: 'products_request_top' }) : '';
   const ctaBottom = waitlistPath ? requestCta(t, { location: 'products_request_bottom' }) : '';
   const flow = waitlistPath ? requestFlow(t, { support }) : '';
@@ -137,9 +133,8 @@ ${appHeader({ t, locale, waitlistPath })}
     ${pageHead(inner)}
     ${explainer({ t, explainerKey: category.explainerKey })}
     ${affiliateNotice({ t, nutrientName, displayUnit })}
-    ${toolbar(inner)}
-    ${waitlistBanner}
     ${ctaTop}
+    ${toolbar(inner)}
     ${body}
     ${ctaBottom}
     ${flow}

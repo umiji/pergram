@@ -48,12 +48,20 @@ const iconInfo = `<svg viewBox="0 0 20 20" fill="none" aria-hidden="true" focusa
 
 /**
  * サイト共通のヘッダ。
- * 検証期間中は Waitlist へ戻す導線をここに残す（LP から来た人が予約せずに離脱しないように）。
+ * 検証期間中は LP の要望の導線へ戻すリンクをここに残す（β版を見に来た人が
+ * 意思表示せずに離脱しないように）。
+ *
+ * 🔒 文言は `request.headerCta` を LP のヘッダと**共有**する（T-051）。
+ *    以前は製品一覧が「リリース通知を受け取る」、LP が「Waitlist」で、
+ *    同じ導線を指しているのに画面ごとに言葉が違った。**キーを分けると必ずまた割れる**
+ *    ので、片方だけ直せる状態に戻さないこと。
+ * ⚠️ 短縮表記（`request.headerCtaShort`）は使わない。出し分けの `u-desktop` /
+ *    `u-mobile` は lp.css にしか無く、products.css では両方出てしまう。
  */
 export function appHeader({ t, locale, waitlistPath }) {
   const waitlist = waitlistPath
     ? `<a class="btn btn--signal app-head__cta" href="${escapeHtml(waitlistPath)}">
-      ${escapeHtml(t('products.waitlistCta'))}
+      ${escapeHtml(t('request.headerCta'))}
     </a>`
     : '';
 

@@ -1353,15 +1353,15 @@
 }
 
 /* 「その他」だけはチップの横に自由記述欄を並べる（LP のフォームと同じ形） */
-.request-chip-other {
+.check-other {
   display: flex;
   align-items: center;
   gap: var(--space-2);
 }
-.request-chip-other .request-chip {
+.check-other .request-chip {
   flex: none;
 }
-.request-chip-other .request-form__text {
+.check-other .request-form__text {
   flex: 1;
   /* flex 項目の既定の min-width: auto を切らないと placeholder で押し広げられる */
   min-width: 0;
