@@ -16,6 +16,39 @@ function withOrigin(base, origin) {
 }
 
 /**
+ * 計測ビーコンの送信先（fetch / sendBeacon / XHR）。
+ *
+ * 🔒 `img-src` が `https:` を許しているせいで、ピクセルで送るタグだけは動く。
+ *    落ちるのは fetch / beacon で送るものだけなので、「広告タグは発火しているのに
+ *    GA4 だけ空」という紛らわしい壊れ方をする。画面には一切出ない。
+ * 🔒 `https://*.analytics.google.com` は `analytics.google.com` 自身にマッチしない
+ *    （ワイルドカードはラベルを1つ埋める指定であって、0個は埋められない）。
+ *    GA4 の `page_view` が飛ぶ先はまさにその `analytics.google.com` なので、
+ *    ワイルドカードだけ書いて済ませると全計測が落ちたままになる。完全一致で必ず書く。
+ * 🔒 `https:` や `*` で塞がない。必要なホストだけを列挙する。
+ */
+const MEASUREMENT_CONNECT_SRC = [
+  'https://analytics.google.com',
+  'https://*.analytics.google.com',
+  'https://www.google-analytics.com',
+  'https://*.google-analytics.com',
+  'https://*.googletagmanager.com',
+  'https://www.google.com',
+  'https://www.googleadservices.com',
+  'https://*.g.doubleclick.net',
+];
+
+/**
+ * 計測スクリプトの配信元。
+ * `static.cloudflareinsights.com` は Cloudflare Web Analytics のビーコンで、
+ * Cloudflare 側が応答に注入するため HTML には現れない。許可を忘れやすい。
+ */
+const MEASUREMENT_SCRIPT_SRC = [
+  'https://www.googletagmanager.com',
+  'https://static.cloudflareinsights.com',
+];
+
+/**
  * Content-Security-Policy の値。
  *
  * - `script-src` に `'unsafe-inline'` が要るのは GA4 の初期化スニペットが
@@ -37,9 +70,10 @@ function withOrigin(base, origin) {
  * @param {{ supportOrigin?: string | null }} options
  */
 export function contentSecurityPolicy({ supportOrigin = null } = {}) {
-  const scriptSrc = supportOrigin
-    ? `script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com`
-    : `script-src 'self' 'unsafe-inline' https://www.googletagmanager.com`;
+  const scriptKeywords = supportOrigin
+    ? `'self' 'unsafe-inline' 'unsafe-eval'`
+    : `'self' 'unsafe-inline'`;
+  const scriptSrc = ['script-src', scriptKeywords, ...MEASUREMENT_SCRIPT_SRC].join(' ');
 
   return [
     `default-src 'self'`,
@@ -47,7 +81,7 @@ export function contentSecurityPolicy({ supportOrigin = null } = {}) {
     withOrigin(`style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`, supportOrigin),
     `font-src 'self' https://fonts.gstatic.com`,
     `img-src 'self' data: https:`,
-    withOrigin(`connect-src 'self' https://www.google-analytics.com`, supportOrigin),
+    withOrigin([`connect-src 'self'`, ...MEASUREMENT_CONNECT_SRC].join(' '), supportOrigin),
     `form-action 'self'`,
     `frame-ancestors 'none'`,
     `base-uri 'self'`,
