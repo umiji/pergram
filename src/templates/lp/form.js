@@ -26,6 +26,8 @@ import { requestCta, requestFlow } from '../request.js';
  * 要望の導線ひとそろい。見出し → 第1段階のボタン → 段（初期状態は全て hidden）。
  *
  * 🔒 第1段階のボタンを段の中に入れない。押す前から隠れてしまう。
+ * 🔒 段の見出しは h3。この帯の見出し（h2）の下に入るため、製品一覧（h2）と階層が違う。
+ *    見出しで飛ばして読む人が「どこの話か」を辿れなくなる（WCAG 1.3.1）。
  * 🔒 `data-cta` は LP 専用の値にする。GA4 の `location` がこれで、
  *    製品一覧の上下2箇所（products_request_top / _bottom）と分けて数える。
  *
@@ -37,7 +39,7 @@ export function waitlist(t, { support = null } = {}) {
   <div class="waitlist-band__inner">
     <h2 class="waitlist-band__heading">${escapeHtml(t('lp.form.heading'))}</h2>
     ${requestCta(t, { location: 'lp_request' })}
-    ${requestFlow(t, { support })}
+    ${requestFlow(t, { support, headingLevel: 3 })}
   </div>
 </section>`;
 }

@@ -94,6 +94,17 @@ ${optionChips({
       </div>`;
 }
 
+/**
+ * 段の見出しの階層。
+ *
+ * 🔒 製品一覧では段が h1（ページ見出し）の直下に来るので h2、
+ *    LP では帯の見出し（h2）の下に入るので h3 になる。**入れ子が狂うと
+ *    見出しで飛ばして読む人が「どこの話か」を辿れなくなる**（WCAG 1.3.1）。
+ * ⚠️ タグは変わるがクラス名（`request-flow__heading`）は変えない。
+ *    src/assets/request.js が開いた段の見出しへフォーカスを移すときに使う。
+ */
+const DEFAULT_HEADING_LEVEL = 2;
+
 /** 段の器。初期状態は必ず hidden。開けるのは src/assets/request.js だけ */
 function step(kind, body) {
   return `<div class="request-flow__step" data-request-step="${kind}" hidden>
@@ -108,11 +119,11 @@ ${body}
  * 🔒 自由記述には注記（`lp.form.freeTextNote`）を必ず添える。N-01 / N-05 に対する
  *    唯一の防波堤なので、自由記述と離さない。
  */
-function surveyStep(t) {
+function surveyStep(t, level) {
   return step(
     'survey',
     `    <form class="request-form" data-request-survey novalidate>
-      <h2 class="request-flow__heading" tabindex="-1">${escapeHtml(t('request.surveyHeading'))}</h2>
+      <h${level} class="request-flow__heading" tabindex="-1">${escapeHtml(t('request.surveyHeading'))}</h${level}>
       <p class="request-flow__lede">${escapeHtml(t('request.surveyLede'))}</p>
 
       <fieldset class="request-form__group">
@@ -166,13 +177,13 @@ ${optionChips({
  * 🔒 `required` を付けない。ここを飛ばしても次へ進める。
  * 🔒 送信後に別ページへ飛ばさない。同じ画面で完了状態に切り替える。
  */
-function emailStep(t) {
+function emailStep(t, level) {
   return step(
     'email',
     `    <form class="request-form" data-request-email novalidate
           data-error-email="${escapeHtml(t('lp.form.errorEmail'))}"
           data-error-send="${escapeHtml(t('lp.form.errorSend'))}">
-      <h2 class="request-flow__heading" tabindex="-1">${escapeHtml(t('request.emailHeading'))}</h2>
+      <h${level} class="request-flow__heading" tabindex="-1">${escapeHtml(t('request.emailHeading'))}</h${level}>
       <p class="request-flow__lede">${escapeHtml(t('request.emailLede'))}</p>
 
       <label class="request-form__field">
@@ -208,12 +219,12 @@ function emailStep(t) {
  * 🔒 出し分けは条件分岐ではなくデータで。`support` を持たない市場（US）では
  *    段ごと出さない。金額も文言も Codoc 側が持つので、ここで作らない。
  */
-function supportStep(t, support) {
+function supportStep(t, support, level) {
   if (!support) return '';
 
   return step(
     'support',
-    `    <h2 class="request-flow__heading" tabindex="-1">${escapeHtml(t('request.supportHeading'))}</h2>
+    `    <h${level} class="request-flow__heading" tabindex="-1">${escapeHtml(t('request.supportHeading'))}</h${level}>
     <p class="request-flow__lede">${escapeHtml(t('request.supportLede'))}</p>
     ${supportEmbed(t, support)}`,
   );
@@ -223,12 +234,14 @@ function supportStep(t, support) {
  * 段の一式。文書順が到達順（アンケート → メール → 支援）そのものである。
  *
  * @param {(key: string, params?: object) => string} t
- * @param {{ support?: object | null }} options
+ * @param {{ support?: object | null, headingLevel?: number }} options
+ *   `headingLevel` は段の見出しのタグ。ページの見出しの深さに合わせる
  */
-export function requestFlow(t, { support = null } = {}) {
+export function requestFlow(t, { support = null, headingLevel = DEFAULT_HEADING_LEVEL } = {}) {
+  const level = headingLevel;
   return `<section class="request-flow" id="${REQUEST_FLOW_ID}" data-request-flow>
-${surveyStep(t)}
-${emailStep(t)}
-${supportStep(t, support)}
+${surveyStep(t, level)}
+${emailStep(t, level)}
+${supportStep(t, support, level)}
 </section>`;
 }

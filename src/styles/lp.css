@@ -674,9 +674,12 @@
 .waitlist-band .request-band {
   margin-top: 0;
 }
+/* 帯そのものが --signal-band なので、器の面は白へ抜く。同じ色を重ねると
+   枠線だけの薄い箱になり、押す場所として立ち上がらない（開いた段も白い面） */
 .waitlist-band .request-band__inner {
   justify-items: stretch;
   text-align: center;
+  background: var(--surface);
 }
 .waitlist-band .request-band__button {
   width: 100%;
