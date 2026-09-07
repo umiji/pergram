@@ -127,7 +127,14 @@ const MEASUREMENT_CONNECT_SRC = [
   'https://*.googletagmanager.com',
   'https://www.google.com',
   'https://www.googleadservices.com',
+  // `googleads.g.doubleclick.net` / `stats.g.doubleclick.net` が使う
   'https://*.g.doubleclick.net',
+  // 🔒 裸のホスト。`https://www.google.com` は `www.` 付きにしかマッチしない。
+  //    Google 広告のコンバージョン計測が `https://google.com/ccm/form-data/...` へ送る。
+  'https://google.com',
+  // 🔒 `https://*.g.doubleclick.net` にマッチしない（`ad.doubleclick.net` には
+  //    `.g.` の階層が無い）。リマーケティングが `ad.doubleclick.net/ccm/s/collect` へ送る。
+  'https://ad.doubleclick.net',
 ];
 
 test('🔒 connect-src が GA4 と広告タグの送信先をすべて許可する', () => {
@@ -146,7 +153,9 @@ test('🔒 connect-src が GA4 と広告タグの送信先をすべて許可す�
 test('🔒 connect-src をスキーム全許可・ワイルドカード単独で塞がない', () => {
   for (const supportOrigin of [null, supportOriginOf(markets.JP.support)]) {
     const allowed = sources(contentSecurityPolicy({ supportOrigin }), 'connect-src');
-    for (const wildcard of ['https:', '*', 'https://*', 'http:']) {
+    // `https://*.doubleclick.net` は `ad.doubleclick.net` と `*.g.doubleclick.net` を
+    // 1本にまとめたくなる書き方だが、必要のないサブドメインまで開く。個別に列挙する
+    for (const wildcard of ['https:', '*', 'https://*', 'http:', 'https://*.doubleclick.net']) {
       assert.ok(
         !allowed.includes(wildcard),
         `connect-src に ${wildcard} があります（必要なホストだけを列挙する）`,
