@@ -164,14 +164,53 @@ test('🔒 connect-src をスキーム全許可・ワイルドカード単独で
   }
 });
 
-// Cloudflare Web Analytics のビーコン。script-src 側で落ちていた
-test('🔒 script-src が Cloudflare Insights のビーコンを許可する', () => {
+/**
+ * 🔒 計測スクリプトの配信元。**`connect-src` を直すと、その先で `script-src` が落ちる。**
+ *    ビーコンが通るようになって初めて処理が次の段階へ進み、そこで新しい違反が露出する。
+ *    静的なホスト列挙の照合だけでは尽きたと判定できない（完了条件 6 がローカル実測を
+ *    要求しているのはこのため）。ここは実測で見つかった違反を1つずつ固定する場所である。
+ */
+const MEASUREMENT_SCRIPT_SRC = [
+  // gtag.js 本体
+  'https://www.googletagmanager.com',
+  // Cloudflare Web Analytics のビーコン。Cloudflare が応答に注入するので HTML に現れない
+  'https://static.cloudflareinsights.com',
+  // 🔒 Google 広告のリマーケティングタグは、このホストから
+  //    /pagead/viewthroughconversion/<id>/ を **スクリプトとして読み込む**。
+  //    `connect-src` の `https://*.g.doubleclick.net` では script の読み込みは通らない。
+  'https://googleads.g.doubleclick.net',
+];
+
+test('🔒 script-src が計測スクリプトの配信元をすべて許可する', () => {
   for (const supportOrigin of [null, supportOriginOf(markets.JP.support)]) {
     const allowed = sources(contentSecurityPolicy({ supportOrigin }), 'script-src');
-    assert.ok(
-      allowed.includes('https://static.cloudflareinsights.com'),
-      `script-src に https://static.cloudflareinsights.com がありません（supportOrigin=${supportOrigin}）`,
-    );
+    for (const host of MEASUREMENT_SCRIPT_SRC) {
+      assert.ok(
+        allowed.includes(host),
+        `script-src に ${host} がありません（supportOrigin=${supportOrigin}）`,
+      );
+    }
+  }
+});
+
+// 🔒 script-src も全許可で塞がない。ここが緩むと XSS の被害が一段深くなる
+test('🔒 script-src をスキーム全許可・広いワイルドカードで塞がない', () => {
+  for (const supportOrigin of [null, supportOriginOf(markets.JP.support)]) {
+    const allowed = sources(contentSecurityPolicy({ supportOrigin }), 'script-src');
+    for (const wildcard of [
+      'https:',
+      '*',
+      'https://*',
+      'http:',
+      'https://*.doubleclick.net',
+      'https://*.g.doubleclick.net',
+      'https://*.google.com',
+    ]) {
+      assert.ok(
+        !allowed.includes(wildcard),
+        `script-src に ${wildcard} があります（必要なホストだけを列挙する）`,
+      );
+    }
   }
 });
 

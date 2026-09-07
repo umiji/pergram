@@ -48,12 +48,22 @@ const MEASUREMENT_CONNECT_SRC = [
 
 /**
  * 計測スクリプトの配信元。
- * `static.cloudflareinsights.com` は Cloudflare Web Analytics のビーコンで、
- * Cloudflare 側が応答に注入するため HTML には現れない。許可を忘れやすい。
+ *
+ * 🔒 **`connect-src` を直すと、その先で `script-src` が落ちる。** ビーコンが通るように
+ *    なって初めて処理が次の段階へ進み、そこで新しい違反が露出する。ホストを列挙して
+ *    照合するだけでは尽きたと判定できない。**足したら必ずブラウザで実測して違反0件を確かめる。**
  */
 const MEASUREMENT_SCRIPT_SRC = [
+  // gtag.js 本体
   'https://www.googletagmanager.com',
+  // Cloudflare Web Analytics のビーコン。Cloudflare が応答に注入するため HTML に現れない
   'https://static.cloudflareinsights.com',
+  // 🔒 Google 広告のリマーケティングタグは、このホストから
+  //    `/pagead/viewthroughconversion/<id>/` を **スクリプトとして読み込む**。
+  //    同じホストを `connect-src` の `https://*.g.doubleclick.net` で許可済みだが、
+  //    **ディレクティブが違うので script の読み込みには効かない。**
+  //    ここを「connect-src にあるから重複」と読んで消すと、広告の計測だけが静かに落ちる。
+  'https://googleads.g.doubleclick.net',
 ];
 
 /**
