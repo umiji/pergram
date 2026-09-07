@@ -247,3 +247,41 @@ test('🔒 _headers の Content-Security-Policy が CSP 本体と一致する', 
     assert.equal(line, `Content-Security-Policy: ${contentSecurityPolicy({ supportOrigin })}`);
   }
 });
+
+// ---------------------------------------------------------------------------
+// T-048 受け入れテスト — 広告コンバージョンの国別ドメイン
+// ---------------------------------------------------------------------------
+
+/**
+ * 🔒 Google 広告は 1st-party コンバージョンを**閲覧者の国別ドメイン**へ送る。
+ *    日本からの閲覧では `https://www.google.co.jp/pagead/1p-conversion/<id>/` になる。
+ *    `https://www.google.com` を許可しても `.co.jp` は別ホストなので届かない。
+ *    ローカル配信では国別ドメインが現れないため、T-047 のローカル実測（違反0件）を
+ *    すり抜けた。**本番の実測でしか踏めない層である。**
+ */
+const COUNTRY_CONVERSION_CONNECT_SRC = ['https://www.google.co.jp'];
+
+test('🔒 connect-src が広告コンバージョンの国別ドメインを許可する', () => {
+  for (const supportOrigin of [null, supportOriginOf(markets.JP.support)]) {
+    const allowed = sources(contentSecurityPolicy({ supportOrigin }), 'connect-src');
+    for (const host of COUNTRY_CONVERSION_CONNECT_SRC) {
+      assert.ok(
+        allowed.includes(host),
+        `connect-src に ${host} がありません（supportOrigin=${supportOrigin}）`,
+      );
+    }
+  }
+});
+
+// 🔒 国別ドメインをまとめて開かない。実測で必要と分かったホストだけを列挙する
+test('🔒 connect-src の国別ドメインをワイルドカードでまとめない', () => {
+  for (const supportOrigin of [null, supportOriginOf(markets.JP.support)]) {
+    const allowed = sources(contentSecurityPolicy({ supportOrigin }), 'connect-src');
+    for (const wildcard of ['https://*.google.co.jp', 'https://*.google.com', 'https://*.google']) {
+      assert.ok(
+        !allowed.includes(wildcard),
+        `connect-src に ${wildcard} があります（必要なホストだけを列挙する）`,
+      );
+    }
+  }
+});

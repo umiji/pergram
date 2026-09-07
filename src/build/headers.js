@@ -37,6 +37,13 @@ const MEASUREMENT_CONNECT_SRC = [
   // 🔒 裸のホスト。`https://www.google.com` は `www.` 付きにしかマッチしない。
   //    Google 広告のコンバージョン計測が `https://google.com/ccm/form-data/...` へ送る。
   'https://google.com',
+  // 🔒 Google 広告の 1st-party コンバージョンは、閲覧者の**国別ドメイン**へ送られる。
+  //    日本からの閲覧では `https://www.google.co.jp/pagead/1p-conversion/<id>/` になり、
+  //    `https://www.google.com` の許可では届かない（別ホストである）。
+  //    国別ドメインはローカル配信では現れず、本番の実測でしか踏めない層である。
+  //    `https://*.google.co.jp` へまとめない — 必要のないサブドメインまで開く。
+  //    他国のドメイン（`google.co.uk` 等）は、その市場を出す段で実測して足す。
+  'https://www.google.co.jp',
   'https://www.googleadservices.com',
   // `googleads.g.doubleclick.net` / `stats.g.doubleclick.net`
   'https://*.g.doubleclick.net',
