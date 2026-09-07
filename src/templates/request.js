@@ -141,13 +141,19 @@ ${body}
  * 🔒 `required` を付けない。リクエストはボタンを押した時点で受け取っている。
  * 🔒 自由記述には注記（`lp.form.freeTextNote`）を必ず添える。N-01 / N-05 に対する
  *    唯一の防波堤なので、自由記述と離さない。
+ * 🔒 礼と依頼（`request.surveyThanks`）は**見出しより前**に置く。押した直後に読ませる
+ *    最初の文が免責（旧 `request.surveyLede`「回答は任意です。リクエストはすでに
+ *    受け取りました。」）だと、押した人の行動を否定する語順になる（T-053 / PO 指示）。
+ *    フォームの中に置くので、送信・スキップでフォームごと畳まれ、完了状態には残らない。
+ * ⚠️ この位置は `src/assets/request.js` のスクロール対象（段そのもの）と対である。
+ *    見出しへスクロールする形に戻すと、礼の文が画面の外へ出る（完了条件 B-6b）。
  */
 function surveyStep(t, level) {
   return step(
     'survey',
     `    <form class="request-form" data-request-survey novalidate>
+      <p class="request-flow__thanks">${escapeHtml(t('request.surveyThanks'))}</p>
       <h${level} class="request-flow__heading" tabindex="-1">${escapeHtml(t('request.surveyHeading'))}</h${level}>
-      <p class="request-flow__lede">${escapeHtml(t('request.surveyLede'))}</p>
 
       <fieldset class="request-form__group">
         <legend class="request-form__legend">${escapeHtml(t('lp.form.nutrients'))}</legend>

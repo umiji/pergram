@@ -55,7 +55,7 @@
   "request.note": "メールアドレスの登録は不要です。押すだけで送信します。",
   "request.received": "リクエストを受け取りました",
   "request.surveyHeading": "どの成分・製品を追加しますか",
-  "request.surveyLede": "回答は任意です。リクエストはすでに受け取りました。",
+  "request.surveyThanks": "リクエストありがとうございます。もしよければ任意で詳しくご要望をお聞かせください。",
   "request.surveySubmit": "回答を送信する",
   "request.surveySkip": "回答せずに進む",
   "request.surveyDone": "回答を受け取りました。",
