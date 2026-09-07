@@ -426,12 +426,22 @@ table th {
 .request-flow__heading {
   width: fit-content;
   max-width: 100%;
-  margin: 0 0 var(--space-2);
+  /* 🔒 **見出しと中身のあいだは、段によらず --space-6。** リード文を持つ段
+        （メール・支援）ではリード文の margin-bottom がこの 24px を作るので、
+        見出しの側は下の :has() で 8px へ詰める。リード文を持たない段
+        （アンケート。見出しの直後が legend）だけ 8px にすると、
+        **同じ役割の見出しの下の間隔が段ごとに割れる**（T-053 / R-053-8）。
+        :has() が無い環境では全段が 24px になるだけで、崩れはしない。 */
+  margin: 0 0 var(--space-6);
   font-size: var(--size-md);
   font-weight: 700;
   line-height: 1.5;
   color: var(--ink);
   scroll-margin-top: var(--head-offset);
+}
+/* リード文が続く段では、見出しとリード文を同じ塊として近づける */
+.request-flow__heading:has(+ .request-flow__lede) {
+  margin-bottom: var(--space-2);
 }
 .request-flow__heading:focus-visible {
   outline: 2px solid var(--signal);
@@ -476,12 +486,16 @@ table th {
   gap: var(--space-2);
   align-content: start;
 }
+/* T6 入力のラベル。T1〜T5 と同じく**色と行送りまで明示する**（T-053 / R-053-9）。
+   継承任せにすると、親の字送りを変えたときにこの段だけ黙って追随する */
 .request-form__legend {
   display: block;
   margin-bottom: var(--space-2);
   padding: 0;
   font-size: var(--size-sm);
   font-weight: 700;
+  line-height: 1.6;
+  color: var(--ink);
 }
 .request-form__field {
   display: block;

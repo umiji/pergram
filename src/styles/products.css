@@ -418,12 +418,17 @@
   width: 15px;
   height: 15px;
 }
-/* β版のあいだだけ出す注記。広告表示より弱く、しかし読める強さに置く */
+/* β版のあいだだけ出す注記。広告表示より弱く、しかし読める強さに置く。
+   🔒 **字を小さくしない（`--size-sm` = 本文と同じ）。** この文（`products.betaNoData`）は
+      「他ストアの価格は表示例である」ことを画面に明示する景表法まわりの断り書きで、
+      `.claude/rules/pergram-code-invariants.md` が表示を義務づけている。
+      design.md §3 の階層表は T5（`--size-xs`）へ置いているが、**そこは踏まない**
+      （T-053 / R-053-7。迷ったらより保守的な方へ倒す）。
+      弱さは色（`--muted-weak`）だけで付ける。行送りは親の `.notice`（1.8）に合わせる */
 .notice__beta {
   display: block;
   margin-top: var(--space-1);
-  font-size: var(--size-xs);
-  line-height: 1.7;
+  font-size: var(--size-sm);
   color: var(--muted-weak);
 }
 
