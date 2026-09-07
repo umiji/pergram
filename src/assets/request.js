@@ -1,17 +1,20 @@
 /**
- * 製品一覧の「他の成分・製品の追加をリクエスト」の段階（T-050）。依存パッケージなし。
+ * 「成分・製品の追加をリクエスト」の段階（T-050 / T-051）。依存パッケージなし。
  *
+ * **LP（/{locale}/）と製品一覧（/{locale}/{nutrient}/）の両方で動く。**
  * 段は 要望 → アンケート → メール → 支援 の順に開く。開くまでは HTML 側で
- * hidden が付いている（src/templates/products/request.js）。
+ * hidden が付いている（src/templates/request.js）。
  *
  * 🔒 押下数を画面に描画しない。ボタンの状態を「受け取りました」に変えるだけで、
  *    数も順位も出さない（景表法の「人気」表示・N-03）。
  * 🔒 GA4 に個人識別情報を送らない。**メールアドレスをイベントパラメータに含めない。**
  * 🔒 自由記述の**本文**を GA4 へ送らない。書かれたかどうか（0 / 1）だけを数える。
- * 🔒 サーバへ送るのは既存の待機リストと同じ6列の範囲だけ。列を足さない。
+ * 🔒 待機リスト（/api/waitlist）へ送るのは既存の6列の範囲だけ。列を足さない。
  *    アンケートの回答は、メールアドレスの段を送ったときに相乗りする
  *    （メールアドレスが無ければ保存しない。保存の鍵がそれしかない）。
  * 🔒 送信後に別ページへ飛ばさない。同じ画面で完了状態に切り替える。
+ * 🔒 匿名シグナル（/api/request-signal）が失敗しても**段は必ず開く**。
+ *    保存は計測の都合であって、ユーザーの用ではない。
  */
 (() => {
   'use strict';
@@ -20,6 +23,19 @@
   const REQUEST_TIMEOUT_MS = 10000;
 
   const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  /* ---- 匿名シグナル（T-051） ------------------------------------------ */
+
+  /** 第1段階の押下を1行だけ残す受け口。持つのは UUID と日時だけ */
+  const SIGNAL_ENDPOINT = '/api/request-signal';
+
+  /**
+   * ブラウザごとの識別子の置き場。
+   * 🔒 **ここに入るのはこのブラウザが作った UUID だけ。** メールアドレス・回答・
+   *    閲覧履歴を入れない。localStorage はサーバへ送られないが、共用端末では
+   *    次の利用者にも読める。
+   */
+  const SIGNAL_STORAGE_KEY = 'pergram.request_signal_id';
 
   /** GA4 送信の共通ガード。gtag 未ロード時は何もしない */
   function track(name, params) {
@@ -98,11 +114,82 @@
     button.setAttribute('aria-expanded', 'true');
   }
 
+  /* ---- 匿名シグナル: ブラウザごとに1行だけ残す（T-051） ---------------- */
+
+  /**
+   * localStorage は使えないことがある（プライベートモード、Cookie 拒否、
+   * 容量超過）。**触るだけで例外が飛ぶ**ので、読み書きの両方を包む。
+   * 読めなければ「まだ送っていない」、書けなければ「次も送る」で先へ進む。
+   */
+  function readSignalId() {
+    try {
+      return window.localStorage.getItem(SIGNAL_STORAGE_KEY);
+    } catch (err) {
+      return null;
+    }
+  }
+
+  function writeSignalId(id) {
+    try {
+      window.localStorage.setItem(SIGNAL_STORAGE_KEY, id);
+    } catch (err) {
+      /* 保存できなくても導線は止めない */
+    }
+  }
+
+  /**
+   * 匿名の識別子。`crypto.randomUUID()` が無い環境では**作らない**。
+   *
+   * 🔒 独自の疑似乱数で代用しない。衝突すればサーバ側で1行に潰れ、
+   *    「何人が意思表示したか」が静かに目減りする。**送らないほうがまだ読める**
+   *    （GA4 の request_click が残っており、こちらは 0 件になるだけ）。
+   */
+  function newSignalId() {
+    return window.crypto && typeof window.crypto.randomUUID === 'function'
+      ? window.crypto.randomUUID()
+      : null;
+  }
+
+  /** 同じページで2回以上送らないための鍵。ボタンは2箇所にある */
+  let signalSent = false;
+
+  /**
+   * 第1段階の押下をサーバへ1行残す。
+   *
+   * 🔒 **応答を待たない。失敗しても握り潰す。** 段の開閉はこの結果に依存しない。
+   * 🔒 送るのは `{ id }` だけ。押された場所・成分・自由記述を混ぜない
+   *    （押された場所の区別は GA4 の location が持つ）。
+   * 🔒 送信前に id を保存する。**送信後にすると、応答が返らなかった回が
+   *    次回に別の UUID で数え直され、同じブラウザが2人に見える。**
+   *    取りこぼす側（控えめな数字）へ倒すのが正しい。
+   */
+  function sendRequestSignal() {
+    if (signalSent) return;
+    signalSent = true;
+
+    // このブラウザは既に数えられている。2回目以降は送らない（段は開く）
+    if (readSignalId()) return;
+
+    const id = newSignalId();
+    if (!id) return;
+    writeSignalId(id);
+
+    fetch(SIGNAL_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+      keepalive: true,
+    }).catch(() => {
+      /* 計測の都合。ユーザーには何も見せない */
+    });
+  }
+
   ctas.forEach((button) => {
     button.addEventListener('click', () => {
-      // 位置（絞り込みの近く / リストの末尾）を分けて数える。文言では分けない
+      // 位置（絞り込みの近く / リストの末尾 / LP）を分けて数える。文言では分けない
       track('request_click', { location: button.dataset.cta || '(none)' });
       ctas.forEach(markReceived);
+      sendRequestSignal();
 
       const opened = openStep('survey');
       if (opened) track('request_survey_view', {});
