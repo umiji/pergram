@@ -10,6 +10,17 @@
  * 🔒 自由記述の**本文**を GA4 へ送らない。書かれたかどうか（0 / 1）だけ。
  * 🔒 送信後に別ページへ飛ばさない。
  * 🔒 サーバへ送るのは既存の待機リストと同じ6列の範囲だけ。
+ *
+ * === 2026-09-07 / T-051: 第1段階でも1回だけサーバへ送るようになった ===
+ * T-050 では「第1段階の計測は GA4 のイベントだけ」だったが、**PO 判断でこれは
+ * 上書きされた**（GA4 は CSP で全滅した実績があり、計測が自分の手の中に無いと
+ * 0 件の意味が読めない。T-051 ## 申し送り 4）。押下で `POST /api/request-signal` へ
+ * 匿名の UUID を1行残す。**ブラウザごとに1回だけ**（`localStorage`）。
+ *
+ * したがって `dom.fetchCalls` には**2種類の宛先が混ざる**。件数を数えるときは
+ * 必ず宛先で分けること（`waitlistCalls()` / `signalCalls()`）。**全体の件数で
+ * 「送っていない」を判定すると、匿名シグナルを数えてしまい意味が変わる。**
+ * 匿名シグナルそのものの検査は tests/request_unify.test.js が持っている。
  */
 
 import test from 'node:test';
@@ -24,6 +35,14 @@ const t = await loadTranslator('ja');
 
 const SCRIPT = 'src/assets/request.js';
 const TEST_EMAIL = 'request@example.com';
+
+/** 待機リストの受け口。ここへ飛ぶのはメールアドレスの段を送ったときだけ */
+const WAITLIST_ENDPOINT = '/api/waitlist';
+/** 匿名シグナルの受け口。第1段階の押下で1回だけ（T-051） */
+const SIGNAL_ENDPOINT = '/api/request-signal';
+
+const waitlistCalls = (dom) => dom.fetchCalls.filter((call) => call.url.includes(WAITLIST_ENDPOINT));
+const signalCalls = (dom) => dom.fetchCalls.filter((call) => call.url.includes(SIGNAL_ENDPOINT));
 
 /** 自由記述の本文が GA4 へ漏れていないかを見るための目印 */
 const SENTINEL = 'ZZQ';
@@ -136,10 +155,15 @@ test('🔒 押下後のフィードバックに数値が出ない（押下数を
   }
 });
 
-test('🔒 要望ボタンを押しただけではサーバへ何も送らない（第1段階は GA4 だけ）', async () => {
+test('🔒 要望ボタンを押しただけでは待機リストへ送らない（飛ぶのは匿名シグナルだけ）', async () => {
   const { dom } = await clickRequest();
 
-  assert.equal(dom.fetchCalls.length, 0, `送信が ${dom.fetchCalls.length} 回あります`);
+  assert.equal(
+    waitlistCalls(dom).length,
+    0,
+    `第1段階でメールアドレスの受け口へ ${waitlistCalls(dom).length} 回送っています`,
+  );
+  assert.equal(signalCalls(dom).length, 1, '匿名シグナルが1回送られていません（T-051 完了条件7）');
 });
 
 /* ---- 第2段階: アンケート ---------------------------------------------- */
@@ -154,10 +178,14 @@ test('アンケートを送るとメールの段が開き、アンケートは�
   assert.equal(step('support').hidden, true, '支援の段が先に開いています');
 });
 
-test('🔒 アンケートの送信はサーバへ飛ばさない（メールアドレスが無いと保存できない）', async () => {
+test('🔒 アンケートの送信は待機リストへ飛ばさない（メールアドレスが無いと保存できない）', async () => {
   const { dom } = await submitSurvey();
 
-  assert.equal(dom.fetchCalls.length, 0, `アンケートだけで ${dom.fetchCalls.length} 回送信しています`);
+  assert.equal(
+    waitlistCalls(dom).length,
+    0,
+    `アンケートだけで ${waitlistCalls(dom).length} 回送信しています`,
+  );
 });
 
 test('🔒 アンケートの GA4 イベントに自由記述の本文が乗らない（有無だけ）', async () => {
@@ -183,7 +211,7 @@ test('アンケートを飛ばしてもメールの段へ進める', async () =>
   await dom.flush();
 
   assert.equal(step('email').hidden, false, 'メールの段が開いていません');
-  assert.equal(dom.fetchCalls.length, 0, '飛ばしたのに送信しています');
+  assert.equal(waitlistCalls(dom).length, 0, '飛ばしたのに待機リストへ送信しています');
 });
 
 /* ---- 第3段階: メールアドレス ------------------------------------------- */
@@ -191,10 +219,10 @@ test('アンケートを飛ばしてもメールの段へ進める', async () =>
 test('メールアドレスを送ると /api/waitlist へ POST され、支援の段が開く', async () => {
   const { dom, step, emailForm, emailSubmit } = await submitEmail();
 
-  assert.equal(dom.fetchCalls.length, 1, `送信が ${dom.fetchCalls.length} 回です`);
-  const [call] = dom.fetchCalls;
+  assert.equal(waitlistCalls(dom).length, 1, `送信が ${waitlistCalls(dom).length} 回です`);
+  const [call] = waitlistCalls(dom);
   assert.equal(call.method, 'POST');
-  assert.ok(call.url.startsWith('/api/waitlist'), `送信先が ${call.url} です`);
+  assert.ok(call.url.startsWith(WAITLIST_ENDPOINT), `送信先が ${call.url} です`);
   assert.equal(call.body.email, TEST_EMAIL);
 
   assert.ok(emailSubmit.defaultPrevented, '🔒 送信で既定の遷移が止まっていません');
@@ -205,7 +233,7 @@ test('メールアドレスを送ると /api/waitlist へ POST され、支援�
 
 test('🔒 送信本文は保存してよい列の範囲だけ。アンケートの回答が同じ送信に相乗りする', async () => {
   const { dom } = await submitEmail();
-  const { body } = dom.fetchCalls[0];
+  const { body } = waitlistCalls(dom)[0];
 
   for (const key of Object.keys(body)) {
     assert.ok(ALLOWED_PAYLOAD_KEYS.has(key), `保存対象外の項目を送っています: ${key}`);
@@ -229,7 +257,7 @@ test('メールアドレスの形が正しくなければ送らず、直し方�
   const { dom, step } = await submitEmail({}, 'not-an-email');
   const error = dom.body.querySelector('.request-form__error');
 
-  assert.equal(dom.fetchCalls.length, 0, '不正なメールアドレスを送信しています');
+  assert.equal(waitlistCalls(dom).length, 0, '不正なメールアドレスを送信しています');
   assert.ok(error && !error.hidden, 'エラー文が出ていません');
   assert.ok(error.textContent.trim().length > 0, '🔒 エラーを色だけで示しています');
   assert.equal(step('support').hidden, true, '送れていないのに支援の段が開いています');
@@ -256,7 +284,7 @@ test('メールアドレスを入れずに支援の段まで進める', async ()
   await dom.flush();
 
   assert.equal(step('support').hidden, false, '支援の段が開いていません');
-  assert.equal(dom.fetchCalls.length, 0, '飛ばしたのに送信しています');
+  assert.equal(waitlistCalls(dom).length, 0, '飛ばしたのに待機リストへ送信しています');
 });
 
 /* ---- 計測の分離 -------------------------------------------------------- */
