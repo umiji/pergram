@@ -289,12 +289,33 @@ test('メールアドレスを入れずに支援の段まで進める', async ()
 
 /* ---- 計測の分離 -------------------------------------------------------- */
 
+/**
+ * 通しで進んだときに出る GA4 のイベント名を**名指しで**固定する。
+ *
+ * 2026-09-07 / T-051 レビュー: もとは件数（6件）だけを見ていたが、
+ * **広告のコンバージョン `waitlist_submit` が消えても件数の期待値を直せば通ってしまう。**
+ * 名前の一覧で固定して、消えたことが必ず落ちるようにした（件数の検査は含意される）。
+ */
+const FULL_FLOW_EVENTS = [
+  'request_click',
+  'request_survey_view',
+  'request_survey_submit',
+  'request_email_view',
+  'request_email_submit',
+  'waitlist_submit',
+  'request_support_view',
+];
+
 test('段への到達が、それぞれ別のイベント名で数えられる', async () => {
   const { dom } = await submitEmail();
   const names = dom.eventNames();
 
   assert.equal(new Set(names).size, names.length, `同じイベント名が重複しています: ${names}`);
-  assert.equal(names.length, 6, `到達と送信の内訳が6件ではありません: ${names}`);
+  assert.deepEqual(
+    [...names].sort(),
+    [...FULL_FLOW_EVENTS].sort(),
+    `到達と送信の内訳が変わっています: ${names}`,
+  );
 });
 
 test('支援の設定が無い市場では、支援の段が無くても壊れない', async () => {
@@ -312,4 +333,122 @@ ${requestFlow(t, { support: null })}`;
   skip.dispatchEvent(new DomEvent('click'));
   await dom.flush();
   assert.equal(dom.navigations.length, 0, '支援の段が無いときに別ページへ飛んでいます');
+});
+
+/* ---- 飛ばした段に完了文言を出さない（T-051 レビュー R-051-2） ----------- */
+
+/**
+ * 🔒 **やっていないことの完了文言を出さない。**
+ *
+ * 「メールアドレスを入れずに進む」を押しただけで
+ * 「登録しました。掲載したらお知らせします。」（`request.emailDone`）が出ていた。
+ * `/api/waitlist` へは1件も送っていないので、**サービスが保持していないデータを
+ * 保持していると利用者へ断言していた**（`.claude/rules/pergram-ui-copy.md`
+ * 「事実のみを書く」違反）。飛ばした段はフォームを畳むだけにする。
+ */
+const doneOf = (dom, kind) =>
+  dom.body.querySelector(`[data-request-step="${kind}"] .request-flow__done`);
+
+test('🔒 アンケートを飛ばしたとき、回答したという完了文言を出さない', async () => {
+  const { dom } = await clickRequest();
+  const skip = dom.body.querySelector('[data-request-skip="survey"]');
+
+  skip.dispatchEvent(new DomEvent('click'));
+  await dom.flush();
+
+  const done = doneOf(dom, 'survey');
+  assert.ok(done, 'アンケートの段に完了文言の器がありません');
+  assert.equal(done.hidden, true, '飛ばしたのに回答の完了文言が出ています');
+  assert.equal(done.textContent.trim(), '', '飛ばしたのに回答の完了文言が読める状態です');
+});
+
+test('🔒 メールアドレスを飛ばしたとき、登録したという完了文言を出さない', async () => {
+  const { dom } = await submitSurvey();
+  const skip = dom.body.querySelector('[data-request-skip="email"]');
+
+  skip.dispatchEvent(new DomEvent('click'));
+  await dom.flush();
+
+  const done = doneOf(dom, 'email');
+  assert.ok(done, 'メールの段に完了文言の器がありません');
+  assert.equal(done.hidden, true, '送っていないのに登録の完了文言が出ています');
+  assert.ok(
+    !dom.body.textContent.includes(t('request.emailDone')),
+    `送っていないのに「${t('request.emailDone')}」が画面に出ています`,
+  );
+});
+
+test('飛ばした段でもフォームは畳まれ、次の段が開く', async () => {
+  const { dom, step } = await clickRequest();
+
+  dom.body.querySelector('[data-request-skip="survey"]').dispatchEvent(new DomEvent('click'));
+  await dom.flush();
+
+  assert.equal(
+    dom.body.querySelector('[data-request-survey]').hidden,
+    true,
+    '飛ばしたのにアンケートのフォームが残っています',
+  );
+  assert.equal(step('email').hidden, false, 'メールの段が開いていません');
+});
+
+test('実際に送った段には完了文言が出る（飛ばした場合と区別が付く）', async () => {
+  const { dom } = await submitEmail();
+
+  const surveyDone = doneOf(dom, 'survey');
+  const emailDone = doneOf(dom, 'email');
+  assert.equal(surveyDone.hidden, false, '回答を送ったのに完了文言が出ていません');
+  assert.equal(surveyDone.textContent.trim(), t('request.surveyDone'));
+  assert.equal(emailDone.hidden, false, '登録できたのに完了文言が出ていません');
+  assert.equal(emailDone.textContent.trim(), t('request.emailDone'));
+});
+
+/* ---- 広告のコンバージョン（T-051 レビュー R-051-1） -------------------- */
+
+/**
+ * 🔒 **`waitlist_submit` を消さない。**
+ *
+ * この名前は `docs/ops/google-ads-first-campaign.md` (0-4) で
+ * **Google 広告のコンバージョンとしてインポート済み**である。送る箇所が消えると、
+ * 広告側のコンバージョンは**エラーにならず 0 件のまま静かに記録され続ける**
+ * （T-047 と同じ壊れ方）。`request_email_submit` とは別に、名前の連続性のためだけに残す。
+ */
+test('🔒 メールアドレスの登録が成功したとき waitlist_submit を送る（広告のコンバージョン）', async () => {
+  const { dom } = await submitEmail();
+
+  assert.ok(
+    dom.eventNames().includes('waitlist_submit'),
+    `waitlist_submit が送られていません: ${dom.eventNames()}`,
+  );
+});
+
+test('🔒 waitlist_submit に個人識別情報を載せない', async () => {
+  const { dom } = await submitEmail();
+  const call = dom.gtagCalls.find((c) => c[1] === 'waitlist_submit');
+
+  assert.ok(call, 'waitlist_submit が送られていません');
+  assert.ok(
+    !JSON.stringify(call).includes(TEST_EMAIL),
+    'waitlist_submit にメールアドレスが載っています',
+  );
+});
+
+test('🔒 メールアドレスを飛ばしたときは waitlist_submit を送らない', async () => {
+  const { dom } = await submitSurvey();
+  dom.body.querySelector('[data-request-skip="email"]').dispatchEvent(new DomEvent('click'));
+  await dom.flush();
+
+  assert.ok(
+    !dom.eventNames().includes('waitlist_submit'),
+    '登録していないのに広告のコンバージョンを送っています',
+  );
+});
+
+test('🔒 送信に失敗したときは waitlist_submit を送らない', async () => {
+  const { dom } = await submitEmail({ respond: () => ({ reject: true }) });
+
+  assert.ok(
+    !dom.eventNames().includes('waitlist_submit'),
+    '保存できていないのに広告のコンバージョンを送っています',
+  );
 });

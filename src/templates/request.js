@@ -17,7 +17,7 @@
  *    このページで出すのはここ1箇所だけにする。
  */
 
-import { escapeHtml } from '../lib/i18n.js';
+import { escapeAttribute, escapeHtml } from '../lib/i18n.js';
 import { optionChips } from './lp/parts.js';
 import { supportEmbed } from './lp/support.js';
 import {
@@ -163,9 +163,8 @@ ${optionChips({
         )}</button>
       </div>
     </form>
-    <p class="request-flow__done" role="status" hidden>${escapeHtml(
-      t('request.surveyDone'),
-    )}</p>`,
+    <p class="request-flow__done" role="status" hidden
+       data-request-done="${escapeAttribute(t('request.surveyDone'))}"></p>`,
   );
 }
 
@@ -207,9 +206,8 @@ function emailStep(t, level) {
       <p class="request-form__note">${escapeHtml(t('lp.form.noteUse'))}</p>
       <p class="request-form__note">${escapeHtml(t('lp.form.noteRelease'))}</p>
     </form>
-    <p class="request-flow__done" role="status" hidden>${escapeHtml(
-      t('request.emailDone'),
-    )}</p>`,
+    <p class="request-flow__done" role="status" hidden
+       data-request-done="${escapeAttribute(t('request.emailDone'))}"></p>`,
   );
 }
 

@@ -91,14 +91,35 @@
     return wasHidden;
   }
 
-  /** 段の中のフォームを完了状態に切り替える。フォームを隠し、完了の1文を出す */
-  function finishStep(kind) {
+  /**
+   * 段の中のフォームを畳む。**完了文言は出さない。**
+   * 飛ばした（`data-request-skip`）ときはこちらを使う。
+   */
+  function collapseStep(kind) {
     const step = steps[kind];
     if (!step) return;
     const form = step.querySelector('.request-form');
-    const done = step.querySelector('.request-flow__done');
     if (form) form.hidden = true;
-    if (done) done.hidden = false;
+  }
+
+  /**
+   * 段の中のフォームを完了状態に切り替える。フォームを畳み、完了の1文を出す。
+   *
+   * 🔒 **実際に送った段でしか呼ばない。** 飛ばした段で呼ぶと
+   *    「登録しました。掲載したらお知らせします。」のような、**サービスが保持して
+   *    いないデータを保持していると断言する文**が出る（pergram-ui-copy「事実のみを書く」）。
+   * ⚠️ 文言は HTML に埋めず `data-request-done` から**ここで書き込む**。
+   *    `role="status"` は**中身が変化したときに読み上げられる**ので、最初から
+   *    文字が入ったまま hidden を外すだけでは、支援技術に伝わらないことがある。
+   */
+  function finishStep(kind) {
+    const step = steps[kind];
+    if (!step) return;
+    collapseStep(kind);
+    const done = step.querySelector('.request-flow__done');
+    if (!done) return;
+    done.textContent = done.dataset.requestDone || '';
+    done.hidden = false;
   }
 
   /* ---- 第1段階: 要望ボタン -------------------------------------------- */
@@ -327,6 +348,12 @@
         .then(() => {
           // 🔒 メールアドレスは送らない。登録できたという事実だけを数える
           track('request_email_submit', {});
+          // 🔒 **この名前を消さない。** docs/ops/google-ads-first-campaign.md (0-4) で
+          //    Google 広告のコンバージョンとしてインポート済みの名前である。送る箇所が
+          //    無くなっても広告側はエラーにならず、**0 件のまま静かに記録され続ける**
+          //    （T-047 と同じ壊れ方）。request_email_submit とは別に、名前の連続性の
+          //    ためだけに残す。パラメータは持たせない（個人識別情報を載せる隙を作らない）。
+          track('waitlist_submit', {});
           finishStep('email');
           toSupportStep();
         })
@@ -343,7 +370,8 @@
     button.addEventListener('click', () => {
       const kind = button.dataset.requestSkip;
       track(kind === 'survey' ? 'request_survey_skip' : 'request_email_skip', {});
-      finishStep(kind);
+      // 🔒 完了文言を出さない。飛ばした段では**何も起きていない**
+      collapseStep(kind);
       if (kind === 'survey') toEmailStep();
       else toSupportStep();
     });
