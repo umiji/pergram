@@ -100,3 +100,102 @@ test('_headers に主要なセキュリティヘッダが揃っている', () =>
   }
   assert.ok(text.startsWith('/*\n'), 'すべてのパスに当たる指定になっていません');
 });
+
+// ---------------------------------------------------------------------------
+// T-047 受け入れテスト — 計測ビーコンの送信先を CSP が許可していること
+// ---------------------------------------------------------------------------
+
+/**
+ * CSP の1ディレクティブの source 一覧。
+ * 部分一致で判定すると `https://analytics.google.com.evil.test` のような
+ * 別ホストでも通ってしまうため、必ずトークンの完全一致で判定する。
+ */
+function sources(csp, name) {
+  return directive(csp, name).split(' ').slice(1);
+}
+
+// 🔒 GA4（gtag.js）は計測を analytics.google.com/g/collect へ fetch / beacon で送る。
+//    ここが漏れると、タグの読み込みは成功して画面は完全に正常に見えるのに、
+//    page_view を含む全イベントが送信の一歩手前で捨てられる。痕跡はコンソールだけ。
+//    ワイルドカードは1ラベルしか埋めないので `https://*.analytics.google.com` は
+//    `analytics.google.com` 自身にマッチしない。完全一致で必ず書くこと。
+const MEASUREMENT_CONNECT_SRC = [
+  'https://analytics.google.com',
+  'https://www.google-analytics.com',
+  'https://*.analytics.google.com',
+  'https://*.google-analytics.com',
+  'https://*.googletagmanager.com',
+  'https://www.google.com',
+  'https://www.googleadservices.com',
+  'https://*.g.doubleclick.net',
+];
+
+test('🔒 connect-src が GA4 と広告タグの送信先をすべて許可する', () => {
+  for (const supportOrigin of [null, supportOriginOf(markets.JP.support)]) {
+    const allowed = sources(contentSecurityPolicy({ supportOrigin }), 'connect-src');
+    for (const host of MEASUREMENT_CONNECT_SRC) {
+      assert.ok(
+        allowed.includes(host),
+        `connect-src に ${host} がありません（supportOrigin=${supportOrigin}）`,
+      );
+    }
+  }
+});
+
+// 🔒 全許可で塞ぐのは禁止。必要なホストだけを列挙する
+test('🔒 connect-src をスキーム全許可・ワイルドカード単独で塞がない', () => {
+  for (const supportOrigin of [null, supportOriginOf(markets.JP.support)]) {
+    const allowed = sources(contentSecurityPolicy({ supportOrigin }), 'connect-src');
+    for (const wildcard of ['https:', '*', 'https://*', 'http:']) {
+      assert.ok(
+        !allowed.includes(wildcard),
+        `connect-src に ${wildcard} があります（必要なホストだけを列挙する）`,
+      );
+    }
+  }
+});
+
+// Cloudflare Web Analytics のビーコン。script-src 側で落ちていた
+test('🔒 script-src が Cloudflare Insights のビーコンを許可する', () => {
+  for (const supportOrigin of [null, supportOriginOf(markets.JP.support)]) {
+    const allowed = sources(contentSecurityPolicy({ supportOrigin }), 'script-src');
+    assert.ok(
+      allowed.includes('https://static.cloudflareinsights.com'),
+      `script-src に https://static.cloudflareinsights.com がありません（supportOrigin=${supportOrigin}）`,
+    );
+  }
+});
+
+// 回帰: 計測ホストを足しても、支援ウィジェットの出し分けは従来どおり
+test('🔒 回帰: 支援ウィジェットのオリジンは3経路に付き、出さない市場には付かない', () => {
+  const origin = supportOriginOf(markets.JP.support);
+  assert.ok(origin, 'JP の支援設定がありません');
+
+  const withSupport = contentSecurityPolicy({ supportOrigin: origin });
+  const without = contentSecurityPolicy({ supportOrigin: null });
+
+  for (const name of ['script-src', 'style-src', 'connect-src']) {
+    assert.ok(
+      sources(withSupport, name).includes(origin),
+      `${name} に ${origin} がありません`,
+    );
+    assert.ok(
+      !sources(without, name).includes(origin),
+      `supportOrigin が null なのに ${name} に ${origin} が付いています`,
+    );
+  }
+  assert.ok(!without.includes(origin), `supportOrigin が null なのに ${origin} が CSP に出ています`);
+});
+
+// dist/_headers に載る値は contentSecurityPolicy() の結果そのものであること。
+// ここが乖離すると、テストは通るのに配信されるヘッダだけが古いという事故になる
+test('🔒 _headers の Content-Security-Policy が CSP 本体と一致する', () => {
+  for (const supportOrigin of [null, supportOriginOf(markets.JP.support)]) {
+    const line = headersFile({ supportOrigin })
+      .split('\n')
+      .map((row) => row.trim())
+      .find((row) => row.startsWith('Content-Security-Policy:'));
+    assert.ok(line, 'Content-Security-Policy の行がありません');
+    assert.equal(line, `Content-Security-Policy: ${contentSecurityPolicy({ supportOrigin })}`);
+  }
+});
