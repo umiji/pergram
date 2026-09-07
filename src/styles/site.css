@@ -323,6 +323,37 @@ table th {
 
 /* ---- 要望の導線と段階（T-050） ------------------------------------- */
 
+/* ---- 面の役割（T-053）----------------------------------------------
+ * 🔒 積まれる箱の角丸・背景・枠線・余白は**ここだけ**で決める。
+ *    個々のコンポーネントで直書きしない。役割は3つ
+ *    （docs/design/design.md「面の体系と字送りの階層（2026-09-08 / T-053）」§1）。
+ *    A 読む面（.explainer / .request-flow__step）/ B 呼びかけの面（.request-band__inner）/
+ *    C 注記（.notice — 面を持たない）。**4つ目を足さない。**
+ * ⚠️ .explainer は製品一覧にしか無いが、値の出所を1箇所にするためここに置く。 */
+.explainer,
+.request-band__inner,
+.request-flow__step {
+  padding: var(--panel-pad);
+  background: var(--panel-bg);
+  border: var(--panel-border);
+  border-radius: var(--panel-radius);
+}
+
+@media (min-width: 900px) {
+  .explainer,
+  .request-band__inner,
+  .request-flow__step {
+    padding: var(--panel-pad-lg);
+  }
+}
+
+/* B は A と形が同じで、色だけが違う */
+.request-band__inner {
+  background: var(--panel-call-bg);
+  border: var(--panel-call-border);
+}
+
+
 /*
  * リストの前と後ろに置く要望ボタン。位置は data-cta の値で分けて数える。
  *
@@ -337,18 +368,20 @@ table th {
 .request-band__inner {
   display: grid;
   gap: var(--space-3);
-  justify-items: start;
-  padding: var(--space-6);
-  background: var(--signal-band);
-  border: 1px solid var(--signal-edge);
-  border-radius: var(--radius-lg);
+  /* 🔒 1列のときはボタンを帯の幅いっぱいに倒す（旧 justify-items: start は、
+     幅 888px の帯の左端に 230px のボタンが貼り付いて「置き忘れ」に見えていた）。
+     900px 以上の製品一覧だけ2列にする指定は products.css が持つ（design.md §4）。 */
+  justify-items: stretch;
 }
 .request-band__lede {
   margin: 0;
   font-size: var(--size-sm);
+  line-height: 1.8;
   color: var(--muted-strong);
 }
 .request-band__button {
+  /* 1列のときは帯の幅いっぱい。2列（900px 以上の製品一覧）では右列の幅いっぱい */
+  width: 100%;
   /* 🔒 タップ領域 44px 以上 */
   min-height: var(--tap-target);
 }
@@ -358,43 +391,81 @@ table th {
   color: var(--signal);
   border-color: var(--signal);
 }
+/* 🔒 T4。リード文とサイズを揃え、色だけで弱める。「対価が要らない」という条件は
+      リード文と同じ大きさで読めなければ意味がない（design.md §3） */
 .request-band__note {
   margin: 0;
   font-size: var(--size-sm);
+  line-height: 1.8;
   color: var(--muted-weak);
 }
 
 /*
  * 段（アンケート → メール → 支援）。開くまでは HTML 側の hidden で伏せてある。
- * 🔒 器そのものに余白を持たせない。全部閉じている初期状態で、空白だけが残るため。
- *    段のあいだの余白は gap、CTA との間隔は先頭の段の margin が持つ。
+ * 🔒 器そのものに余白を持たせるのは、**見えている段が1つ以上あるときだけ**。
+ *    全部閉じている初期状態で空白だけが残るのを避ける（T-050 の 🔒 の言い換え）。
+ * 🔒 この余白を `.request-flow__step:first-child` へ戻さない。飛ばした段は器ごと
+ *    畳まれる（src/assets/request.js の collapseStep）が、:first-child は構造上の
+ *    指定なので display: none の段に付いたまま消え、2番目の段が余白を失う（T-053）。
  */
 .request-flow {
   display: grid;
   gap: var(--space-6);
 }
+.request-flow:has(> .request-flow__step:not([hidden])) {
+  margin-top: var(--space-6);
+}
 .request-flow__step {
-  padding: var(--space-6);
   margin-top: 0;
-  background: var(--surface);
-  border: 1px solid var(--signal-edge);
-  border-radius: var(--radius-lg);
+  /* 段を開くとここへスクロールする。スティッキーヘッダの下へ潜らせない */
+  scroll-margin-top: var(--head-offset);
 }
-.request-flow__step:first-child {
-  margin-top: var(--space-8);
-}
+/* 🔒 段が開くとここへフォーカスが移る（src/assets/request.js）。ブロック要素のままだと
+      段の全幅に枠が出て「壊れた要素」に見える。**輪郭を消さない**（WCAG 2.4.7 / 2.4.11）。
+      文字に沿わせるだけである。 */
 .request-flow__heading {
+  width: fit-content;
+  max-width: 100%;
   margin: 0 0 var(--space-2);
   font-size: var(--size-md);
+  font-weight: 700;
+  line-height: 1.5;
+  color: var(--ink);
+  scroll-margin-top: var(--head-offset);
+}
+.request-flow__heading:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: 4px;
+  border-radius: var(--radius-interactive);
+}
+/* 礼と依頼。アンケートの段の冒頭、見出しより前に出る（T-053 / design.md §7） */
+.request-flow__thanks {
+  margin: 0 0 var(--space-3);
+  font-size: var(--size-sm);
+  line-height: 1.8;
+  color: var(--muted-strong);
 }
 .request-flow__lede {
   margin: 0 0 var(--space-6);
   font-size: var(--size-sm);
-  color: var(--muted);
+  line-height: 1.8;
+  color: var(--muted-strong);
 }
+/* 受け取ったことを示す色は画面内で1つにする（要望ボタンの .is-received と同じ --signal）。
+   字送りは面のラベル（.explainer__label）と同じ T2 */
 .request-flow__done {
   margin: 0;
-  font-weight: 500;
+  font-size: var(--size-sm);
+  font-weight: 700;
+  line-height: 1.6;
+  color: var(--signal);
+}
+
+@media (min-width: 900px) {
+  .request-flow__step,
+  .request-flow__heading {
+    scroll-margin-top: var(--head-offset-lg);
+  }
 }
 
 .request-form__group {

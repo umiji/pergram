@@ -374,11 +374,9 @@
 
 /* ---- 解説と広告表示 ----------------------------------------------- */
 
+/* 🔒 面（背景・枠線・角丸・余白）は site.css の「面の役割」が唯一の出所である。
+      ここへ書き戻さない（T-053 / design.md §2.4）。ここが持つのは間隔だけ。 */
 .explainer {
-  background: var(--surface);
-  border: var(--rule-major);
-  border-radius: var(--radius);
-  padding: var(--space-4);
   margin-bottom: var(--space-3);
 }
 .explainer__label {
@@ -397,17 +395,18 @@
   overflow-wrap: break-word;
 }
 
+/* 役割 C（注記）。**箱にしない。**
+   🔒 箱に入った定型文は「読み飛ばしてよい欄」に見える。広告表示は常時読ませるものなので、
+      本文と同じ地の上に、本文と同じ強さ（T3 / --muted-strong）で置く。
+      背景・角丸・パディングを足し戻さない（T-053 / design.md §1・§2.3）。 */
 .notice {
   display: flex;
   align-items: flex-start;
   gap: var(--space-2);
   margin: 0 0 var(--space-6);
-  padding: var(--space-3);
-  background: var(--fill-panel);
-  border-radius: var(--radius-interactive);
   font-size: var(--size-sm);
-  line-height: 1.85;
-  color: var(--muted);
+  line-height: 1.8;
+  color: var(--muted-strong);
 }
 .notice__icon {
   flex: none;
@@ -423,7 +422,9 @@
 .notice__beta {
   display: block;
   margin-top: var(--space-1);
-  color: var(--muted-faint);
+  font-size: var(--size-xs);
+  line-height: 1.7;
+  color: var(--muted-weak);
 }
 
 /* ---- 一覧 --------------------------------------------------------- */
@@ -1723,8 +1724,36 @@
     margin-bottom: 0;
   }
 
-  .explainer {
-    padding: var(--space-6);
+  /* 🔒 .explainer の padding は site.css の面の役割（--panel-pad-lg）が持つ。
+        ここへ書き戻さない（T-053）。 */
+
+  /*
+   * 要望の帯だけは、広い主カラムで2列にする（design.md §4）。
+   * 左に読ませる文、右に押させる操作。ヘッダ（検索が中央・CTA が右端）と同じ読み順で、
+   * ページの中で「操作は右」が一貫する。
+   * 🔒 全幅の橙のボタンにしない。888px の棒は帯そのものより強い面になり、
+   *    「帯 > ボタン」の階層が逆転する。240–320px は日本語のボタン文言が1行に収まる幅。
+   * 🔒 注記（「登録は不要です」）をボタンから離さない。すぐ下に置く。
+   * ⚠️ LP（640px の中央カラム）はこの分岐に入らず、site.css の1列のままである。
+   */
+  .request-band__inner {
+    grid-template-columns: minmax(0, 1fr) minmax(15rem, 20rem);
+    column-gap: var(--space-6);
+    row-gap: var(--space-2);
+    align-items: center;
+  }
+  .request-band__lede {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    align-self: center;
+  }
+  .request-band__button {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .request-band__note {
+    grid-column: 2;
+    grid-row: 2;
   }
 
   /* カード表示は3列。1列あたりが狭くなりすぎない下限を持たせる */

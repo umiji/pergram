@@ -102,6 +102,27 @@
   --radius-thumb: 10px;
   --radius-pill: 999px;
 
+  /* --- 面（パネル）— 積まれる箱の見た目はここだけで決める（T-053）--------
+     🔒 面の役割は3つ。A 読む面 / B 呼びかけの面 / C 注記（面を持たない）。
+        増やさない。値はすべて上の既存トークンの別名で、新しい色も寸法も足していない。
+        コンポーネント側に角丸・背景・枠線・余白を直書きしないこと。
+        （docs/design/design.md「面の体系と字送りの階層（2026-09-08 / T-053）」§1〜§2） */
+  --panel-bg: var(--surface);
+  --panel-border: 1px solid var(--line);
+  --panel-radius: var(--radius);
+  --panel-pad: var(--space-4);
+  --panel-pad-lg: var(--space-6); /* 900px 以上 */
+
+  /* B（呼びかけの面）。A との違いは色だけである。角丸・余白は A と共有する */
+  --panel-call-bg: var(--signal-band);
+  --panel-call-border: 1px solid var(--signal-edge);
+
+  /* スティッキーヘッダの高さ。アンカー移動とフォーカス移動の逃げ幅に使う。
+     ⚠️ 同じ数値が lp.css（76 / 88px）と products.css（88px）に直書きで
+        残っている。移行は T-053 の範囲外 */
+  --head-offset: 76px;
+  --head-offset-lg: 88px; /* 900px 以上 */
+
   /* --- 影 ------------------------------------------------------------
      浮かせるのはヒーローのランキングカードだけ。 */
   --shadow-card: 0 8px 24px rgba(22, 24, 29, 0.06);
