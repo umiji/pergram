@@ -6,6 +6,8 @@
 
 ## 対象の一覧
 
+- [CSP / 検証方法](#csp-/-検証方法) — 1件
+- [CSP / 計測ホストの許可](#csp-/-計測ホストの許可) — 7件（うち有効 6件）
 - [LP / CTA](#lp-/-cta) — 3件
 - [LP / コピー](#lp-/-コピー) — 4件
 - [LP / テスト](#lp-/-テスト) — 1件
@@ -55,6 +57,24 @@
 - [色トークン / 最安値の強調](#色トークン-/-最安値の強調) — 1件
 - [計測 / X運用](#計測-/-x運用) — 1件
 - [未分類](#未分類) — 21件（うち有効 20件）
+
+## CSP / 検証方法
+
+| 日付 | 要約 | 決定 | タスク | 状態 |
+| --- | --- | --- | --- | --- |
+| 2026-09-07 | CSP の完了判定は、ホスト列挙の照合ではなくブラウザ実測で行う | CSP を変更したら、**ビルド済み `dist/` をローカル配信してヘッドレス Chrome で | T-047 | 有効 |
+
+## CSP / 計測ホストの許可
+
+| 日付 | 要約 | 決定 | タスク | 状態 |
+| --- | --- | --- | --- | --- |
+| 2026-09-07 | 計測ホストは定数配列で持ち、支援ウィジェットの `withOrigin` とは別の層に置く | 計測ビーコンの送信先を `MEASUREMENT_CONNECT_SRC` / `MEASUREMENT_SCRIPT_SRC` の | T-047 | 有効 |
+| 2026-09-07 | `https://*.analytics.google.com` と `https://analytics.google.com` を両方書く | ワイルドカードと完全一致を**併記**する。 | T-047 | 有効 |
+| 2026-09-07 | 実測で見えた裸の `google.com` は、今回は足さない | 完了条件 2 が列挙する 8 ホストちょうどを許可する。申し送りの実測リストにある | T-047 | 置き換え済み → T-047 |
+| 2026-09-07 | `https://google.com` と `https://ad.doubleclick.net` を追加で許可する | 完了条件 2 を 10 ホストへ拡張し、裸の `https://google.com` と | T-047 | 有効 |
+| 2026-09-07 | `ad.doubleclick.net` は `*.g.doubleclick.net` にマッチしないので個別に列挙する | `https://*.g.doubleclick.net` と `https://ad.doubleclick.net` を**併記**し、 | T-047 | 有効 |
+| 2026-09-07 | `googleads.g.doubleclick.net` を `script-src` にも足す（`connect-src` の許可は効かない） | `https://googleads.g.doubleclick.net` を `MEASUREMENT_SCRIPT_SRC` へ追加する。 | T-047 | 有効 |
+| 2026-09-07 | 広告コンバージョンの国別ドメインは `www.google.co.jp` だけを完全一致で足す | `MEASUREMENT_CONNECT_SRC` へ `https://www.google.co.jp` を**1ホストだけ**追加する。 | T-048 | 有効 |
 
 ## LP / CTA
 

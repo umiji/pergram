@@ -6,7 +6,9 @@ AI開発組織のタスク台帳（索引の CSV ファイルと、タスクご�
 
   1. 停滞候補       — 更新が止まっているタスク
   2. リマインド候補 — PO（人間のプロジェクトオーナー）の回答を長く待っているタスク
-  3. 整合性の警告   — 索引と詳細ファイルの食い違い、書式違反
+  3. 整合性の警告   — 索引と詳細ファイルの食い違い、書式違反、
+                     組織への指摘の起票漏れ
+  4. 組織改善の1行 — 前回の組織点検から何件完了したか（点検の時期の目安）
 
 判定するだけで、対処はしない。何をするかはオーケストレーターが決める。
 スクリプトが勝手に担当を変えると、なぜそうなったかが記録に残らないため。
@@ -94,6 +96,50 @@ PLACEHOLDERS = {"", "-", "—", "tbd", "todo", "未定", "未記入", "（未記
 
 # PO確認待ちキューの状態。見出しの行に識別子と一緒に置く決まり。
 QUEUE_STATES = ["未回答", "回答済み", "取り下げ"]
+
+# --- 組織改善の台帳（.claude/rules/org-improvement-feedback.md と一致させること） ---
+
+# 台帳の場所。表示にも使うので、区切りは "/" のまま持つ。
+IMPROVEMENTS_REL = "docs/org-improvements.md"
+
+# 担当エージェントがタスク別ファイルへ書く指摘の種別。4つだけ。
+FEEDBACK_KINDS = ("規約", "道具", "反復", "ロール")
+FEEDBACK_SECTION = "組織への指摘"
+FEEDBACK_LINE = re.compile(
+    r"^\s*[-*]\s*[\[［]\s*(" + "|".join(FEEDBACK_KINDS) + r")\s*[\]］]"
+)
+
+# 台帳の「## 組織点検の記録」に足す行。例:
+#   - 2026-09-01 完了 12件時点 / 起票 3件
+INSPECTION_SECTION = "組織点検の記録"
+INSPECTION_LINE = re.compile(r"^\s*[-*]\s*(\d{4}-\d{2}-\d{2})\D*?(\d+)\s*件時点")
+
+# 台帳のレコードの見出し。雛形は `### OI-007: 完了条件が二値で書けない`
+# だが、実物は見出しの深さと接頭辞が揺れる。**厳しく合わせると、合わな
+# かったときに黙って0件になる**ため、揺れのほうを受け入れる。
+IMPROVEMENT_RECORD = re.compile(r"^#{2,3}\s+\**\s*(O?I-\d+)")
+
+# 欄の値を囲む飾り。太字（`**`）と等幅（`` ` ``）を外してから比べる。
+FIELD_DECORATION = "*` "
+
+# 診断が済んだレコードに必ず入る欄と、その値。
+# 「技術構成の違う別のプロジェクトでも同じことが起きるか」で判定する
+# （docs/decisions/26-distribution-boundary.md）。
+SCOPE_FIELD = "適用範囲"
+SCOPE_UPSTREAM = "配布物"
+SCOPE_LOCAL = "このリポジトリのみ"
+SCOPE_VALUES = (SCOPE_UPSTREAM, SCOPE_LOCAL)
+
+# まだ誰も診ていない状態。この間は診断時の欄が空でよい。
+UNTRIAGED_STATE = "未処理"
+
+# 配布物由来のものを配布元へ渡した状態。
+HANDED_BACK_STATE = "層1へ差し戻し済み"
+
+# 組織点検を促す目安（前回の点検から完了したタスクの数）。
+# 暫定値である（docs/decisions/25-org-improvement-cycle.md の §I 判断2）。
+# 実測で見直す前提なので、変えるときはその決定記録も直す。
+INSPECTION_INTERVAL = 5
 
 TASK_ID = re.compile(r"T-\d+")
 # 「T-001（ブロッカー）」「T-001（推奨: 理由）」。全角と半角のかっこを両方許す。
@@ -334,6 +380,218 @@ def check_queue(root: str) -> list[str]:
     ]
 
 
+# --------------------------------------------------------------------------
+# 組織改善のループ（docs/decisions/25-org-improvement-cycle.md）
+#
+# ここでも書き込みは一切しない。台帳へ起票するのはオーケストレーターだけで
+# ある——複数の指摘を1つの課題にまとめるかどうかは判断であり、機械が代行
+# すると必ず件数分のレコードになって、優先度の基準（同じ課題が3件以上の
+# 別タスクから出ているか）が働かなくなる。
+# --------------------------------------------------------------------------
+
+def read_improvements(root: str) -> str | None:
+    """組織改善の台帳の中身（案内文のコメントは除く）。無ければ None。"""
+    path = os.path.join(root, "docs", "org-improvements.md")
+    if not os.path.isfile(path):
+        return None
+    return HTML_COMMENT.sub("", read_doc(path))
+
+
+def collect_feedback(tasks: list[dict]) -> dict:
+    """タスク別ファイルの `## 組織への指摘` に書かれた指摘の件数。
+
+    雛形の案内文（HTMLコメント）に例が入っているので、必ず取り除いてから
+    数える。数えるのは `- [種別] 内容` の形の行だけである。
+    """
+    found = {}
+    for t in tasks:
+        if not t["text"]:
+            continue
+        body = HTML_COMMENT.sub("", section(t["text"], FEEDBACK_SECTION))
+        count = sum(1 for line in body.splitlines() if FEEDBACK_LINE.match(line))
+        if count:
+            found[t["id"]] = count
+    return found
+
+
+def filed_sources(ledger: str) -> set:
+    """台帳のレコードの `出所` に挙がっているタスクID。
+
+    `出所` だけを見る。レコードの本文にタスクIDが出てくることはあるが、
+    それは「起票された」ことを意味しない。起票の有無を機械が言えるのは、
+    雛形が出所を書く場所として定めているこの欄だけである。
+    """
+    ids = set()
+    for line in ledger.splitlines():
+        m = META_LINE.match(line)
+        if m and m.group(1).strip() == "出所":
+            ids |= set(TASK_ID.findall(m.group(2)))
+    return ids
+
+
+def check_improvements(root: str, tasks: list[dict]) -> list[str]:
+    """指摘が書かれているのに台帳へ起票されていないものを警告する。"""
+    feedback = collect_feedback(tasks)
+    if not feedback:
+        return []
+
+    ledger = read_improvements(root)
+    if ledger is None:
+        total = sum(feedback.values())
+        return [
+            f"組織改善の台帳（{IMPROVEMENTS_REL}）が無いのに、タスク別ファイルには"
+            f"指摘が {total}件書かれている（{len(feedback)}タスク）"
+            "。配布物の雛形を置き、オーケストレーターが起票する"
+        ]
+
+    filed = filed_sources(ledger)
+    missing = [(tid, n) for tid, n in sorted(feedback.items()) if tid not in filed]
+    if not missing:
+        return []
+    return [
+        f"{tid} の `## {FEEDBACK_SECTION}` に {n}件あるが、{IMPROVEMENTS_REL} の"
+        "どのレコードの `出所` にも出てこない → 起票する（起票できるのは"
+        "オーケストレーターだけ。担当エージェントは台帳へ書きに行かない）"
+        for tid, n in missing
+    ]
+
+
+def improvement_records(ledger: str) -> list[dict]:
+    """台帳のレコードを、見出しごとに (識別子, 欄の辞書) へ分ける。
+
+    欄は `- 名前: 値` の形で書かれる。`経過` の下にぶら下がる日付の行は
+    コロンを持たないため、欄としては拾われない。同じ名前が二度出てきた
+    ときは最初のものを採る。
+    """
+    records = []
+    cur = None
+    for line in ledger.splitlines():
+        m = IMPROVEMENT_RECORD.match(line)
+        if m:
+            cur = {"id": m.group(1), "fields": {}}
+            records.append(cur)
+            continue
+        if line.startswith("#"):
+            cur = None  # 別の見出しへ入った。ここから先はレコードの外
+            continue
+        if cur is None:
+            continue
+        mm = META_LINE.match(line)
+        if mm:
+            key = mm.group(1).strip().strip(FIELD_DECORATION)
+            value = mm.group(2).strip().strip(FIELD_DECORATION)
+            cur["fields"].setdefault(key, value)
+    return records
+
+
+def check_improvement_scope(root: str) -> list[str]:
+    """診断が済んだレコードに `適用範囲` が入っているかを見る。
+
+    ここを空のまま進めると、**配布物の不具合を導入先の中で直してしまい、
+    次に配布物を更新した時点でその修正が消える。** 実際に起きた事故で
+    あり、消えたことに誰も気づかない形で起きる
+    （docs/decisions/26-distribution-boundary.md）。
+
+    まだ誰も診ていないもの（`未処理`）は見ない。この欄は診断のときに
+    埋まるものであり、起票の時点で求めると起票が重くなる。
+    """
+    ledger = read_improvements(root)
+    if ledger is None:
+        return []
+
+    records = improvement_records(ledger)
+    if not records:
+        # 起票の跡（`出所` の欄）があるのにレコードを1件も認識できない
+        # ときは、台帳が雛形と違う形で書かれている。ここで黙ると、この
+        # 検査は「異常なし」を出し続ける。
+        if any(META_LINE.match(line) and
+               META_LINE.match(line).group(1).strip() == "出所"
+               for line in ledger.splitlines()):
+            return [
+                f"{IMPROVEMENTS_REL} に起票の跡（`出所` の欄）はあるが、"
+                "レコードの見出しを1件も読めなかった → 見出しを "
+                "`### OI-001: 課題名` の形にする。"
+                "読めないと、この検査は課題を1件も見ていない"
+            ]
+        return []
+
+    warns = []
+    for rec in records:
+        state = rec["fields"].get("状態", "")
+        if not state or state == UNTRIAGED_STATE:
+            continue
+        scope = rec["fields"].get(SCOPE_FIELD, "")
+        if scope in PLACEHOLDERS or scope.lower() in PLACEHOLDERS:
+            warns.append(
+                f"{rec['id']} の `{SCOPE_FIELD}` が未記入（状態は `{state}`）→ "
+                f"`{SCOPE_UPSTREAM}` か `{SCOPE_LOCAL}` を入れる。"
+                "技術構成の違う別のプロジェクトでも同じことが起きるなら "
+                f"`{SCOPE_UPSTREAM}` である。"
+                f"`{SCOPE_UPSTREAM}` のものをこのリポジトリの中で直すと、"
+                "次に配布物を更新した時点で消える"
+            )
+        elif scope not in SCOPE_VALUES:
+            warns.append(
+                f"{rec['id']} の `{SCOPE_FIELD}` が `{scope}` になっている → "
+                f"使えるのは `{SCOPE_UPSTREAM}` と `{SCOPE_LOCAL}` の2つだけ"
+            )
+        elif state == HANDED_BACK_STATE and scope == SCOPE_LOCAL:
+            warns.append(
+                f"{rec['id']} は状態が `{HANDED_BACK_STATE}` なのに "
+                f"`{SCOPE_FIELD}` が `{SCOPE_LOCAL}` になっている → "
+                "配布元へ渡すのは `" + SCOPE_UPSTREAM + "` のものだけである。"
+                "どちらかが間違っている"
+            )
+    return warns
+
+
+def last_inspection(ledger: str):
+    """`## 組織点検の記録` の最も新しい行から (日付, その時点の完了件数)。"""
+    hits = []
+    for line in section(ledger, INSPECTION_SECTION).splitlines():
+        m = INSPECTION_LINE.match(line)
+        if not m:
+            continue
+        date = parse_date(m.group(1))
+        if date:
+            hits.append((date, int(m.group(2))))
+    return max(hits) if hits else None
+
+
+def inspection_note(root: str, tasks: list[dict]) -> str | None:
+    """「前回の組織点検から N 件完了」の1行。
+
+    定期実行の機構を作らずに定期性を得るための仕掛けである。セッション開始
+    時に必ず走るこの検査へ1行出すことで、点検の時期が目に入る
+    （docs/decisions/25-org-improvement-cycle.md の §C-5）。
+    """
+    ledger = read_improvements(root)
+    if ledger is None:
+        return None
+
+    done = sum(1 for t in tasks if t["state"] == "完了")
+    last = last_inspection(ledger)
+
+    if last is None:
+        if done == 0:
+            return None  # まだ1件も完了していない。促す段階ではない
+        return (
+            f"組織点検の記録がまだ無い（完了 {done}件）。最初のタスクが完了した"
+            "時点で初回点検を行う（`.claude/skills/org-first-run-check/`）。"
+            f"行ったら {IMPROVEMENTS_REL} の `## {INSPECTION_SECTION}` へ1行足す"
+        )
+
+    date, done_at = last
+    n = done - done_at
+    if n >= INSPECTION_INTERVAL:
+        return (
+            f"前回の組織点検（{date}）から 完了 {n}件 → 組織点検の時期"
+            f"（目安 {INSPECTION_INTERVAL}件）。改善エージェント（org-improvement）"
+            "へ委譲する"
+        )
+    return f"前回の組織点検（{date}）から 完了 {n}件（目安 {INSPECTION_INTERVAL}件で次の点検）"
+
+
 def check(tasks: list[dict], days: int) -> tuple[list, list, list]:
     """(停滞候補, リマインド候補, 整合性の警告) を返す。"""
     stale, remind, warn = [], [], []
@@ -506,9 +764,10 @@ def summarize(tasks: list[dict], days: int, open_questions: int | None) -> dict:
 # 出力
 # --------------------------------------------------------------------------
 
-def print_checks(stale, remind, warn, days) -> int:
+def print_checks(stale, remind, warn, days, note=None) -> int:
     if not (stale or remind or warn):
         print(f"タスク台帳: 停滞なし・警告なし（停滞の基準 {days}日）")
+        print_note(note)
         return 0
 
     if stale:
@@ -529,7 +788,15 @@ def print_checks(stale, remind, warn, days) -> int:
         for w in warn:
             print(f"  - {w}")
         print()
+    print_note(note)
     return 1
+
+
+def print_note(note) -> None:
+    """組織点検の時期の知らせ。不具合ではないので終了コードは動かさない。"""
+    if note:
+        print("■ 組織改善")
+        print(f"  - {note}")
 
 
 def print_summary(s: dict) -> int:
@@ -636,7 +903,10 @@ def main(argv=None) -> int:
 
     stale, remind, warn = check(tasks, args.days)
     warn += check_queue(args.root)
-    code = print_checks(stale, remind, warn, args.days)
+    warn += check_improvements(args.root, tasks)
+    warn += check_improvement_scope(args.root)
+    code = print_checks(stale, remind, warn, args.days,
+                        inspection_note(args.root, tasks))
     # フックから呼ばれたときは 0 を返す。Claude Code は終了コードが 0 のときだけ
     # 標準出力をセッションの文脈へ入れるため、1 を返すと検出結果そのものが届かない。
     return 0 if args.hook else code
