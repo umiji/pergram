@@ -76,6 +76,13 @@
   /**
    * 段を開く。開いた段の見出しへフォーカスを移す。
    * 見出しを持たない段（支援）では段そのものを見せるだけにする。
+   *
+   * 🔒 **画面へ寄せるのは段そのもの**であって、見出しではない（T-053 / 完了条件 B-6b）。
+   *    アンケートの段は見出しより前に礼と依頼の文を持つ（src/templates/request.js）。
+   *    見出しを画面上端へ送ると、その文が画面の外へ出て**読まれないまま終わる**。
+   * 🔒 フォーカスは見出しへ移したままにする。支援技術の読み上げの起点を変えない
+   *    （WCAG 2.4.3）。`preventScroll` に対応しない環境では無視され、
+   *    見出しが画面上端へ来る従来の挙動に戻るだけで壊れない。
    */
   function openStep(kind, { focus = true } = {}) {
     const step = steps[kind];
@@ -86,20 +93,26 @@
     if (!focus) return wasHidden;
 
     const heading = step.querySelector('.request-flow__heading');
-    bringIntoView(heading || step);
-    if (heading && typeof heading.focus === 'function') heading.focus();
+    bringIntoView(step);
+    if (heading && typeof heading.focus === 'function') heading.focus({ preventScroll: true });
     return wasHidden;
   }
 
   /**
-   * 段の中のフォームを畳む。**完了文言は出さない。**
+   * 段の中のフォームを畳み、**段そのものも畳む**。**完了文言は出さない。**
    * 飛ばした（`data-request-skip`）ときはこちらを使う。
+   *
+   * 🔒 段ごと畳むのは、フォームだけを隠すと**枠と余白だけの空のカードが画面に残る**
+   *    ためである（T-053 完了条件 B-5）。完了文言を出す段は finishStep が戻す。
+   * ⚠️ フォームの `hidden` は維持する。既存テスト「飛ばした段でもフォームは畳まれ、
+   *    次の段が開く」がこれを見ている（視覚の修正にテストの書き換えを混ぜない）。
    */
   function collapseStep(kind) {
     const step = steps[kind];
     if (!step) return;
     const form = step.querySelector('.request-form');
     if (form) form.hidden = true;
+    step.hidden = true;
   }
 
   /**
@@ -108,6 +121,8 @@
    * 🔒 **実際に送った段でしか呼ばない。** 飛ばした段で呼ぶと
    *    「登録しました。掲載したらお知らせします。」のような、**サービスが保持して
    *    いないデータを保持していると断言する文**が出る（pergram-ui-copy「事実のみを書く」）。
+   * ⚠️ 段を畳むのは collapseStep の役目なので、ここで `hidden` を戻す。
+   *    戻し忘れると、送った回答の完了文言が誰にも読まれない（T-053）。
    * ⚠️ 文言は HTML に埋めず `data-request-done` から**ここで書き込む**。
    *    `role="status"` は**中身が変化したときに読み上げられる**ので、最初から
    *    文字が入ったまま hidden を外すだけでは、支援技術に伝わらないことがある。
@@ -116,6 +131,8 @@
     const step = steps[kind];
     if (!step) return;
     collapseStep(kind);
+    // 🔒 完了文言を読ませる段なので、器は残す（collapseStep が畳んだぶんを戻す）
+    step.hidden = false;
     const done = step.querySelector('.request-flow__done');
     if (!done) return;
     done.textContent = done.dataset.requestDone || '';
