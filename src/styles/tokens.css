@@ -94,7 +94,10 @@
   --rule-minor: 1px solid var(--line-soft);
 
   /* --- 角丸 ----------------------------------------------------------
-     0 ではなくなった。カード 14px / 面 16px / 操作 8-10px / チップは丸。 */
+     0 ではなくなった。カード・パネル 14px / 操作 8-10px / チップは丸。
+     16px（--radius-lg）は大きな面の2箇所だけ（T-053）: モバイルの絞り込みシート
+     .filters と、LP の「順位が入れ替わる図」.flip の 900px 以上。
+     .claude/rules/pergram-ui-copy.md の同じ記述と揃えてある。値は変えない。 */
   --radius: 14px;
   --radius-lg: 16px;
   --radius-interactive: 8px;
