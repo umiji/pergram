@@ -195,14 +195,20 @@
     if (!id) return;
     writeSignalId(id);
 
-    fetch(SIGNAL_ENDPOINT, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id }),
-      keepalive: true,
-    }).catch(() => {
-      /* 計測の都合。ユーザーには何も見せない */
-    });
+    // `.catch()` が拾うのは**拒否されたときだけ**である。fetch を持たない環境や
+    // 引数を受け付けない環境では**その場で投げる**ので、同期の側も包む
+    try {
+      fetch(SIGNAL_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+        keepalive: true,
+      }).catch(() => {
+        /* 計測の都合。ユーザーには何も見せない */
+      });
+    } catch (err) {
+      /* 同上。導線は既に開いている */
+    }
   }
 
   ctas.forEach((button) => {
@@ -210,10 +216,14 @@
       // 位置（絞り込みの近く / リストの末尾 / LP）を分けて数える。文言では分けない
       track('request_click', { location: button.dataset.cta || '(none)' });
       ctas.forEach(markReceived);
-      sendRequestSignal();
 
+      // 🔒 **段を開くのが先。** 匿名シグナルの保存は計測の都合であって
+      //    ユーザーの用ではない（T-051 ## 判断してよい範囲）。送信の側で
+      //    例外が出ても導線が止まらないよう、順序で担保しておく
       const opened = openStep('survey');
       if (opened) track('request_survey_view', {});
+
+      sendRequestSignal();
     });
   });
 

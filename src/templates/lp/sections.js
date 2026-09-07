@@ -110,9 +110,15 @@ export function features(t) {
 ${cards}
   </div>
 
+  <!-- 🔒 この帯のラベルは request.cta を直接引く。専用のキー（旧 lp.features.bannerCta）を
+       持たせない。**キーが2つある限り片方だけ直せる**。同じ意思表示を指す言葉が
+       画面ごとに違うという T-051 の指摘は、そこから生まれた。
+       矢印は装飾なので aria-hidden にして読み上げから外す。 -->
   <div class="banner">
     <p class="banner__text">${escapeHtml(t('lp.features.bannerText'))}</p>
-    <a class="btn btn--signal" href="#waitlist" data-cta="features_banner">${escapeHtml(t('lp.features.bannerCta'))}</a>
+    <a class="btn btn--signal" href="#waitlist" data-cta="features_banner">${escapeHtml(
+      t('request.cta'),
+    )}<span aria-hidden="true"> →</span></a>
   </div>
 </section>`;
 }

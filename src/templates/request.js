@@ -1,5 +1,6 @@
 /**
- * 製品一覧に置く「他の成分・製品の追加をリクエスト」の導線と、その後段（T-050）。
+ * 「成分・製品の追加をリクエスト」の導線と、その後段（T-050 / T-051）。
+ * **LP（/{locale}/）と製品一覧（/{locale}/{nutrient}/）で共用する。**
  *
  * 広告で連れてきた人に**メールアドレスという重い対価**をいきなり求めていたため、
  * 待機リストの登録が 0 件だった。ここでは意思表示を1クリックまで下げ、
@@ -9,12 +10,23 @@
  * 🔒 押下数を画面に描画しない。景表法の「人気」表示になり、禁止語の規約にも触れる。
  *    フィードバックは**押した本人のボタンの状態**だけ（src/assets/request.js）。
  * 🔒 リクエストの数を並び順に使わない（N-03）。並び順は常に有効成分1単位あたりの価格。
- * 🔒 第1段階の計測は GA4 のイベントだけで行う。サーバに列を足さない。
- *    保存に回るのはメールアドレスの段を送ったときだけで、列は既存の6つのまま。
  * 🔒 意思表示はサービス単位。成分ごとのボタンを作らない（T-050 決定ログ）。
  *    成分の内訳は、押した人にだけ開くアンケート（任意）で取る。
  * 🔒 支援ウィジェットは1ページに1つ（src/templates/lp/support.js の理由と同じ）。
  *    このページで出すのはここ1箇所だけにする。
+ * 🔒 **画面が保持していないことを完了文言で断言しない。** 飛ばした段では
+ *    完了文言を出さない（src/assets/request.js の collapseStep / finishStep）。
+ *
+ * === 第1段階の計測は「GA4 だけ」ではない（T-051 / PO 判断） ===
+ * T-050 では「第1段階の計測は GA4 のイベントだけで行い、サーバに列を足さない」と
+ * 決めていたが、**その決定は PO 判断で上書きされている。** 押下は匿名の1行として
+ * D1 にも残る（`POST /api/request-signal`、UUID と日時の2列だけ）。
+ * 経緯と 🔒 の全文は worker/request_signal.js の冒頭にある。**そちらが正典。**
+ * ⚠️ ここに「サーバに列を足さない」と書き戻さないこと。次に触る担当が
+ *    `request_signal` を「規約違反だから」と削る根拠になる。
+ *
+ * 待機リスト（/api/waitlist）へ保存に回るのはメールアドレスの段を送ったときだけで、
+ * その列は既存の6つのままである。**そちらは今も増やさない。**
  */
 
 import { escapeAttribute, escapeHtml } from '../lib/i18n.js';
@@ -28,8 +40,18 @@ import {
   REQUESTS_MAX,
 } from '../lib/waitlist_fields.js';
 
-/** 段（アンケート / メール / 支援）を包む器の id。ボタンの aria-controls が指す */
+/** 段（アンケート / メール / 支援）を包む器の id */
 export const REQUEST_FLOW_ID = 'request-flow';
+
+/**
+ * 第1段階のボタンの `aria-controls` が指す先。
+ *
+ * 🔒 **器（`#request-flow`）ではなくアンケートの段そのものを指す。** 器は常に可視で、
+ *    押しても見た目が変わらない。そこを指したまま `aria-expanded` を切り替えると、
+ *    支援技術には**開いたと言いながら何も開かない**状態に見える（WCAG 4.1.2）。
+ *    押下で実際に hidden が外れるのはこの段である。
+ */
+export const REQUEST_SURVEY_STEP_ID = 'request-step-survey';
 
 /**
  * 要望ボタン。リストの前と後ろの2箇所に置く。
@@ -48,7 +70,7 @@ export function requestCta(t, { location }) {
     <p class="request-band__lede">${escapeHtml(t('request.lede'))}</p>
     <button class="btn btn--signal request-band__button" type="button"
       data-request-cta data-cta="${escapeHtml(location)}"
-      aria-controls="${REQUEST_FLOW_ID}" aria-expanded="false"
+      aria-controls="${REQUEST_SURVEY_STEP_ID}" aria-expanded="false"
       data-label-received="${escapeHtml(t('request.received'))}">${escapeHtml(
         t('request.cta'),
       )}</button>
@@ -106,8 +128,9 @@ ${optionChips({
 const DEFAULT_HEADING_LEVEL = 2;
 
 /** 段の器。初期状態は必ず hidden。開けるのは src/assets/request.js だけ */
-function step(kind, body) {
-  return `<div class="request-flow__step" data-request-step="${kind}" hidden>
+function step(kind, body, { id = null } = {}) {
+  const idAttr = id ? ` id="${id}"` : '';
+  return `<div class="request-flow__step"${idAttr} data-request-step="${kind}" hidden>
 ${body}
   </div>`;
 }
@@ -165,6 +188,7 @@ ${optionChips({
     </form>
     <p class="request-flow__done" role="status" hidden
        data-request-done="${escapeAttribute(t('request.surveyDone'))}"></p>`,
+    { id: REQUEST_SURVEY_STEP_ID },
   );
 }
 

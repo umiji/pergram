@@ -77,8 +77,15 @@
 
   /* ---- CTA ------------------------------------------------------------ */
 
-  // どの CTA から動いたかを分ける。文言ではなく位置で数える
+  // どの CTA から動いたかを分ける。文言ではなく位置で数える。
+  //
+  // 🔒 **第1段階のボタン（data-request-cta）はここで数えない。**
+  //    そちらは src/assets/request.js が `request_click` を送っており、`location` にも
+  //    同じ data-cta の値が入る。両方を付けると **LP だけ同じ押下が2件**（cta_click と
+  //    request_click）になり、このスクリプトを読まない製品一覧と件数が揃わない。
+  //    画面ごとに数え方が違うと、ファネルの離脱率が読めなくなる。
   document.querySelectorAll('[data-cta]').forEach(function (el) {
+    if (el.hasAttribute('data-request-cta')) return;
     el.addEventListener('click', function () {
       track('cta_click', { location: el.getAttribute('data-cta') });
     });

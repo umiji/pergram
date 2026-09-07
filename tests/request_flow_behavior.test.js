@@ -452,3 +452,102 @@ test('🔒 送信に失敗したときは waitlist_submit を送らない', asyn
     '保存できていないのに広告のコンバージョンを送っています',
   );
 });
+
+/* ---- 第1段階の目印と順序（T-051 レビュー R-051-8 / R-051-12） ---------- */
+
+/**
+ * 🔒 `aria-controls` は**実際に開閉する要素**を指す。
+ *
+ * もとは段全体を包む器（`#request-flow`）を指していたが、その器は常に可視で、
+ * `aria-expanded` が false から true に変わっても何も変わらない。
+ * 支援技術に対して**不正確な状態を宣言していた**（WAI-ARIA / WCAG 4.1.2）。
+ */
+test('🔒 要望ボタンの aria-controls が、押す前は閉じている要素を指す', async () => {
+  const { dom, button } = await boot().then(async (state) => {
+    const btn = state.dom.body.querySelectorAll('[data-request-cta]')[0];
+    return { ...state, button: btn };
+  });
+
+  const id = button.getAttribute('aria-controls');
+  assert.ok(id, '要望ボタンに aria-controls がありません');
+  const target = dom.body.querySelector(`#${id}`);
+  assert.ok(target, `aria-controls="${id}" の指す要素がありません`);
+  assert.equal(target.hidden, true, 'aria-expanded="false" なのに指す先が見えています');
+  assert.equal(button.getAttribute('aria-expanded'), 'false');
+
+  button.dispatchEvent(new DomEvent('click'));
+  await dom.flush();
+
+  assert.equal(target.hidden, false, '押したのに aria-controls の指す先が閉じたままです');
+  assert.equal(button.getAttribute('aria-expanded'), 'true');
+});
+
+/**
+ * 🔒 **段を開くことは、匿名シグナルの送信より先に済ませる。**
+ *
+ * シグナルの保存は計測の都合であって、利用者の用ではない。送信の側で例外が出ても
+ * 導線を止めてはならない（T-051 ## 判断してよい範囲「ただし段は必ず開くこと」）。
+ * 順序で担保しておくと、`fetch` が同期的に投げる環境でも段は開く。
+ */
+test('🔒 匿名シグナルの送信が同期的に失敗しても、段は開く', async () => {
+  const dom = await runLpScript(page(), {
+    scriptPath: SCRIPT,
+    respond: () => {
+      throw new Error('fetch is unavailable');
+    },
+  });
+
+  dom.body.querySelector('[data-request-cta]').dispatchEvent(new DomEvent('click'));
+  await dom.flush();
+
+  assert.equal(
+    dom.body.querySelector('[data-request-step="survey"]').hidden,
+    false,
+    '送信が失敗したせいで段が開いていません',
+  );
+});
+
+/* ---- LP と製品一覧で同じ操作を同じ数え方にする（R-051-7） -------------- */
+
+/**
+ * 🔒 **同じ押下を2つの名前で数えない。**
+ *
+ * LP だけは `src/assets/lp.js` も読み込まれる。そちらは `[data-cta]` を持つ要素すべてに
+ * `cta_click` を付けるので、要望ボタン（`data-request-cta` かつ `data-cta`）を押すと
+ * **LP では `cta_click` と `request_click` の2件、製品一覧では `request_click` の1件**が
+ * 出ていた。同じ操作の件数が画面によって変わると、ファネルの離脱率が読めない。
+ *
+ * 位置の情報は失われない。`request_click` の `location` が同じ `data-cta` の値を持つ。
+ */
+const LP_SCRIPT = 'src/assets/lp.js';
+
+/** ヘッダの CTA。第1段階のボタンではないので、これは今までどおり cta_click で数える */
+const HEADER_CTA = '<a href="#waitlist" data-cta="header_waitlist">機能追加リクエスト</a>';
+
+const ctaClicks = (dom) => dom.gtagCalls.filter((call) => call[1] === 'cta_click');
+
+test('🔒 LP でも要望ボタンの押下は request_click ひとつだけで数える', async () => {
+  const dom = await runLpScript(`${HEADER_CTA}\n${page()}`, { scriptPath: LP_SCRIPT });
+
+  dom.body.querySelector('[data-request-cta]').dispatchEvent(new DomEvent('click'));
+  await dom.flush();
+
+  assert.equal(
+    ctaClicks(dom).length,
+    0,
+    `要望ボタンで cta_click が ${ctaClicks(dom).length} 件出ています（製品一覧では 0 件）`,
+  );
+});
+
+test('🔒 第1段階のボタンでない CTA は今までどおり cta_click で数える（計測の連続性）', async () => {
+  const dom = await runLpScript(`${HEADER_CTA}\n${page()}`, { scriptPath: LP_SCRIPT });
+
+  dom.body.querySelector('[data-cta="header_waitlist"]').dispatchEvent(new DomEvent('click'));
+  await dom.flush();
+
+  assert.deepEqual(
+    ctaClicks(dom).map((call) => call[2].location),
+    ['header_waitlist'],
+    'ヘッダの CTA の cta_click が消えています。T-047 の前後比較ができなくなる',
+  );
+});
