@@ -392,6 +392,71 @@ test('飛ばした段でもフォームは畳まれ、次の段が開く', async
   assert.equal(step('email').hidden, false, 'メールの段が開いていません');
 });
 
+/* ---- 押し直しても空の器が復活しない（T-053 レビュー R-053-1 / 完了条件 B-5b） -- */
+
+/**
+ * 🔒 **決着の付いた段は、要望ボタンを押し直しても開き直さない。**
+ *
+ * 飛ばしたアンケートの段は器ごと畳まれている（完了条件 B-5）。押し直したときに
+ * `hidden` を外すだけだと、**フォームも完了文言も隠れたままの段が枠だけの空箱として
+ * 復活する**（実ブラウザで高さ 50px の空箱を確認）。PO が指摘した「空の箱」そのものが
+ * 2クリックで戻る。
+ *
+ * 🔒 あわせて `request_survey_view` を**1閲覧につき1回**に保つ。この名前は
+ *    docs/research/validation-plan.md の「成分アンケート回答率」の**分母**であり、
+ *    飛ばした人だけが二重に数えられると回答率が実際より低く出て、
+ *    広告の撤退判定を誤らせる。
+ */
+const countEvent = (dom, name) => dom.eventNames().filter((n) => n === name).length;
+
+/** アンケートを飛ばしたあと、要望ボタンをもう一度押す */
+async function skipSurveyThenClickAgain() {
+  const state = await clickRequest();
+  state.dom.body.querySelector('[data-request-skip="survey"]').dispatchEvent(new DomEvent('click'));
+  await state.dom.flush();
+
+  state.buttons[0].dispatchEvent(new DomEvent('click'));
+  await state.dom.flush();
+  return state;
+}
+
+test('🔒 アンケートを飛ばした後に押し直しても、空の段が開き直さない', async () => {
+  const { step } = await skipSurveyThenClickAgain();
+
+  assert.equal(step('survey').hidden, true, '飛ばしたアンケートの段が空箱のまま復活しています');
+});
+
+test('🔒 アンケートを飛ばした後に押し直しても request_survey_view は1回だけ', async () => {
+  const { dom } = await skipSurveyThenClickAgain();
+
+  assert.equal(
+    countEvent(dom, 'request_survey_view'),
+    1,
+    '成分アンケート回答率の分母が二重に数えられています',
+  );
+});
+
+test('押し直しても、飛ばした後に開いたメールの段は開いたまま', async () => {
+  const { step } = await skipSurveyThenClickAgain();
+
+  assert.equal(step('email').hidden, false, '押し直しでメールの段が閉じています');
+});
+
+test('🔒 回答を送った後に押し直しても、完了文言が消えず二重に数えない', async () => {
+  const { dom, step, buttons } = await submitSurvey();
+
+  buttons[0].dispatchEvent(new DomEvent('click'));
+  await dom.flush();
+
+  assert.equal(step('survey').hidden, false, '押し直しで回答の完了文言ごと段が消えています');
+  assert.equal(doneOf(dom, 'survey').hidden, false, '押し直しで完了文言が隠れています');
+  assert.equal(
+    countEvent(dom, 'request_survey_view'),
+    1,
+    'request_survey_view が二重に数えられています',
+  );
+});
+
 test('実際に送った段には完了文言が出る（飛ばした場合と区別が付く）', async () => {
   const { dom } = await submitEmail();
 

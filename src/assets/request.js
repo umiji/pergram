@@ -62,6 +62,20 @@
 
   /* ---- 段の開閉 ------------------------------------------------------- */
 
+  /**
+   * 段の状態。`idle`（まだ開いていない）→ `open`（開いている）
+   * → `settled`（飛ばした／送り終えた）。
+   *
+   * 🔒 **`settled` から `open` へは戻さない**（T-053 完了条件 B-5b）。飛ばした段は
+   *    器ごと畳んである（collapseStep）ので、要望ボタンを押し直して `hidden` を
+   *    外すだけだと、**フォームも完了文言も隠れたままの段が枠だけの空箱として
+   *    画面に復活する**。PO が指摘した「空の箱」が2クリックで戻ってしまう。
+   * 🔒 閲覧のイベントは `idle` から出るときにだけ送る。`request_survey_view` は
+   *    docs/research/validation-plan.md の「成分アンケート回答率」の**分母**であり、
+   *    押し直しで二重に数えると回答率が実際より低く出て、広告の撤退判定を誤らせる。
+   */
+  const stepState = { survey: 'idle', email: 'idle', support: 'idle' };
+
   function reducedMotion() {
     return typeof window.matchMedia === 'function'
       ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -77,6 +91,8 @@
    * 段を開く。開いた段の見出しへフォーカスを移す。
    * 見出しを持たない段（支援）では段そのものを見せるだけにする。
    *
+   * 戻り値は**この段を初めて見せたか**。呼び出し側はこれを閲覧の数え方に使う。
+   *
    * 🔒 **画面へ寄せるのは段そのもの**であって、見出しではない（T-053 / 完了条件 B-6b）。
    *    アンケートの段は見出しより前に礼と依頼の文を持つ（src/templates/request.js）。
    *    見出しを画面上端へ送ると、その文が画面の外へ出て**読まれないまま終わる**。
@@ -88,14 +104,18 @@
     const step = steps[kind];
     if (!step) return false;
 
-    const wasHidden = step.hidden;
+    // 🔒 決着の付いた段は開き直さない。空の器が復活し、閲覧が二重に数えられる
+    if (stepState[kind] === 'settled') return false;
+
+    const firstView = stepState[kind] === 'idle';
+    stepState[kind] = 'open';
     step.hidden = false;
-    if (!focus) return wasHidden;
+    if (!focus) return firstView;
 
     const heading = step.querySelector('.request-flow__heading');
     bringIntoView(step);
     if (heading && typeof heading.focus === 'function') heading.focus({ preventScroll: true });
-    return wasHidden;
+    return firstView;
   }
 
   /**
@@ -104,6 +124,8 @@
    *
    * 🔒 段ごと畳むのは、フォームだけを隠すと**枠と余白だけの空のカードが画面に残る**
    *    ためである（T-053 完了条件 B-5）。完了文言を出す段は finishStep が戻す。
+   * 🔒 あわせて段を `settled` にする。要望ボタンを押し直したときに openStep が
+   *    畳んだ器を開き直さないため（T-053 完了条件 B-5b）。
    * ⚠️ フォームの `hidden` は維持する。既存テスト「飛ばした段でもフォームは畳まれ、
    *    次の段が開く」がこれを見ている（視覚の修正にテストの書き換えを混ぜない）。
    */
@@ -113,6 +135,8 @@
     const form = step.querySelector('.request-form');
     if (form) form.hidden = true;
     step.hidden = true;
+    // 🔒 決着を記録する。これが無いと、押し直しで空の器が開き直る（B-5b）
+    stepState[kind] = 'settled';
   }
 
   /**
