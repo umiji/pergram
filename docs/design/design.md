@@ -721,11 +721,13 @@ URL は既存の `/{locale}/{nutrient}/`。旧 `src/templates/ranking.js` はこ
 **角丸を 16px（`--radius-lg`）から 14px（`--radius`）へ揃える。**
 このページで最も多く出る箱は製品カード `.p-item`（14px）で、`.explainer` も 14px である。
 16px を使っていたのは要望の帯と段の2つだけだった。**多数派へ寄せる。**
-`--radius-lg`（16px）は今後**モバイルの絞り込みシート**（画面いっぱいに出るもの）専用に残す。
+`--radius-lg`（16px）が残るのは**大きな面の2箇所だけ**である —— モバイルの絞り込みシート
+`.filters`（`products.css`）と、LP の「順位が入れ替わる図」`.flip` の 900px 以上
+（`lp.css`。900px 未満は 14px）。**新しい箱には使わない。**
 
-> ⚠️ `.claude/rules/pergram-ui-copy.md` の「カード 14px / 面 16px」という書き方は、
-> この整理の後は「カード・パネル 14px / 全画面シート 16px」が正しい。
-> 規約ファイルの更新はオーケストレーターの判断（T-053 の変更範囲外）。
+> ✅ `.claude/rules/pergram-ui-copy.md` と `src/styles/tokens.css` の角丸の記述は、
+> 2026-09-08（T-053 / R-053-3 / R-053-4）に上の2箇所を名指しする形へ直してある。
+> 「全画面シート」という書き方は `.flip` を含まないので使わない。
 
 **`.p-item` だけは 900px 以上でも `--space-4` のまま**にする。3列グリッドに並ぶため
 1枚あたりが狭く、24px にすると中身の桁組みが崩れる。**意図的な例外であり、
@@ -796,7 +798,7 @@ URL は既存の `/{locale}/{nutrient}/`。旧 `src/templates/ranking.js` はこ
 | **T2** | 面のラベル・受領 | `--size-sm` | 700 | `--signal` | 1.6 | `.explainer__label`、`.request-flow__done` |
 | **T3** | 本文・リード | `--size-sm` | 400 | `--muted-strong` | 1.8 | `.explainer__body`、`.notice`、`.request-band__lede`、`.request-flow__lede`、`.request-flow__thanks` |
 | **T4** | 条件の注記 | `--size-sm` | 400 | `--muted-weak` | 1.8 | `.request-band__note`（「登録は不要です」） |
-| **T5** | 微注記 | `--size-xs` | 400 | `--muted-weak` | 1.7 | `.request-form__note`、`.notice__beta` |
+| **T5** | 微注記 | `--size-xs` | 400 | `--muted-weak` | 1.7 | `.request-form__note`（**`.notice__beta` は例外。下記**） |
 | **T6** | 入力のラベル | `--size-sm` | 700 | `--ink` | 1.6 | `.request-form__legend` |
 
 **T3 と T4 は色だけが違う。** サイズを落として区別しない。
@@ -805,6 +807,22 @@ URL は既存の `/{locale}/{nutrient}/`。旧 `src/templates/ranking.js` はこ
 
 **T1 は画面幅で変えない。** 段の見出しは常に 18px。段ごとに見出しの大きさが変わらないことが、
 完了条件 B-4 が求めているものである。
+
+**🔒 T5 の例外 —— `.notice__beta` はサイズを落とさない**（2026-09-08 / T-053 レビュー R-053-7）。
+この文（`products.betaNoData`）は「他ストアの価格は表示例である」ことを画面に明示する
+景表法まわりの断り書きで、`.claude/rules/pergram-code-invariants.md` が表示を義務づけている。
+**T3 と同じ `--size-sm`（行送りも親の `.notice` と同じ 1.8）に留め、弱さは色
+（`--muted-weak`）だけで付ける。** 迷ったらより保守的な方へ倒す（`CLAUDE.md`）。
+
+**T1〜T6 は、サイズ・太さ・色・行送りを CSS 側で明示する。** 継承任せにした段があると、
+親の字送りを変えたときにその段だけ黙って追随し、**「同じ役割の文字が段ごとに違う値を持つ」
+という今回直した状態へ戻る**（T-053 レビュー R-053-9 で T6 が継承のままだった）。
+
+**見出しと中身のあいだは、段によらず `--space-6`。** リード文（T3）を持つ段では
+見出し → 8px → リード文 → 24px → 中身、持たない段（アンケート）では
+見出し → 24px → 中身。`.request-flow__heading` の下余白は既定を 24px にし、
+リード文が続くときだけ `:has(+ .request-flow__lede)` で 8px へ詰める
+（T-053 レビュー R-053-8）。
 
 **変更点（現状 → この階層）**
 
@@ -904,7 +922,12 @@ finishStep(kind):   collapseStep(kind);  step.hidden = false;  // 完了文言�
 - 既存テスト「飛ばした段でもフォームは畳まれ、次の段が開く」は
   `[data-request-survey]` の `hidden` と**次の段**の `hidden` を見ており、
   **飛ばした段そのものは見ていない**。テストを書き換えずに通る
-- `openStep()` は `step.hidden = false` を行うので、器を畳んだ後の開き直しも壊れない
+- ⚠️ **`openStep()` が無条件に `step.hidden = false` を行うと、畳んだ器が空箱のまま
+  開き直す**（要望ボタンを押し直したとき）。設計時は「壊れない」と書いていたが、
+  実装後のレビューで**フォームも完了文言も隠れたままの高さ 50px の空箱**が
+  復活することが実ブラウザで確認された（T-053 / R-053-1）。段は
+  `idle` → `open` → `settled` の状態を持ち、**`settled` からは開き直さない**。
+  閲覧イベント（`request_survey_view`）も `idle` から出るときだけ送る
 
 **併せて必要な変更 — 先頭の段の上の余白**
 
@@ -923,8 +946,13 @@ finishStep(kind):   collapseStep(kind);  step.hidden = false;  // 完了文言�
 ```
 
 LP 側（`lp.css`）の `.waitlist-band .request-flow__step:first-child { margin-top: var(--space-6) }`
-も同じ形（`.waitlist-band .request-flow:has(...)`）へ移す。
-`:has()` が無い環境では余白が付かないだけで、崩れはしない。
+は、**移さずに削除した**（2026-09-08 / 実装時の判断。T-053 決定ログ
+「LP の先頭の段の余白は `:has()` へ移さず、規則ごと削除する」）。移した後の値は
+上の `.request-flow:has(...)`（`--space-6`）と**同値**であり、lp.css へ写すと
+同じ値の出所が2つになる。lp.css 冒頭の 🔒 が「段そのものは site.css が唯一の出所。
+ここへ写して上書きしない」と明記しており、**今回直している「出所が2つある」問題を
+直した直後に作ることになる**。LP の実画面（1280px / 390px）で段の上の余白が
+従来どおり出ることは確認済み。`:has()` が無い環境では余白が付かないだけで、崩れはしない。
 
 **採らなかった案**
 
@@ -936,9 +964,9 @@ LP 側（`lp.css`）の `.waitlist-band .request-flow__step:first-child { margin
 
 **未解決（この設計では直さない）**: 段を畳んでも要望ボタンの `aria-expanded` は
 `true` のままで、**開いていない領域を開いていると言っている**（WCAG 4.1.2）。
-`false` へ戻すと「押し直すと空の段が開く」という別の不整合が出るため、
-**状態機械の設計として別タスクで扱う**。現状より悪化はしない
-（今は空の器が実際に見えているぶん、むしろ現状のほうが悪い）。
+**状態機械の設計として別タスク（T-054）で扱う**。
+なお「押し直すと空の段が開く」ほうは T-053 の実装で塞いだ（上の ⚠️）ので、
+T-054 が扱うのは `aria-expanded` の値そのものだけである。
 
 ---
 
