@@ -27,3 +27,16 @@ CREATE TABLE IF NOT EXISTS price_alert (
 );
 
 CREATE INDEX IF NOT EXISTS idx_price_alert_product ON price_alert (product_id);
+
+-- 要望の第1段階（1クリックの意思表示）の匿名シグナル。T-051。
+--
+-- 🔒 列は UUID と日時の2つだけ。IP・User-Agent・リファラ・押された場所・成分・
+--    自由記述を足さない。**個人を識別できるものを何も持たないことが、この行の
+--    存在理由である。** 押された場所の区別は GA4 の location が持つ。
+-- 🔒 waitlist へ相乗りさせない。あちらは email が主キーで、匿名の行は入らない。
+-- id はブラウザが作る UUID v4。重複はブラウザ側（localStorage）で抑え、
+-- ここでは主キーの衝突を INSERT OR IGNORE で握りつぶす。
+CREATE TABLE IF NOT EXISTS request_signal (
+  id         TEXT PRIMARY KEY,
+  created_at TEXT NOT NULL
+);

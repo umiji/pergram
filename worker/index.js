@@ -9,9 +9,12 @@
  */
 
 import { handleWaitlist } from './waitlist.js';
+import { handleRequestSignal } from './request_signal.js';
 
 const ROUTES = {
   '/api/waitlist': { POST: handleWaitlist },
+  // 要望の第1段階を匿名の1行として残す（T-051）。持つのは UUID と日時だけ
+  '/api/request-signal': { POST: handleRequestSignal },
 };
 
 /**
