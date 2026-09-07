@@ -34,8 +34,16 @@ const MEASUREMENT_CONNECT_SRC = [
   'https://*.google-analytics.com',
   'https://*.googletagmanager.com',
   'https://www.google.com',
+  // 🔒 裸のホスト。`https://www.google.com` は `www.` 付きにしかマッチしない。
+  //    Google 広告のコンバージョン計測が `https://google.com/ccm/form-data/...` へ送る。
+  'https://google.com',
   'https://www.googleadservices.com',
+  // `googleads.g.doubleclick.net` / `stats.g.doubleclick.net`
   'https://*.g.doubleclick.net',
+  // 🔒 上のワイルドカードにマッチしない。`ad.doubleclick.net` には `.g.` の階層が無く、
+  //    `*` はラベルを1つ埋める指定なので `g` の位置を飛ばせない。
+  //    `*.doubleclick.net` へまとめない — 必要のないサブドメインまで開く。
+  'https://ad.doubleclick.net',
 ];
 
 /**
