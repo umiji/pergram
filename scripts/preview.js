@@ -78,7 +78,7 @@ await writeFile(
 for (const file of ['tokens.css', 'site.css', 'lp.css', 'products.css']) {
   await cp(path.join('src/styles', file), path.join(OUT, 'assets', file));
 }
-for (const file of ['lp.js', 'products.js']) {
+for (const file of ['lp.js', 'products.js', 'request.js']) {
   await cp(path.join('src/assets', file), path.join(OUT, 'assets', file));
 }
 await cp('src/assets/images', path.join(OUT, 'assets', 'images'), { recursive: true }).catch(() => { });
