@@ -78,6 +78,8 @@ const RETIRED_FORM_CLASS = 'waitlist--step1';
 /** 完了条件7 / 8 / 10 */
 const SIGNAL_ENDPOINT = '/api/request-signal';
 const SIGNAL_STORAGE_KEY = 'pergram.request_signal_id';
+/** 受領の確認（T-062）。**これがあるときだけ送らない。**id の有無では判定しない */
+const SIGNAL_ACK_STORAGE_KEY = 'pergram.request_signal_ack';
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const SAMPLE_UUID = '3f2504e0-4f89-41d3-9a0c-0305e82c3301';
 
@@ -558,9 +560,20 @@ for (const [name, render, expectedPage] of [
   ['製品一覧', () => renderProducts(), 'ja:protein'],
   ['LP', () => renderLp(), 'ja:lp'],
 ]) {
-  test(`完了条件8 ${name}: localStorage に id があれば POST しない`, async () => {
+  /**
+   * ⚠️ **前提が T-062 で変わった（2026-09-08）。** T-051 の時点では「id が保存されて
+   *    いれば送らない」だったが、それだと**最初の1回が失敗したブラウザが以後
+   *    永久に1行も残せない**（400 / 503 / 通信断。T-058 のデプロイの窓で実際に起きた）。
+   *    いまは **`pergram.request_signal_ack`（受領の確認）** があるときだけ送らない。
+   *    **「同じブラウザの2回目以降は送らない」という完了条件8 の趣旨は変えていない。**
+   *    id だけを持つブラウザが送り直すことは tests/request_signal_retry.test.js が見る。
+   */
+  test(`完了条件8 ${name}: 受領の確認があれば POST しない`, async () => {
     const { signals } = await clickFirstStage(render(), {
-      storage: { [SIGNAL_STORAGE_KEY]: SAMPLE_UUID },
+      storage: {
+        [SIGNAL_STORAGE_KEY]: SAMPLE_UUID,
+        [SIGNAL_ACK_STORAGE_KEY]: SAMPLE_UUID,
+      },
     });
 
     assert.equal(

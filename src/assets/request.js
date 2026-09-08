@@ -38,6 +38,20 @@
   const SIGNAL_STORAGE_KEY = 'pergram.request_signal_id';
 
   /**
+   * **受け口が受け取ったことを確認できた識別子**の置き場（T-062）。
+   *
+   * 🔒 送るかどうかを決めるのは、識別子があるかではなく**ここに確認があるか**である。
+   *    識別子の保存だけで判定していた頃は、最初の1回が失敗したブラウザ（400 / 503 /
+   *    通信断）が**以後 何度押しても1行も残せなかった。** しかも画面の反応は成功時と
+   *    同じなので、押した人にも運用側にも失敗が伝わらない。
+   * 🔒 中身は「確認の取れた識別子そのもの」であって、`1` のような印ではない。
+   *    識別子と紐付けておかないと、別の識別子に振り替わったときに古い確認が
+   *    そのブラウザを黙らせる。
+   * 🔒 SIGNAL_STORAGE_KEY と同じく、入るのはこのブラウザが作った UUID だけ。
+   */
+  const SIGNAL_ACK_STORAGE_KEY = 'pergram.request_signal_ack';
+
+  /**
    * 受け口が通す「どのページか」の形。`worker/request_signal.js` の `PAGE_ID` と対。
    * 形が合わなければ**送らない**（400 を貰いに行っても得るものが無い）。
    */
@@ -189,21 +203,25 @@
    * 容量超過）。**触るだけで例外が飛ぶ**ので、読み書きの両方を包む。
    * 読めなければ「まだ送っていない」、書けなければ「次も送る」で先へ進む。
    */
-  function readSignalId() {
+  function readStored(key) {
     try {
-      return window.localStorage.getItem(SIGNAL_STORAGE_KEY);
+      return window.localStorage.getItem(key);
     } catch (err) {
       return null;
     }
   }
 
-  function writeSignalId(id) {
+  function writeStored(key, value) {
     try {
-      window.localStorage.setItem(SIGNAL_STORAGE_KEY, id);
+      window.localStorage.setItem(key, value);
     } catch (err) {
       /* 保存できなくても導線は止めない */
     }
   }
+
+  const writeSignalId = (id) => writeStored(SIGNAL_STORAGE_KEY, id);
+  /** 受け口が受け取った id。**応答を見てから**呼ぶ（T-062） */
+  const writeSignalAck = (id) => writeStored(SIGNAL_ACK_STORAGE_KEY, id);
 
   /**
    * 匿名の識別子。`crypto.randomUUID()` が無い環境では**作らない**。
@@ -233,6 +251,15 @@
    * 🔒 送信前に id を保存する。**送信後にすると、応答が返らなかった回が
    *    次回に別の UUID で数え直され、同じブラウザが2人に見える。**
    *    取りこぼす側（控えめな数字）へ倒すのが正しい。
+   * 🔒 **送るかどうかは「id があるか」ではなく「受領の確認が取れているか」で決める**
+   *    （T-062）。id の有無で判定していた頃は、最初の1回が失敗したブラウザが以後
+   *    永久に1行も残せなかった。確認が取れるまでは**同じ id で送り直す。**
+   *    受け口は `INSERT OR IGNORE` なので、送り直しても行は増えない。
+   * 🔒 送り直しで新しい id を作らない。1つのブラウザが生涯に持つ id は1つだけである。
+   * ⚠️ 送り直しの回数に上限を設けていない。**押下1回につき送信は高々1回**（signalSent）
+   *    で、押下そのものが利用者の意思による稀な操作なので、上限が守るものが無い。
+   *    むしろ上限を持つと、それを数え切ったブラウザが**また永久に黙る** —
+   *    いま直している欠陥そのものが形を変えて戻る。
    */
   function sendRequestSignal() {
     if (signalSent) return;
@@ -243,12 +270,15 @@
     const page = flow.dataset.requestPage || '';
     if (!SIGNAL_PAGE_RE.test(page)) return;
 
-    // このブラウザは既に数えられている。2回目以降は送らない（段は開く）
-    if (readSignalId()) return;
+    const stored = readStored(SIGNAL_STORAGE_KEY);
 
-    const id = newSignalId();
+    // このブラウザの押下は既にサーバへ入っている。2回目以降は送らない（段は開く）
+    if (stored && readStored(SIGNAL_ACK_STORAGE_KEY) === stored) return;
+
+    // 🔒 保存済みがあればそれを使い回す。ここで作り直すと同じブラウザが2人になる
+    const id = stored || newSignalId();
     if (!id) return;
-    writeSignalId(id);
+    if (!stored) writeSignalId(id);
 
     // `.catch()` が拾うのは**拒否されたときだけ**である。fetch を持たない環境や
     // 引数を受け付けない環境では**その場で投げる**ので、同期の側も包む
@@ -258,9 +288,15 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, page }),
         keepalive: true,
-      }).catch(() => {
-        /* 計測の都合。ユーザーには何も見せない */
-      });
+      })
+        .then((res) => {
+          // 🔒 **受け取られたときにだけ**確認を残す。ここを「応答が返ってきたら」に
+          //    緩めると、400 を返され続けるブラウザが黙ったままになる
+          if (res && res.ok) writeSignalAck(id);
+        })
+        .catch(() => {
+          /* 計測の都合。ユーザーには何も見せない。次の押下で送り直す */
+        });
     } catch (err) {
       /* 同上。導線は既に開いている */
     }
