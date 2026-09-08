@@ -79,9 +79,10 @@ export const REQUEST_PAGE_LP = 'lp';
  *
  * 🔒 `data-cta` の値を2つで違えておく。GA4 の `location` がこれで、
  *    どちらの位置から押されたかを分けて数えられなくなる。
- * 🔒 注記（「登録は不要」）をボタンから離さない。**対価が要らないことが
- *    押せる理由そのもの**なので、離すと押下率の意味が変わる。
- *    **行動列（`.request-band__action`）の中、ボタンの直下に置く。左列へ残さない**
+ * 🔒 注記（「登録は不要」）を消さない。**対価が要らないことが
+ *    押せる理由そのもの**なので、消すと押下率の意味が変わる。
+ *    ⚠️ **2026-09-08、PO が自身の手でテキスト列（左列）へ移した。**
+ *    それ以前は「行動列の中、ボタンの直下」だった
  *    （T-061 / design.md §4.2。Primer CTABanner の `minimal` はここで注記が
  *    左列に残る構造で、pergram はその点を採らない）。
  *
@@ -104,18 +105,17 @@ export function requestCta(t, { location }) {
       <div class="request-band__text">
         <p class="request-band__lede">${escapeHtml(t('request.lede'))}</p>
         <p class="request-band__sub">${escapeHtml(t('request.sub'))}</p>
-      </div>
-      <div class="request-band__action">
-        <p class="request-band__micro" data-request-micro>${escapeHtml(t('request.micro'))}</p>
         <p class="request-band__received" role="status" data-request-received
           data-message="${escapeAttribute(t('request.receivedMessage'))}" hidden></p>
+        <p class="request-band__note" data-request-note>${escapeHtml(t('request.note'))}</p>
+      </div>
+      <div class="request-band__action">
         <button class="btn btn--signal request-band__button" type="button"
           data-request-cta data-cta="${escapeHtml(location)}"
           aria-controls="${REQUEST_SURVEY_STEP_ID}" aria-expanded="false"
           data-label-received="${escapeHtml(t('request.received'))}">${escapeHtml(
             t('request.cta'),
           )}</button>
-        <p class="request-band__note">${escapeHtml(t('request.note'))}</p>
       </div>
     </div>
   </div>

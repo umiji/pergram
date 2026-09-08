@@ -9,7 +9,8 @@
  *    この 🔒 は T-051 → T-053 → T-057 と3回破られている（完了条件 B-6）。
  * 🔒 `data-cta` と `aria-controls` の値を変えない。GA4 の前後比較が切れる。
  * 🔒 押下数・人数を画面に出さない（N-03 / 景表法）。
- * 🔒 注記をボタンから離さない。**行動列（右列）のボタンの直下**に置く。
+ * 🔒 注記を消さない。⚠️ 置き場は 2026-09-08 に PO がテキスト列（左列）へ移した。
+ *    それ以前は「行動列のボタンの直下」だった。**右列へ戻さないこと。**
  *
  * 設計は docs/design/design.md §4（2026-09-08 / T-061 で全面改訂・2列）。
  */
@@ -84,47 +85,26 @@ test('帯は版面 → 2つの箱（テキスト列 / 行動列）の入れ子�
   assert.equal(action.parentNode, layout, '行動列が版面の直下にない');
 });
 
-test('🔒 テキスト列は主文と副文、行動列はマイクロコピー・受領・ボタン・注記だけを持つ', () => {
+test('🔒 テキスト列は主文・副文・受領・注記を持ち、行動列はボタンだけを持つ', () => {
   const root = band();
   const classesOf = (selector) =>
     root.querySelector(selector).children.map((el) => el.getAttribute('class').split(' ')[0]);
 
-  assert.deepEqual(classesOf('.request-band__text'), ['request-band__lede', 'request-band__sub']);
-  // ボタンの class は `btn btn--signal request-band__button` なので先頭の語で並びを見る
-  assert.deepEqual(classesOf('.request-band__action'), [
-    'request-band__micro',
+  assert.deepEqual(classesOf('.request-band__text'), [
+    'request-band__lede',
+    'request-band__sub',
     'request-band__received',
-    'btn',
     'request-band__note',
   ]);
+  // 行動列はボタンのみ
+  assert.deepEqual(classesOf('.request-band__action'), ['btn']);
 });
 
-test('🔒 注記はボタンから離さない。行動列の中、ボタンの直下にある', () => {
+test('🔒 注記はテキスト列の中にあり、主文・副文に続く', () => {
   const root = band();
-  const action = root.querySelector('.request-band__action');
+  const text = root.querySelector('.request-band__text');
   const note = root.querySelector('.request-band__note');
-  const button = root.querySelector('[data-request-cta]');
-
-  assert.equal(note.parentNode, action, '注記が行動列の外にある（左列へ戻していないか）');
-  assert.equal(
-    action.children.indexOf(note),
-    action.children.indexOf(button) + 1,
-    '注記がボタンの直後にない',
-  );
-});
-
-test('完了条件 A-3 文書順は マイクロコピー < ボタン < 注記', () => {
-  for (const t of [tJa, tEn]) {
-    const root = band(t);
-    assert.ok(
-      at(root, '.request-band__micro') < at(root, '[data-request-cta]'),
-      'マイクロコピーがボタンより後ろにある',
-    );
-    assert.ok(
-      at(root, '[data-request-cta]') < at(root, '.request-band__note'),
-      '注記がボタンより前にある',
-    );
-  }
+  assert.equal(note.parentNode, text, '注記がテキスト列の中にない');
 });
 
 test('🔒 B-4b DOM 順を CSS で入れ替えていない（order / *-reverse を使わない）', () => {
@@ -261,14 +241,12 @@ test('🔒 帯の版面と切り替え点が site.css / tokens.css にある', (
   );
 });
 
-test('🔒 2列は上そろえ・左列 max-content・ボタンは文字幅', () => {
+test('🔒 2列は垂直中央揃え・両端配置（space-between）・ボタンは文字幅', () => {
   const start = siteCss.indexOf('@container request-band (min-width: 50rem)');
   const twoCol = siteCss.slice(start, siteCss.indexOf('\n}\n', siteCss.indexOf('.request-band__button', start)));
 
-  assert.match(twoCol, /grid-template-columns:\s*minmax\(0, max-content\)/, '左列が max-content でない');
-  assert.match(twoCol, /align-items:\s*start/, '🔒 上そろえでない（右列はブロック。design.md §4.4）');
-  assert.equal(/align-items:\s*center/.test(twoCol), false, '垂直中央に戻っている');
-  assert.equal(/justify-content:\s*space-between/.test(twoCol), false, '右列を右端へ飛ばしている');
+  assert.match(twoCol, /align-items:\s*center/, '🔒 垂直中央揃えでない');
+  assert.match(twoCol, /justify-content:\s*space-between/, '🔒 両端配置（space-between）でない');
   assert.match(twoCol, /width:\s*max-content/, '右列のボタンが文字幅でない');
 });
 
@@ -341,15 +319,15 @@ async function clickFirst() {
   return { dom, button };
 }
 
-test('C-1 押下の直後に受領メッセージが出て、マイクロコピーと入れ替わる', async () => {
+test('C-1 押下の直後に受領メッセージが出て、注記と入れ替わる', async () => {
   const { dom } = await clickFirst();
   const bandEl = dom.body.querySelector('.request-band');
   const received = bandEl.querySelector('[data-request-received]');
-  const micro = bandEl.querySelector('[data-request-micro]');
+  const note = bandEl.querySelector('[data-request-note]');
 
   assert.equal(received.hidden, false, '受領メッセージが出ていない');
   assert.equal(received.textContent, tJa('request.receivedMessage'), 'JS が文言を書き込んでいない');
-  assert.equal(micro.hidden, true, '🔒 マイクロコピーと入れ替わっていない（帯が伸びる）');
+  assert.equal(note.hidden, true, '🔒 注記と入れ替わっていない（帯が伸びる）');
 });
 
 test('🔒 C-3 押し直しても受領メッセージを書き直さない（role="status" が2度読む）', async () => {
@@ -376,6 +354,6 @@ test('🔒 上下2つの帯が同時に受領の姿になる', async () => {
 
   for (const one of bands) {
     assert.equal(one.querySelector('[data-request-received]').hidden, false, '受領が出ていない帯がある');
-    assert.equal(one.querySelector('[data-request-micro]').hidden, true, 'マイクロコピーが残っている帯がある');
+    assert.equal(one.querySelector('[data-request-note]').hidden, true, '注記が残っている帯がある');
   }
 });

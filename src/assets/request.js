@@ -207,6 +207,8 @@
     if (!band) return;
     const slot = band.querySelector('[data-request-received]');
     if (!slot || !slot.hidden) return;
+    const note = band.querySelector('[data-request-note]');
+    if (note) note.hidden = true;
     const micro = band.querySelector('[data-request-micro]');
     if (micro) micro.hidden = true;
     slot.textContent = slot.dataset.message || '';

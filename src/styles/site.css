@@ -361,8 +361,12 @@ table th {
  *    この 🔒 は T-051 → T-053 → T-057 と3回破られている。4回目を作らない。
  * 🔒 押下数を画面に出さない。景表法の「人気」表示になる。
  *    出るのは押した本人のボタンの状態変化だけ（src/assets/request.js）。
- * 🔒 注記（「登録は不要」）をボタンから離さない。対価が要らないことが押せる理由なので、
- *    離すと押下率の意味が変わる。**行動列（右列）に置き、左列へ残さない**（design.md §4.2）。
+ * 🔒 注記（「登録は不要」）を消さない。対価が要らないことが押せる理由そのものなので、
+ *    消すと押下率の意味が変わる。
+ *    ⚠️ **2026-09-08、PO が自身の手で左列（テキスト列）へ移した。** それ以前は
+ *    「行動列（右列）のボタンの直下に置き、左列へ残さない」だった（T-061 の設計）。
+ *    右列をボタン1個に整理し、左右を垂直中央で釣り合わせるための判断である。
+ *    **「離れているから壊れている」と読んで右列へ戻さないこと。**
  * 🔒 構図は「左にテキスト、右に行動のブロック」の2列（design.md §4.1）。
  *    order / *-reverse で視覚順を入れ替えない（完了条件 B-4b）。
  */
@@ -510,19 +514,18 @@ table th {
  *    常に column-gap = 48px になり、死んだ空白が構造として作れなくなる（完了条件 B-1c）。
  *    **1fr へ戻さない** —— 戻すと 1440px で 360px の穴が開く（T-057 が直した壊れ方）。
  * 🔒 justify-content: space-between にしない。右列が版面の右端へ飛び、B-1c が壊れる。
- * 🔒 align-items: center にしない。**右列がブロック（3要素）だから上そろえである**
- *    （ベンチマークの分岐条件。実例は GitLab と DigitalOcean。design.md §4.4）。
- *    右列がボタン1個になったら初めて垂直中央が候補になる。
+ * 🔒 align-items: center で左右を垂直中央に揃える。右列がボタン＋注記に整理されたため、
+ *    左列のテキストと右列のアクションのバランスを取る（死に余白の解消）。
  * 🔒 要素ごとの grid-column / grid-row をここへ書かない。書き忘れた要素だけが
  *    別の場所へ落ちる（T-057 の残骸が実際にそうなっていた。design.md §4.16）。
  */
 @container request-band (min-width: 50rem) {
   .request-band__layout {
-    grid-template-columns: minmax(0, max-content) minmax(20rem, var(--band-cta-max));
-    column-gap: var(--space-12);
+    grid-template-columns: 1fr auto;
+    column-gap: var(--space-8);
     row-gap: 0;
-    justify-content: start;
-    align-items: start;
+    justify-content: space-between;
+    align-items: center;
   }
   .request-band__text {
     grid-column: 1;

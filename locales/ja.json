@@ -54,7 +54,7 @@
   "request.headerCtaShort": "応援する",
   "request.cta": "正式版のリリースを応援する",
   "request.micro": "匿名の応援として数えます。個人を特定できる情報は残しません。",
-  "request.note": "メールアドレスの登録は不要です。押すだけで送信します。",
+  "request.note": "メールアドレスの登録は不要です。匿名で1タップ送信します。",
   "request.received": "応援を受け取りました",
   "request.receivedMessage": "ありがとうございます！開発の参考にさせていただきます。",
   "request.surveyHeading": "どの成分・製品を追加しますか",
