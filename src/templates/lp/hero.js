@@ -26,7 +26,11 @@ export function siteHeader(t, { locale, betaPath = null }) {
     (id) => `<a href="#${id}">${escapeHtml(t(`lp.nav.${id}`))}</a>`,
   ).join('\n      ');
 
-  // 🔒 ベータ版は従。主 CTA（待機リスト）と同じ btn--signal を当てない。
+  // 🔒 ヘッダの CTA の文言は `request.headerCta` を製品一覧のヘッダと**共有**する（T-051）。
+  //    リンク先（#waitlist）と `data-cta` の綴り（header_waitlist）は据え置く。
+  //    T-047 で計測が全滅した直後であり、**綴りを変えると前後比較ができなくなる。**
+  //    変えるのは表示ラベルだけ（tests/lp_cta.test.js が綴りを固定している）。
+  // 🔒 ベータ版は従。主 CTA（要望の導線）と同じ btn--signal を当てない。
   //    消さずに押せる状態のまま、面の強さだけ下げる（T-010）。
   const beta = betaPath
     ? `<a class="btn btn--quiet" href="${escapeHtml(betaPath)}" data-cta="header_beta">
@@ -44,8 +48,8 @@ export function siteHeader(t, { locale, betaPath = null }) {
     <div class="site-head__actions">
       ${beta}
       <a class="btn btn--signal" href="#waitlist" data-cta="header_waitlist">
-        <span class="u-desktop">${escapeHtml(t('lp.nav.cta'))}</span>
-        <span class="u-mobile">${escapeHtml(t('lp.nav.ctaShort'))}</span>
+        <span class="u-desktop">${escapeHtml(t('request.headerCta'))}</span>
+        <span class="u-mobile">${escapeHtml(t('request.headerCtaShort'))}</span>
       </a>
     </div>
   </div>

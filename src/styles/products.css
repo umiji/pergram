@@ -139,15 +139,7 @@
   width: 100%;
 }
 
-.link-button {
-  border: 0;
-  background: none;
-  padding: 0;
-  font: inherit;
-  color: var(--signal);
-  cursor: pointer;
-  text-decoration: underline;
-}
+/* .link-button は LP と共用なので site.css にある */
 
 /* ---- ヘッダ ------------------------------------------------------- */
 
@@ -382,11 +374,9 @@
 
 /* ---- 解説と広告表示 ----------------------------------------------- */
 
+/* 🔒 面（背景・枠線・角丸・余白）は site.css の「面の役割」が唯一の出所である。
+      ここへ書き戻さない（T-053 / design.md §2.4）。ここが持つのは間隔だけ。 */
 .explainer {
-  background: var(--surface);
-  border: var(--rule-major);
-  border-radius: var(--radius);
-  padding: var(--space-4);
   margin-bottom: var(--space-3);
 }
 .explainer__label {
@@ -405,17 +395,18 @@
   overflow-wrap: break-word;
 }
 
+/* 役割 C（注記）。**箱にしない。**
+   🔒 箱に入った定型文は「読み飛ばしてよい欄」に見える。広告表示は常時読ませるものなので、
+      本文と同じ地の上に、本文と同じ強さ（T3 / --muted-strong）で置く。
+      背景・角丸・パディングを足し戻さない（T-053 / design.md §1・§2.3）。 */
 .notice {
   display: flex;
   align-items: flex-start;
   gap: var(--space-2);
   margin: 0 0 var(--space-6);
-  padding: var(--space-3);
-  background: var(--fill-panel);
-  border-radius: var(--radius-interactive);
   font-size: var(--size-sm);
-  line-height: 1.85;
-  color: var(--muted);
+  line-height: 1.8;
+  color: var(--muted-strong);
 }
 .notice__icon {
   flex: none;
@@ -427,11 +418,18 @@
   width: 15px;
   height: 15px;
 }
-/* β版のあいだだけ出す注記。広告表示より弱く、しかし読める強さに置く */
+/* β版のあいだだけ出す注記。広告表示より弱く、しかし読める強さに置く。
+   🔒 **字を小さくしない（`--size-sm` = 本文と同じ）。** この文（`products.betaNoData`）は
+      「他ストアの価格は表示例である」ことを画面に明示する景表法まわりの断り書きで、
+      `.claude/rules/pergram-code-invariants.md` が表示を義務づけている。
+      design.md §3 の階層表は T5（`--size-xs`）へ置いているが、**そこは踏まない**
+      （T-053 / R-053-7。迷ったらより保守的な方へ倒す）。
+      弱さは色（`--muted-weak`）だけで付ける。行送りは親の `.notice`（1.8）に合わせる */
 .notice__beta {
   display: block;
   margin-top: var(--space-1);
-  color: var(--muted-faint);
+  font-size: var(--size-sm);
+  color: var(--muted-weak);
 }
 
 /* ---- 一覧 --------------------------------------------------------- */
@@ -1187,25 +1185,6 @@
   cursor: pointer;
 }
 
-/* ---- Waitlist への戻り導線 ---------------------------------------- */
-
-.waitlist-banner {
-  display: grid;
-  gap: var(--space-3);
-  margin-top: var(--space-12);
-  padding: var(--space-6);
-  background: var(--signal-band);
-  border-radius: var(--radius-lg);
-}
-.waitlist-banner p {
-  margin: 0;
-  font-size: var(--size-sm);
-  color: var(--muted-strong);
-}
-.waitlist-banner .btn {
-  justify-self: start;
-}
-
 /* ---- フッタ ------------------------------------------------------- */
 
 .site-foot {
@@ -1750,9 +1729,14 @@
     margin-bottom: 0;
   }
 
-  .explainer {
-    padding: var(--space-6);
-  }
+  /* 🔒 .explainer の padding は site.css の面の役割（--panel-pad-lg）が持つ。
+        ここへ書き戻さない（T-053）。 */
+
+  /* 🔒 要望の帯の組版は site.css が唯一の出所である（design.md §4.1 / §4.7）。
+        1列と2列の切り替えは画面幅ではなく帯そのものの幅（@container）で判定するので、
+        **ここへ .request-band* を書き戻さない。** 2つ目の出所を作ると、
+        片方だけ直った状態が生まれる（T-051 の発端であり、T-053 の 2列指定が
+        1440px の穴と 920px の潰れを生んだ場所でもある）。 */
 
   /* カード表示は3列。1列あたりが狭くなりすぎない下限を持たせる */
   .p-list[data-view='card'] {
@@ -1775,11 +1759,6 @@
   .site-foot__inner {
     grid-template-columns: 1.2fr 1fr;
     gap: var(--space-16);
-  }
-
-  .waitlist-banner {
-    grid-template-columns: 1fr auto;
-    align-items: center;
   }
 }
 

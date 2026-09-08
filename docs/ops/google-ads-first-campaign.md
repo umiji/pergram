@@ -76,11 +76,24 @@ Google広告には「ディスプレイネットワーク」「検索パート�
 - [x] **(0-2)** Google広告アカウント作成・支払い方法の登録
 - [x] **(0-3)** GA4プロパティとGoogle広告アカウントをリンク（GA4管理画面 →「Google 広告のリンク」）
 - [x] **(0-4)** GA4の `waitlist_submit` イベントをGoogle広告の**コンバージョン**としてインポート
-      （GA4管理画面 →「コンバージョン」→ Google広告側で「インポート」）
-      - コード変更は不要。すでに `src/templates/layout.js` で gtag.js が読み込まれ、
-        `src/assets/lp.js` が `waitlist_submit` を送信済み
+      （GA4管理画面 →「コンバージョン」→ Google広告側で「インポート」）— **2026-08-18 実施済み**
       - **別のGoogle広告専用コンバージョンタグは足さない。** 新しい外部スクリプトを足すと
         `src/build/headers.js` のCSP許可リストを変更する必要が出るため、GA4連携で完結させる
+
+- [ ] **(0-5)** ⚠️ **未実施（PO作業）— 再開前に必ず行う。** コンバージョンを
+      `waitlist_submit` から **`request_click`（1クリックの要望）へ差し替える**
+      - **なぜ差し替えるか**: T-051 で LP と製品一覧の意思表示を「メールアドレスを
+        先に出す」から「ボタンを1回押す」へ下げた。**いま広告費で買っているクリックの
+        着地点は `request_click` であり、`waitlist_submit` はその2段先（任意）である。**
+        2段先を最適化目標にすると、Google 側の学習データが極端に薄くなる
+      - 送信元: `src/assets/request.js`（`request_click`。パラメータ `location` に
+        押された位置。LP・製品一覧の両方から飛ぶ）
+      - **`waitlist_submit` は送信箇所を残してある**（同じく `src/assets/request.js`。
+        メールアドレスの段を送信して成功したときに飛ぶ）。差し替え後も
+        **副次コンバージョンとして残すこと。** 名前を消すと T-047 以前との比較ができない
+      - ⚠️ **差し替えるまで、この手順書のコンバージョン設定は実態と合っていない。**
+        `waitlist_submit` は「押した人のうち、さらにメールアドレスまで出した人」しか
+        数えないため、**エラーを出さずに 0 件のまま記録され続ける**（T-047 と同じ壊れ方）
 
 ### フェーズ1: キャンペーン設計
 
@@ -197,8 +210,13 @@ utm_source=google&utm_medium=cpc&utm_campaign=protein_unitcost_test&utm_term={ke
 
 - [ ] **(5-1)** Google広告「検索語句レポート」を毎日確認し、無関係な検索語があれば除外キーワードに追加
 - [ ] **(5-2)** 表示回数・クリック数・CTR・平均CPC・品質スコアを記録 **→ Deliverable(§8)**
-- [ ] **(5-3)** GA4でファネル（`lp_view` → `cta_click` → `waitlist_start` → `waitlist_submit`）の
-      各段階の人数を記録 **→ Deliverable(§8)**
+- [ ] **(5-3)** GA4でファネル（`lp_view` → `request_click` → `request_survey_submit` →
+      `request_email_submit` / `waitlist_submit`）の各段階の人数を記録 **→ Deliverable(§8)**
+      - ⚠️ 2026-09-07 / T-051 でイベント名が変わった。**旧 `cta_click` → `waitlist_start` →
+        `waitlist_submit` のファネルは、いまの画面には存在しない。**
+        `cta_click` は要望ボタン以外の CTA（ヘッダ・ヒーロー）だけを数える
+      - `waitlist_submit` は `request_email_submit` と同じ瞬間に飛ぶ（広告の
+        コンバージョン名の連続性のためだけに残してある）。**二重に数えないこと**
 - [ ] **(5-4)** 待機リストの「見たい成分」チップの内訳を記録（P1対象成分の判断材料）**→ Deliverable(§8)**
 
 ### フェーズ6: 判定（Day 7〜8）
@@ -225,11 +243,13 @@ utm_source=google&utm_medium=cpc&utm_campaign=protein_unitcost_test&utm_term={ke
 |---|---|
 | 集客 → トラフィック獲得 | `google / cpc` 経由のセッション数（UTMが正しく届いているかの確認） |
 | リアルタイム | 配信直後の初動確認 |
-| 探索 → 目標到達プロセス | `lp_view → cta_click → waitlist_start → waitlist_submit` の離脱ポイント |
+| 探索 → 目標到達プロセス | `lp_view → request_click → request_survey_submit → request_email_submit` の離脱ポイント |
 
 **使い分け:** 「広告費に対してどれだけクリックされたか」はGoogle広告側、
-「クリックの先でどれだけ登録に至ったか」はGA4側で見る。CPL（登録単価）を出すには両方の数字が要る
-（Google広告の費用 ÷ GA4の `waitlist_submit` 件数）。
+「クリックの先でどれだけ意思表示に至ったか」はGA4側で見る。単価を出すには両方の数字が要る。
+- **要望1件あたりの単価** = Google広告の費用 ÷ GA4の `request_click` 件数 ← **主指標**
+- CPL（メールアドレス1件あたり） = Google広告の費用 ÷ GA4の `request_email_submit`
+  （= `waitlist_submit`）件数 ← 従指標。T-051 でここは任意の後段になった
 
 ---
 
@@ -409,6 +429,7 @@ Claude Code からはAPI接続もブラウザセッションも持たない。�
 | 0-2 | フェーズ0 | Google広告アカウント作成・支払い設定 | **本人のみ** | — |
 | 0-3 | フェーズ0 | GA4↔Google広告アカウントのリンク | **本人のみ** | — |
 | 0-4 | フェーズ0 | `waitlist_submit` のコンバージョンインポート | **本人のみ** | — |
+| 0-5 | フェーズ0 | コンバージョンを `request_click` へ差し替え（**未実施**） | **本人のみ** | — |
 | 1-1〜1-7 | フェーズ1 | キャンペーン設計（目標/タイプ/ネットワーク/地域/言語/予算/入札戦略） | **本人のみ**（設定値はClaudeが指定済み） | — |
 | 2-1 | フェーズ2 | 広告グループ作成 | **本人のみ** | — |
 | 2-2 | フェーズ2 | 入札キーワード登録 | **本人のみ**（キーワード自体はClaudeが用意済み） | — |
@@ -451,7 +472,8 @@ Day 1〜7、配信中に毎日追記していく実施ログ。判定（6-1）�
 
 記述すべき内容（日付ごとに1行、または日付ごとの表）:
 - Google広告側: 表示回数・クリック数・CTR・平均CPC・品質スコア
-- GA4側: `lp_view` / `cta_click` / `waitlist_start` / `waitlist_submit` の件数
+- GA4側: `lp_view` / `request_click` / `request_survey_submit` / `request_email_submit`
+  （= `waitlist_submit`）の件数
 - 待機リストの「見たい成分」チップの内訳（成分ごとの件数）
 - その日に検索語句レポートを見て追加した除外キーワード（あれば）
 
@@ -474,6 +496,11 @@ Day 1〜7、配信中に毎日追記していく実施ログ。判定（6-1）�
 ## 環境・設定の出所
 
 - GA4測定ID: `G-VNXR1NWKDR`（`src/templates/layout.js` で読み込み）
-- LP計測イベント: `src/assets/lp.js`（`lp_view` / `demo_interact` / `scroll_depth` / `cta_click` / `waitlist_start` / `waitlist_submit`）
+- LP計測イベント: `src/assets/lp.js`（`lp_view` / `demo_interact` / `scroll_depth` / `cta_click`）
+  - ⚠️ `cta_click` は**要望ボタン以外**の CTA だけを数える（二重計上を避けるため）
+- 要望導線の計測イベント: `src/assets/request.js`（LP・製品一覧で共用）
+  — `request_click` / `request_survey_view` / `request_survey_submit` / `request_survey_skip` /
+  `request_email_view` / `request_email_submit` / `request_email_skip` / `request_support_view` /
+  **`waitlist_submit`（広告のコンバージョン名。`request_email_submit` と同時に飛ぶ）**
 - 本番URL: `https://pergram.site/ja/`
 - CSP許可リストの出所: `src/build/headers.js`（新しい外部スクリプトを足す場合は必ずここに追記）

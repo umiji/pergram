@@ -12,6 +12,7 @@ import {
   NUTRIENT_CHIPS,
 } from '../src/lib/waitlist_fields.js';
 import { makeRows, market } from './fixtures.js';
+import { Element, parseFragment } from './mini_dom.js';
 import { OG_IMAGE, absoluteUrl } from '../src/lib/site.js';
 
 const t = await loadTranslator('ja');
@@ -449,9 +450,16 @@ test('ベータ版への導線はヘッダとヒーローの両方に出る', ()
   );
   // signal（オレンジの塗り）は待機リストの色のまま。β版には当てない
   assert.ok(!heroBeta[1].includes('btn--signal'), 'β版を待機リストと同じ signal の面にしない');
-  // ヘッダの待機リストと Waitlist 本体のフォーム側 CTA は主のまま
-  assert.ok(html.includes('data-cta="header_waitlist"'), 'ヘッダの待機リスト導線がありません');
-  assert.ok(html.includes('<button type="submit" class="btn btn--signal btn--block">'));
+  // ヘッダの意思表示の導線と、ページ下部のフォームの送信ボタンは主のまま
+  assert.ok(html.includes('data-cta="header_waitlist"'), 'ヘッダの意思表示の導線がありません');
+  // 2026-09-07 / T-051: LP の待機リストが段構造へ置き換わり、送信ボタンの属性の並びが
+  // 変わった。見張るのは「主 CTA の面を持つ送信ボタンがページ下部にある」ことなので、
+  // 属性の順序に依存しない形にする（完全一致に戻すと実装の書き方を縛る）
+  assert.match(
+    html,
+    /<button[^>]*type="submit"[^>]*class="[^"]*btn--signal/,
+    'ページ下部に主 CTA の面を持つ送信ボタンがありません',
+  );
 });
 
 test('製品一覧がまだ無いときはベータ版の導線を出さない', () => {
@@ -675,9 +683,15 @@ test('🔒 できないことを書かない。翻訳ファイルに眠ってい
   }
 });
 
-test('🔒 LP のフォームは同一ページ内で完了状態に切り替わる', () => {
+// 2026-09-07 / T-051: 完了状態のブロック（`.waitlist__done`）は段構造への
+// 置き換えで無くなった。見張る中身は変わらない —— **同じ画面で次へ進むこと**。
+// 段（[data-request-step]）が同じ文書の中にあり、どのフォームも別ページへ送らない。
+test('🔒 LP のフォームは同一ページ内で次の段へ進む（別ページへ飛ばさない）', () => {
   const html = renderLp();
-  assert.ok(html.includes('class="waitlist__done"'));
+  assert.ok(
+    html.includes('data-request-step='),
+    '段（data-request-step）が LP に出力されていません',
+  );
   assert.ok(!html.includes('action='));
 });
 
@@ -719,11 +733,34 @@ test('支援メッセージの改行は <br> にせず改行のまま残す', ()
   assert.ok(!attr[1].includes('<br>'), '改行が <br> に変換されています');
 });
 
-test('支援ウィジェットは登録完了ブロックの中に出る', () => {
+// 2026-09-07 / T-051: 「登録完了ブロックの中」という置き場は段構造への置き換えで
+// 無くなった。**この検査が守っていたのは置き場ではなく「押す前には見えない」こと**
+// なので、そちらを直接見る（初期状態で hidden な祖先の中にあること）。
+test('支援ウィジェットは、押す前には見えない段の中に出る', () => {
   const html = renderLp();
-  const done = html.match(/<div class="waitlist__done"[\s\S]*?<\/div>\s*<\/div>/);
-  assert.ok(done, '登録完了ブロックがありません');
-  assert.match(done[0], /id="codoc-entry-ENTRYCODE"/);
+  const root = new Element('div');
+  for (const node of parseFragment(html)) root.appendChild(node);
+
+  const entry = root.querySelector('[id^="codoc-entry-"]');
+  assert.ok(entry, '支援ウィジェットの埋め込み先がありません');
+
+  let hiddenAncestor = null;
+  for (let node = entry; node; node = node.parentNode) {
+    if (node.nodeType === 1 && node.hidden) {
+      hiddenAncestor = node;
+      break;
+    }
+  }
+  assert.ok(
+    hiddenAncestor,
+    '支援ウィジェットが初期状態から見えています。意思表示より先に支援を出さない',
+  );
+  assert.equal(
+    hiddenAncestor.getAttribute('data-request-step'),
+    'support',
+    '支援ウィジェットが support の段の中にありません',
+  );
+
   assert.ok(html.includes(t('lp.support.message')), '支援メッセージがありません');
   assert.ok(html.includes(t('lp.support.buttonText')), '支援ボタンのテキストがありません');
 });
@@ -732,7 +769,11 @@ test('支援ウィジェットは登録完了ブロックの中に出る', () =>
 test('🔒 支援の設定が無い市場では何も出ない', () => {
   const html = renderLp({ support: null });
   assert.ok(!html.includes('codoc'), '支援ウィジェットが漏れています');
-  assert.ok(html.includes('class="waitlist__done"'), '完了ブロックまで消えています');
+  // 2026-09-07 / T-051: 支援が無い市場でも、要望の導線そのものは消えない
+  assert.ok(
+    html.includes('data-request-step="survey"') && html.includes('data-request-step="email"'),
+    '支援が無い市場で、要望の段まで消えています',
+  );
 });
 
 test('🔒 免責と参照値の出典が常時表示される', () => {

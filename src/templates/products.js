@@ -14,6 +14,8 @@ import { layout, wordmark } from './layout.js';
 import { filters } from './products/filters.js';
 import { productItem } from './products/item.js';
 import { affiliateNotice, appHeader, explainer, pageHead, toolbar } from './products/head.js';
+import { requestCta, requestFlow, requestPageId } from './request.js';
+import { supportScript } from './lp/support.js';
 import { breadcrumbList, itemList } from '../lib/jsonld.js';
 
 /**
@@ -99,13 +101,25 @@ export function productsPage(ctx) {
     </div>`
     }`;
 
-  const waitlistBanner = waitlistPath
-    ? `<aside class="waitlist-banner">
-    <p>${escapeHtml(t('products.waitlistNote'))}</p>
-    <a class="btn btn--signal" href="${escapeHtml(waitlistPath)}">${escapeHtml(
-      t('products.waitlistCta'),
-    )}</a>
-  </aside>`
+  /**
+   * 要望の導線。
+   *
+   * 🔒 **意思表示の入口はこの1種類だけにする（T-051）。** 以前はここに
+   *    「リリース通知を受け取る」の案内（`.waitlist-banner`）が並んでいた。
+   *    メールアドレスという重い対価を求める入口が、1クリックの軽い入口の隣にあると、
+   *    **軽くした意味が打ち消される。** 案内は復活させないこと。
+   * 🔒 上のボタンは**ツールバー（絞り込み・表示切替）より前**に置く（T-051 完了条件4）。
+   *    操作の道具より後ろにあると、絞り込みを触りに来た人の視線の外へ落ちる。
+   * 🔒 要望ボタンはリストの前と後ろの2箇所。`data-cta` の値を違えて、
+   *    どちらから押されたかを GA4 で分けて数える。
+   * 🔒 LP が無いとき（waitlistPath なし）は一式まるごと出さない。
+   *    メールの段の送り先も支援の案内も、LP の要望の導線と同じ経路だからである。
+   */
+  const support = ctx.support ?? market.support ?? null;
+  const ctaTop = waitlistPath ? requestCta(t, { location: 'products_request_top' }) : '';
+  const ctaBottom = waitlistPath ? requestCta(t, { location: 'products_request_bottom' }) : '';
+  const flow = waitlistPath
+    ? requestFlow(t, { support, page: requestPageId(locale, nutrientId) })
     : '';
 
   const content = `<a class="skip-link" href="#products">${escapeHtml(t('products.skipToList'))}</a>
@@ -121,9 +135,11 @@ ${appHeader({ t, locale, waitlistPath })}
     ${pageHead(inner)}
     ${explainer({ t, explainerKey: category.explainerKey })}
     ${affiliateNotice({ t, nutrientName, displayUnit })}
+    ${ctaTop}
     ${toolbar(inner)}
     ${body}
-    ${waitlistBanner}
+    ${ctaBottom}
+    ${flow}
   </main>
 </div>
 
@@ -144,7 +160,9 @@ ${appHeader({ t, locale, waitlistPath })}
   </div>
 </footer>
 
-<script src="/assets/products.js" defer></script>`;
+<script src="/assets/products.js" defer></script>
+${waitlistPath ? '<script src="/assets/request.js" defer></script>' : ''}
+${waitlistPath ? supportScript(support, { locale }) : ''}`;
 
   // 並び順そのものを機械可読にする。names は描画順（= 単価の昇順）と同じ配列から作る。
   // 🔒 現状このページは robots.txt でクロール対象外（src/build/crawl.js）。

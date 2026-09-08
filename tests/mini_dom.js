@@ -13,6 +13,7 @@
 
 import { readFile } from 'node:fs/promises';
 import { setImmediate as immediate } from 'node:timers/promises';
+import nodeCrypto from 'node:crypto';
 import vm from 'node:vm';
 
 const VOID_TAGS = new Set([
@@ -580,12 +581,15 @@ function safeJson(text) {
  * @param {(call: object, index: number) => object} [options.respond]
  *        fetch の応答を決める。`{ ok, status, body, reject }` を返す
  * @param {string} [options.scriptPath] 実行するスクリプト。既定は本番と同じ `src/assets/lp.js`
+ * @param {Record<string, string>} [options.storage] localStorage の初期値。
+ *        「同じブラウザの2回目」を作るために使う（T-051 完了条件8）
  */
 export async function runLpScript(html, options = {}) {
   const {
     search = '',
     respond = () => ({ ok: true, status: 200, body: { ok: true } }),
     scriptPath = 'src/assets/lp.js',
+    storage = {},
   } = options;
 
   const body = new Element('body');
@@ -597,6 +601,29 @@ export async function runLpScript(html, options = {}) {
   const navigations = [];
   const timers = [];
   const observers = [];
+
+  /**
+   * localStorage。**中身をテストから覗けるように Map をそのまま返す。**
+   * 🔒 ここに置いてよいのは表示の状態と、匿名の識別子だけ。
+   *    年齢・性別・服薬などをここへ書く実装が現れたら、テスト側で弾くこと。
+   */
+  const storageData = new Map(
+    Object.entries(storage).map(([key, value]) => [String(key), String(value)]),
+  );
+  const localStorage = {
+    getItem: (key) => (storageData.has(String(key)) ? storageData.get(String(key)) : null),
+    setItem: (key, value) => {
+      storageData.set(String(key), String(value));
+    },
+    removeItem: (key) => {
+      storageData.delete(String(key));
+    },
+    clear: () => storageData.clear(),
+    key: (index) => [...storageData.keys()][index] ?? null,
+    get length() {
+      return storageData.size;
+    },
+  };
 
   const documentObj = Object.assign(new Listenable(), {
     nodeType: 9,
@@ -692,6 +719,9 @@ export async function runLpScript(html, options = {}) {
     location,
     navigator: { userAgent: 'mini_dom', language: 'ja' },
     console,
+    localStorage,
+    // 匿名の識別子を作る唯一の道具。ブラウザと同じ `crypto.randomUUID()` を渡す
+    crypto: nodeCrypto.webcrypto,
     URL,
     URLSearchParams,
     AbortController,
@@ -786,6 +816,9 @@ export async function runLpScript(html, options = {}) {
     gtagCalls,
     fetchCalls,
     navigations,
+    localStorage,
+    /** localStorage の中身。`storageData.get('key')` で覗ける */
+    storageData,
     timers,
     observers,
     flush,

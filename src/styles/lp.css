@@ -640,7 +640,16 @@
   padding: var(--space-2) 14px;
 }
 
-/* ---- 待機リスト ------------------------------------------------------ */
+/* ---- 要望の導線（段構造。中身のスタイルは site.css が持つ） ------------ */
+
+/*
+ * 🔒 ここに置いてよいのは**帯（見出しと器）の見た目だけ**である。
+ *    段そのもの（.request-band / .request-flow / .request-form / .request-chip）は
+ *    製品一覧と共用で、site.css が唯一の出所。**ここへ写して上書きしない。**
+ *    2つ持つと片方だけ直った状態が生まれる（それが T-051 の発端である）。
+ * 🔒 id="waitlist" はヘッダの CTA と製品一覧からの着地点。scroll-margin は
+ *    固定ヘッダのぶんを避けるためで、外すと見出しがヘッダの下に隠れる。
+ */
 
 .waitlist-band {
   background: var(--signal-band);
@@ -658,176 +667,30 @@
   letter-spacing: -0.01em;
   line-height: 1.6;
   text-align: center;
-  margin: 0 0 10px;
-}
-
-.waitlist-band__lede {
-  font-size: 13.5px;
-  color: var(--muted);
-  text-align: center;
   margin: 0 0 var(--space-6);
 }
 
-.waitlist {
-  background: var(--surface);
-  border: 1px solid rgba(22, 24, 29, 0.08);
-  border-radius: var(--radius);
-  padding: 22px;
-}
-
-.field {
-  display: block;
-  border: none;
-  margin: 0 0 20px;
-  padding: 0;
-}
-
-.field__label {
-  display: block;
-  font-size: 12.5px;
-  font-weight: 700;
-  margin-bottom: var(--space-2);
-  padding: 0;
-}
-
-.waitlist input[type='email'],
-.waitlist .field__text,
-.waitlist .field__textarea {
-  width: 100%;
-  padding: 14px;
-  border: 1px solid rgba(22, 24, 29, 0.15);
-  border-radius: var(--radius-interactive);
-  /* 🔒 16px を下回らない。iOS の自動ズームを防ぐ */
-  font-size: var(--size-base);
-  font-family: inherit;
-  background: var(--surface);
-  color: var(--ink);
-}
-
-.check-grid {
-  display: grid;
-  gap: var(--space-2);
-}
-
-/*
- * 「その他」だけはチップの横に自由記述欄を並べる。
- * チップが1つ増えただけに見えるよう、行を1つ使い切って入力欄を伸ばす。
- */
-.check-other {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  grid-column: 1 / -1;
-}
-
-.check-other .check {
-  flex: none;
-}
-
-.waitlist .check-other__text {
-  flex: 1;
-  /* flex 項目の既定の min-width: auto を切らないと placeholder で押し広げられる */
-  min-width: 0;
-  min-height: var(--tap-target);
-  padding: var(--space-2) 14px;
-}
-
-.check,
-.pill-choice {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  /* 🔒 タップ領域 44px 以上 */
-  min-height: var(--tap-target);
-  border: 1px solid rgba(22, 24, 29, 0.12);
-  border-radius: var(--radius-interactive);
-  padding: var(--space-2) 14px;
-  font-size: 14px;
-  cursor: pointer;
-}
-
-.pill-choices {
-  display: flex;
-  gap: var(--space-2);
-  flex-wrap: wrap;
-}
-
-.pill-choice {
-  gap: 6px;
-  font-size: 13px;
-  border-radius: var(--radius-pill);
-}
-
-.check:hover,
-.pill-choice:hover {
-  border-color: var(--signal-edge);
-}
-
-.check:has(input:checked),
-.pill-choice:has(input:checked) {
-  border-color: var(--signal);
-  background: var(--signal-tint);
-}
-
-.check input,
-.pill-choice input {
-  accent-color: var(--signal);
-  width: 18px;
-  height: 18px;
-  flex: none;
-  margin: 0;
-}
-
-/* エラー文は謝らない。何が起きて、どうすれば直るかだけを書く */
-.form-error {
-  color: var(--warn);
-  font-size: 13px;
-  margin: 0 0 var(--space-3);
-}
-
-.waitlist .field__textarea {
-  /* 高さだけは要望を数行書ける分を確保する。横は伸ばさない */
-  resize: vertical;
-  min-height: 84px;
-}
-
-.form-note {
-  font-size: 11.5px;
-  color: var(--muted-weak);
+/* ⚠️ 帯の中では第1段階のボタンを主役にする。器の枠は帯そのものが担うので重ねない。
+      **その margin-block-start: 0 は site.css が持つ**（T-061 / design.md §4.11）。
+      ここへ戻すと完了条件 B-6（lp.css に帯の幾何の宣言が0件）が落ちる。 */
+/* 帯そのものが --signal-band なので、器の面は白へ抜く。同じ色を重ねると
+   枠線だけの薄い箱になり、押す場所として立ち上がらない（開いた段も白い面） */
+.waitlist-band .request-band__inner {
+  /* 🔒 LP の帯は見出しから中央そろえで組まれている。中身を中央そろえにしないと
+        ボタンだけ左端に付いて軸が割れる（実測で確認した。design.md §4.11）。
+        製品一覧側（左そろえ）とは別の判断であって、面の体系の話ではない。
+        ⚠️ 箱（.request-band__text / __action）の justify-items は site.css が持つ。 */
+  justify-items: center;
   text-align: center;
-  line-height: 1.7;
-  margin: var(--space-3) 0 0;
-}
-
-/* 自由記述の直後に出す注記。送信前に読ませたいので左揃えで本文に寄せる */
-.form-note--caution {
-  text-align: left;
-  margin-top: var(--space-1);
-  color: var(--muted);
-}
-
-.form-note + .form-note {
-  margin-top: var(--space-1);
-}
-
-.waitlist__done {
   background: var(--surface);
-  border: 1px solid var(--signal-edge);
-  border-radius: var(--radius);
-  padding: 22px;
-  text-align: center;
 }
-
-.waitlist__done-text {
-  margin: 0;
-  font-weight: 500;
-}
-
-/* 任意支援（Codoc）。見た目はウィジェット側が持つので余白だけ整える */
-.waitlist__done .codoc-entries {
-  margin-top: var(--space-6);
-  text-align: left;
-}
+/* ⚠️ .request-band__button の width / max-width はここが持たない。site.css の共通規則
+      （width: 100% + max-width: var(--band-cta-max)）が全ての幅を賄う（design.md §4.13）。
+      ここへ写すと2つ目の出所になる。 */
+/* 🔒 先頭の段の上の余白はここが持たない。段の器（.request-flow）が
+      「見えている段が1つ以上あるとき」だけ持つ形へ site.css で一本化した（T-053）。
+      値は製品一覧と同じ --space-6 なので、ここへ写すと2つ目の出所になる
+      （上の 🔒「ここへ写して上書きしない」と同じ理由）。 */
 
 /* ---- フッタ ---------------------------------------------------------- */
 
@@ -1203,36 +1066,7 @@
   .waitlist-band__heading {
     font-size: 30px;
     line-height: 1.5;
-    margin-bottom: var(--space-3);
-  }
-  .waitlist-band__lede {
-    font-size: 15px;
     margin-bottom: 36px;
-  }
-  .waitlist,
-  .waitlist__done {
-    padding: 36px;
-    border-radius: var(--radius-lg);
-  }
-  .field {
-    margin-bottom: var(--space-6);
-  }
-  .field__label {
-    font-size: 13px;
-  }
-  .waitlist input[type='email'] {
-    padding: var(--space-3) 14px;
-  }
-  .check-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-  }
-  .check {
-    font-size: 13.5px;
-  }
-  .form-note {
-    font-size: 12px;
-    margin-top: 14px;
   }
 
   .site-foot {

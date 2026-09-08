@@ -288,6 +288,465 @@ table th {
   }
 }
 
+
+/* ==================================================================== */
+/* 要望の導線と段階（T-050 / T-051）                                     */
+/* ==================================================================== */
+/*
+ * 🔒 **LP（/{locale}/）と製品一覧（/{locale}/{nutrient}/）で共用する。**
+ *    描画も src/templates/request.js ひとつ。以前は製品一覧だけが持っていて、
+ *    LP は別の作り（.waitlist--step1 / .check / .pill-choice）を持っていた。
+ *    **2つ持っていたから片方だけ直った状態が生まれ、同じ意思表示を指す言葉が
+ *    画面ごとに違う、という PO 指摘になった。** ここから片方へ写し戻さないこと。
+ * 🔒 site.css に置いてあるのは、両ページから読まれる唯一のスタイルシートだから
+ *    である（layout.js が tokens.css → site.css → ページ別 の順で読む）。
+ *    products.css / lp.css へ移すと、もう片方のページで段が素のまま出る。
+ */
+
+/* hidden を作者スタイルに勝たせる。段の開閉はすべて hidden の付け外しで動く。
+   詳細度は :where() で 0 に落とし、!important だけで勝たせる
+   （products.css の .app-body 版と同じ理由。あちらはリストの絞り込みも守っている） */
+:where(body) [hidden] {
+  display: none !important;
+}
+
+/* 段の中の「飛ばす」操作。文字リンクだが指で押される */
+.link-button {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--signal);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+/* ---- 要望の導線と段階（T-050） ------------------------------------- */
+
+/* ---- 面の役割（T-053）----------------------------------------------
+ * 🔒 積まれる箱の角丸・背景・枠線・余白は**ここだけ**で決める。
+ *    個々のコンポーネントで直書きしない。役割は3つ
+ *    （docs/design/design.md「面の体系と字送りの階層（2026-09-08 / T-053）」§1）。
+ *    A 読む面（.explainer / .request-flow__step）/ B 呼びかけの面（.request-band__inner）/
+ *    C 注記（.notice — 面を持たない）。**4つ目を足さない。**
+ * ⚠️ .explainer は製品一覧にしか無いが、値の出所を1箇所にするためここに置く。 */
+.explainer,
+.request-band__inner,
+.request-flow__step {
+  padding: var(--panel-pad);
+  background: var(--panel-bg);
+  border: var(--panel-border);
+  border-radius: var(--panel-radius);
+}
+
+@media (min-width: 900px) {
+  .explainer,
+  .request-band__inner,
+  .request-flow__step {
+    padding: var(--panel-pad-lg);
+  }
+}
+
+/* B は A と形が同じで、色だけが違う */
+.request-band__inner {
+  background: var(--panel-call-bg);
+  border: var(--panel-call-border);
+}
+
+
+/* ---- 要望の帯（T-061 / design.md §4）--------------------------------
+ * リストの前と後ろに置く要望ボタン。位置は data-cta の値で分けて数える。
+ *
+ * 🔒 帯の幾何を決める値は **ここだけ**。products.css / lp.css へ書かない。
+ *    この 🔒 は T-051 → T-053 → T-057 と3回破られている。4回目を作らない。
+ * 🔒 押下数を画面に出さない。景表法の「人気」表示になる。
+ *    出るのは押した本人のボタンの状態変化だけ（src/assets/request.js）。
+ * 🔒 注記（「登録は不要」）を消さない。対価が要らないことが押せる理由そのものなので、
+ *    消すと押下率の意味が変わる。
+ *    ⚠️ **2026-09-08、PO が自身の手で左列（テキスト列）へ移した。** それ以前は
+ *    「行動列（右列）のボタンの直下に置き、左列へ残さない」だった（T-061 の設計）。
+ *    右列をボタン1個に整理し、左右を垂直中央で釣り合わせるための判断である。
+ *    **「離れているから壊れている」と読んで右列へ戻さないこと。**
+ * 🔒 構図は「左にテキスト、右に行動のブロック」の2列（design.md §4.1）。
+ *    order / *-reverse で視覚順を入れ替えない（完了条件 B-4b）。
+ */
+.request-band {
+  margin-block-start: var(--space-8);
+  /* 🔒 1列と2列の切り替えは、画面幅ではなく**帯そのものの幅**で判定する（design.md §4.7）。
+     @media へ書き戻すと (1) LP と製品一覧で分岐が割れ、(2) 768px の帯（736px）が
+     900px の帯（556px）より広いという幅の非単調性を踏む。
+     ⚠️ @container が効かない環境では1列のままになる。1列は完了条件を単独で満たすので、
+        これは進歩的強化であって壊れ方を持たない。**@media の代替を足さないこと**。 */
+  container: request-band / inline-size;
+}
+/* 🔒 LP の帯は器そのものが余白（44px / 96px）を持つので、ここでは重ねない。
+      **この1行を lp.css へ戻さない**（完了条件 B-6 が margin の宣言を数える。T-061）。 */
+.waitlist-band .request-band {
+  margin-block-start: 0;
+}
+
+/* 面（§1 の役割 B）は全幅のまま。組版は中の .request-band__layout が持つ */
+.request-band__inner {
+  display: block;
+}
+
+/* 🔒 版面。**面を狭めず、中身だけを止めて中央へ寄せる**（design.md §4.6）。
+      無制限に広げると 1440px で右列が孤立する（完了条件 B-1d）。
+      ⚠️ 2列のときだけ中身がページの軸から内側へ入る（1280px で 36px / 1440px で 96px）。
+         これは意図した挙動である。**「ずれている」と読んで margin-inline: 0 に直さない。** */
+.request-band__layout {
+  width: 100%;
+  max-width: var(--band-max);
+  margin-inline: auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: stretch;
+  align-items: start;
+  /* 1列のときだけ効く。帯の中で広い間隔はここ1箇所（design.md §4.5） */
+  row-gap: var(--space-6);
+}
+
+/* 列そのものを箱にする。🔒 6要素をグリッドへ直接置かない ——
+   要素ごとに grid-column / grid-row を配ると、書き忘れた1つだけが別の場所へ落ちる
+   （T-057 の指定が実際にそうなっていた。design.md §4.1）。 */
+.request-band__text,
+.request-band__action {
+  display: grid;
+  width: 100%;
+  justify-items: stretch;
+  align-content: start;
+  row-gap: var(--space-2);
+}
+
+/* 🔒 箱の中では全要素を同じ幅にする。これで列の中の左端が一致する（完了条件 B-1a）。
+      **この6つから1つでも外さないこと。** 外した要素だけが別の幅を持つ。 */
+.request-band__lede,
+.request-band__sub,
+.request-band__micro,
+.request-band__received,
+.request-band__button,
+.request-band__note {
+  width: 100%;
+  max-width: var(--band-cta-max);
+  margin: 0;
+}
+
+/* 🔒 word-break: keep-all と overflow-wrap: break-word は**対で置く**（design.md §4.8）。
+      日本語を「、」「。」の後でしか折り返させないので、孤立行が構造上作れなくなる。
+      keep-all だけだと、切れない塊が入らない幅で帯からはみ出す。
+      text-wrap: balance / pretty はこれを解決しない（実測済み）。
+      🔒 この指定を帯の5つの文（主文・副文・マイクロコピー・受領・注記）以外へ広げない。 */
+
+/* T1（§3）。帯の中でただ1つの主文。🔒 T3（12.5px）へ戻さない ——
+   戻すと帯の中で「どれが呼びかけの本体か」が決まらなくなる（design.md §4.0 / §4.3） */
+.request-band__lede {
+  font-size: var(--size-md);
+  font-weight: 700;
+  line-height: 1.5;
+  color: var(--ink);
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+/* T3（§3）。主文の裏付け */
+.request-band__sub {
+  font-size: var(--size-sm);
+  font-weight: 400;
+  line-height: 1.8;
+  color: var(--muted-strong);
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+/* T4（§3）。ボタンを上下から挟む2つの条件。🔒 **同じ値にする**（design.md §4.2 / §4.3）。
+   片方だけ弱めると、上のマイクロコピーが副文の続きに見える */
+.request-band__micro,
+.request-band__note {
+  font-size: var(--size-sm);
+  font-weight: 400;
+  line-height: 1.8;
+  color: var(--muted-weak);
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+/* T2（§3）。🔒 受け取ったことを示す色は画面内で1つ（--signal）。
+   🔒 マイクロコピーと**入れ替わりで同じ枠に出す**。別の場所へ足すと帯が伸び、
+      押した瞬間にボタンが動く（design.md §4.9）。
+   🔒 prefers-reduced-motion の打ち消しをここに書かない。site.css 末尾の
+      全称セレクタの打ち消しが効く。2つ目を足すとどちらが効いているか分からなくなる */
+.request-band__received {
+  font-size: var(--size-sm);
+  font-weight: 700;
+  line-height: 1.8;
+  color: var(--signal);
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  animation: request-band-receipt 160ms ease-out both;
+}
+@keyframes request-band-receipt {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.request-band__button {
+  /* 🔒 タップ領域 44px 以上 */
+  min-height: var(--tap-target);
+}
+/* 押した本人へのフィードバック。数は出さず、面を退かせて「受け取った」だけを示す */
+.request-band__button.is-received {
+  background: var(--surface);
+  color: var(--signal);
+  border-color: var(--signal);
+}
+
+/* 🔒 LP は常に1列（帯が 640px なので下の @container が効かない）。
+      箱の中身を中央へ寄せて、lp.css の text-align: center と軸を揃える（design.md §4.11） */
+.waitlist-band .request-band__text,
+.waitlist-band .request-band__action {
+  justify-items: center;
+}
+
+/*
+ * 2列（帯そのものが 50rem = 800px 以上のとき。製品一覧の 1280px 以上）。
+ * 🔒 左列は minmax(0, max-content)。列が主文に吸い付くので、左列の右端と右列の左端の距離は
+ *    常に column-gap = 48px になり、死んだ空白が構造として作れなくなる（完了条件 B-1c）。
+ *    **1fr へ戻さない** —— 戻すと 1440px で 360px の穴が開く（T-057 が直した壊れ方）。
+ * 🔒 justify-content: space-between にしない。右列が版面の右端へ飛び、B-1c が壊れる。
+ * 🔒 align-items: center で左右を垂直中央に揃える。右列がボタン＋注記に整理されたため、
+ *    左列のテキストと右列のアクションのバランスを取る（死に余白の解消）。
+ * 🔒 要素ごとの grid-column / grid-row をここへ書かない。書き忘れた要素だけが
+ *    別の場所へ落ちる（T-057 の残骸が実際にそうなっていた。design.md §4.16）。
+ */
+@container request-band (min-width: 50rem) {
+  .request-band__layout {
+    grid-template-columns: 1fr auto;
+    column-gap: var(--space-8);
+    row-gap: 0;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .request-band__text {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .request-band__action {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  /* 🔒 右列のボタンは文字幅。列いっぱいに伸ばさない（ベンチマーク 含意2。実測11例中9例）。
+        1列のときは上の共通規則で全幅になる —— 親指で押す幅では全幅が正しい */
+  .request-band__button {
+    width: max-content;
+    max-width: 100%;
+  }
+}
+
+/*
+ * 段（アンケート → メール → 支援）。開くまでは HTML 側の hidden で伏せてある。
+ * 🔒 器そのものに余白を持たせるのは、**見えている段が1つ以上あるときだけ**。
+ *    全部閉じている初期状態で空白だけが残るのを避ける（T-050 の 🔒 の言い換え）。
+ * 🔒 この余白を `.request-flow__step:first-child` へ戻さない。飛ばした段は器ごと
+ *    畳まれる（src/assets/request.js の collapseStep）が、:first-child は構造上の
+ *    指定なので display: none の段に付いたまま消え、2番目の段が余白を失う（T-053）。
+ */
+.request-flow {
+  display: grid;
+  gap: var(--space-6);
+}
+.request-flow:has(> .request-flow__step:not([hidden])) {
+  margin-top: var(--space-6);
+}
+.request-flow__step {
+  margin-top: 0;
+  /* 段を開くとここへスクロールする。スティッキーヘッダの下へ潜らせない */
+  scroll-margin-top: var(--head-offset);
+}
+/* 🔒 段が開くとここへフォーカスが移る（src/assets/request.js）。ブロック要素のままだと
+      段の全幅に枠が出て「壊れた要素」に見える。**輪郭を消さない**（WCAG 2.4.7 / 2.4.11）。
+      文字に沿わせるだけである。 */
+.request-flow__heading {
+  width: fit-content;
+  max-width: 100%;
+  /* 🔒 **見出しと中身のあいだは、段によらず --space-6。** リード文を持つ段
+        （メール・支援）ではリード文の margin-bottom がこの 24px を作るので、
+        見出しの側は下の :has() で 8px へ詰める。リード文を持たない段
+        （アンケート。見出しの直後が legend）だけ 8px にすると、
+        **同じ役割の見出しの下の間隔が段ごとに割れる**（T-053 / R-053-8）。
+        :has() が無い環境では全段が 24px になるだけで、崩れはしない。 */
+  margin: 0 0 var(--space-6);
+  font-size: var(--size-md);
+  font-weight: 700;
+  line-height: 1.5;
+  color: var(--ink);
+  scroll-margin-top: var(--head-offset);
+}
+/* リード文が続く段では、見出しとリード文を同じ塊として近づける */
+.request-flow__heading:has(+ .request-flow__lede) {
+  margin-bottom: var(--space-2);
+}
+.request-flow__heading:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: 4px;
+  border-radius: var(--radius-interactive);
+}
+/* 礼と依頼。アンケートの段の冒頭、見出しより前に出る（T-053 / design.md §7） */
+.request-flow__thanks {
+  margin: 0 0 var(--space-3);
+  font-size: var(--size-sm);
+  line-height: 1.8;
+  color: var(--muted-strong);
+}
+.request-flow__lede {
+  margin: 0 0 var(--space-6);
+  font-size: var(--size-sm);
+  line-height: 1.8;
+  color: var(--muted-strong);
+}
+/* 受け取ったことを示す色は画面内で1つにする（要望ボタンの .is-received と同じ --signal）。
+   字送りは面のラベル（.explainer__label）と同じ T2 */
+.request-flow__done {
+  margin: 0;
+  font-size: var(--size-sm);
+  font-weight: 700;
+  line-height: 1.6;
+  color: var(--signal);
+}
+
+@media (min-width: 900px) {
+  .request-flow__step,
+  .request-flow__heading {
+    scroll-margin-top: var(--head-offset-lg);
+  }
+}
+
+.request-form__group {
+  border: 0;
+  margin: 0 0 var(--space-6);
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+  align-content: start;
+}
+/* T6 入力のラベル。T1〜T5 と同じく**色と行送りまで明示する**（T-053 / R-053-9）。
+   継承任せにすると、親の字送りを変えたときにこの段だけ黙って追随する */
+.request-form__legend {
+  display: block;
+  margin-bottom: var(--space-2);
+  padding: 0;
+  font-size: var(--size-sm);
+  font-weight: 700;
+  line-height: 1.6;
+  color: var(--ink);
+}
+.request-form__field {
+  display: block;
+  margin: 0 0 var(--space-4);
+}
+.request-form__text,
+.request-form__textarea,
+.request-form input[type='email'] {
+  width: 100%;
+  padding: var(--space-3);
+  border: 1px solid var(--line-control);
+  border-radius: var(--radius-interactive);
+  /* 🔒 16px を下回らない。iOS の自動ズームを防ぐ */
+  font-size: var(--size-base);
+  font-family: inherit;
+  background: var(--surface);
+  color: var(--ink);
+}
+.request-form__textarea {
+  /* 高さだけは数行ぶん確保する。横は伸ばさない */
+  resize: vertical;
+  min-height: 84px;
+}
+
+.request-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.request-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  /* 🔒 タップ領域 44px 以上 */
+  min-height: var(--tap-target);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line-control);
+  border-radius: var(--radius-interactive);
+  font-size: var(--size-sm);
+  cursor: pointer;
+}
+.request-chip:hover {
+  border-color: var(--signal);
+}
+.request-chip:has(input:checked) {
+  border-color: var(--signal);
+  background: var(--signal-tint);
+}
+.request-chip input {
+  accent-color: var(--signal);
+  width: 18px;
+  height: 18px;
+  flex: none;
+  margin: 0;
+}
+
+/* 「その他」だけはチップの横に自由記述欄を並べる（LP のフォームと同じ形） */
+.check-other {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.check-other .request-chip {
+  flex: none;
+}
+.check-other .request-form__text {
+  flex: 1;
+  /* flex 項目の既定の min-width: auto を切らないと placeholder で押し広げられる */
+  min-width: 0;
+  min-height: var(--tap-target);
+}
+
+.request-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+}
+/* 飛ばす操作もタップ領域を確保する。文字リンクだが指で押される */
+.request-form__actions .btn,
+.request-form__actions .link-button {
+  min-height: var(--tap-target);
+}
+
+/* 🔒 エラーは色だけで示さない。何が起きて、どうすれば直るかを文で書く */
+.request-form__error {
+  margin: 0 0 var(--space-3);
+  font-size: var(--size-sm);
+  color: var(--warn);
+}
+.request-form__note {
+  margin: var(--space-2) 0 0;
+  font-size: var(--size-xs);
+  color: var(--muted-weak);
+  line-height: 1.7;
+}
+/* 自由記述の直後に出す注記。送信前に読ませたいので本文に寄せる */
+.request-form__note--caution {
+  margin-top: var(--space-1);
+  color: var(--muted);
+}
+
+/* 任意支援（Codoc）。見た目はウィジェット側が持つので余白だけ整える */
+.request-flow__step .codoc-entries {
+  margin-top: var(--space-6);
+}
+
 @media (prefers-reduced-motion: reduce) {
 
   *,

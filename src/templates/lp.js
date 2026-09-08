@@ -44,12 +44,13 @@ ${howItWorks(t, { locale, currency, displayUnit })}
 
 ${roadmap(t)}
 
-${waitlist(t, { support })}
+${waitlist(t, { support, locale })}
 </main>
 
 ${siteFooter(t, { disclosureKey })}
 
 <script src="/assets/lp.js" defer></script>
+<script src="/assets/request.js" defer></script>
 ${supportScript(support, { locale })}`;
 
   // 🔒 ヒーローの3件を ItemList にしない。HERO_PRODUCT_IDS の暫定措置で

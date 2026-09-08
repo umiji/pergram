@@ -1,29 +1,29 @@
 /**
- * T-011 の受け入れテスト。待機リストのフォームを2段階にする。
+ * LP が集める入力の不変条件と、待機リストの受け口（Worker）。
  *
- * 完了条件（docs/tasks/T-011.md §完了条件）を二値で判定できる形に落としてある。
- * 実装より先に書いてあるので、**未実装のうちは落ちるのが正しい**。
+ * === もとは T-011 の受け入れテストだった（2026-09-07 / T-051 で作り替えた） ===
+ * T-011 は LP の待機リストを「メールアドレス先行の2段階フォーム」にする作業で、
+ * このファイルはその受け入れテストだった。**T-051 の完了条件6でそのフォーム
+ * （`waitlist--step1`）が出力されなくなり、LP は段構造（要望 → アンケート →
+ * メール → 支援）へ完全に置き換わった**（PO 判断。T-051 ## 申し送り 3）。
  *
- * === このテストが固定する契約 ===
- * - ステップ1 = `.waitlist__done` の**外**にあるフォーム。入力欄はメールアドレス1つだけ
- * - ステップ2 = `.waitlist__done` の**中**にあるフォーム（禁止事項「ステップ2は完了状態の
- *   中に置く」より）。見たい成分チップ・自由記述・購入先チップ・ご要望がここに入る
- * - ステップ2の送信は、ステップ1と同じメールアドレスを載せて `/api/waitlist` 系の
- *   パスへ送る（同一レコードへの追記のため）
+ * したがって「ステップ1 / ステップ2」という区分はもう存在しない。**入力そのものの
+ * 不変条件（取得項目を増やさない・必須にしない・注記を離さない・別ページへ飛ばさない）
+ * だけを残し、置き場をこう読み替えてある。**
  *
- * === GA4 のイベント名は綴りを固定しない ===
- * 完了条件4は「到達数と送信数が**別々に**数えられること」であって、特定の綴りではない。
- * ここでは「ステップ2に到達した時点で、それまでに無かったイベントが1つ増えること」
- * 「ステップ2を送信した時点で、さらに別のイベントが増えること」を判定する。
- * 綴りの決定は実装の裁量に残す（GA4 管理画面への登録は T-007 の領分）。
+ *   旧 ステップ1（メールアドレスだけ） → `[data-request-step="email"]` の中のフォーム
+ *   旧 ステップ2（成分・購入先・要望）  → `[data-request-step="survey"]` の中のフォーム
+ *   旧 `.waitlist__done`               → `[data-request-flow]`（段の器）
+ *
+ * === 段の「挙動」はここでは見ない ===
+ * 押下で段が開くか、何が GA4 とサーバへ飛ぶかは tests/request_flow_behavior.test.js が
+ * 持っている（`src/assets/request.js` を実行する）。**このファイルが持っていた
+ * `src/assets/lp.js` を駆動する検査は、そちらへ移った分として削除した**（T-051）。
  *
  * 🔒 保存列は6つ（email / nutrients / channel / nutrients_other / requests / created_at）。
- *    2段階化は入力の分割であって、取得項目の追加ではない。
+ *    段構造化は入力の分割であって、取得項目の追加ではない。
  * 🔒 送信後に別ページへ飛ばさない。
- * 🔒 GA4 に自由記述の**本文**を送らない。書かれたかどうか（0/1）だけ。
- *
- * ⚠️ tests/render.test.js / tests/lp_cta.test.js には触らない（T-020 が同じ期間に触る）。
- *    ブラウザ相当の実行は tests/mini_dom.js が担う（依存パッケージは増やさない）。
+ * 🔒 自由記述の注記（`lp.form.freeTextNote`）を自由記述から離さない（N-01 / N-05）。
  */
 
 import test from 'node:test';
@@ -31,17 +31,20 @@ import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
 
 import { loadTranslator } from '../src/lib/i18n.js';
-import { waitlist } from '../src/templates/lp/form.js';
+import { lpPage } from '../src/templates/lp.js';
 import {
   CHANNEL_CHIPS,
   NUTRIENT_CHIPS,
   REQUESTS_MAX,
 } from '../src/lib/waitlist_fields.js';
 import worker from '../worker/index.js';
-import { DomEvent, Element, parseFragment, runLpScript } from './mini_dom.js';
+import { Element, parseFragment } from './mini_dom.js';
+import { makeRows } from './fixtures.js';
 
 const tJa = await loadTranslator('ja');
 const tEn = await loadTranslator('en');
+const rows = makeRows();
+const MARKETS = JSON.parse(await readFile('config/markets.json', 'utf8'));
 
 /** 🔒 保存してよい列。ここが増えたら要件が変わったということ */
 const STORED_COLUMNS = ['email', 'nutrients', 'channel', 'nutrients_other', 'requests', 'created_at'];
@@ -81,8 +84,28 @@ const TEST_EMAIL = 'step2@example.com';
 
 /* ---- 描画とツリー ------------------------------------------------------ */
 
-function renderWaitlist(t = tJa) {
-  return waitlist(t, { support: null });
+/**
+ * LP を丸ごと描いて、その中の要望の導線を見る。
+ *
+ * 🔒 部品（`waitlist()` など）を直接呼ばない。**LP と製品一覧で段の描画を共用するか
+ *    別々に持つかは実装の裁量**（T-051 ## 判断してよい範囲）なので、置き場を固定すると
+ *    実装の選び方を縛ることになる。ページとして出た結果だけを見る。
+ */
+function renderWaitlist(t = tJa, locale = 'ja') {
+  const mk = locale === 'en' ? MARKETS.US : MARKETS.JP;
+  return lpPage({
+    t,
+    locale,
+    currency: mk.currency,
+    displayUnit: 'g',
+    topRows: rows.slice(0, 3),
+    totalCount: rows.length,
+    nutrientName: locale === 'en' ? 'Protein' : 'タンパク質',
+    disclosureKey: mk.disclosureKey,
+    betaPath: `/${locale}/protein/`,
+    gaMeasurementId: null,
+    support: null,
+  });
 }
 
 function tree(html) {
@@ -91,41 +114,30 @@ function tree(html) {
   return root;
 }
 
-function isInside(el, ancestor) {
-  if (!ancestor) return false;
-  let node = el;
-  while (node) {
-    if (node === ancestor) return true;
-    node = node.parentNode;
-  }
-  return false;
+/** 段の器。ここから外に要望の入力欄が漏れていないかも見る */
+function flowRegion(root) {
+  const flow = root.querySelector('[data-request-flow]');
+  assert.ok(flow, '段の器（[data-request-flow]）が見つかりません');
+  return flow;
 }
 
-function doneRegion(root) {
-  const done = root.querySelector('.waitlist__done');
-  assert.ok(done, '完了状態（.waitlist__done）が見つかりません');
-  return done;
-}
-
-/** ステップ1 = 完了状態の外にあるフォーム */
-function stepOneForm(root) {
-  const done = root.querySelector('.waitlist__done');
-  const form = root.querySelectorAll('form').find((one) => !isInside(one, done));
-  assert.ok(form, 'ステップ1のフォームが見つかりません');
+/** 段の中のフォーム。無ければ未実装 */
+function stepForm(root, kind) {
+  const step = root.querySelector(`[data-request-step="${kind}"]`);
+  assert.ok(step, `${kind} の段（[data-request-step="${kind}"]）がありません`);
+  const form = step.querySelector('form');
+  assert.ok(form, `${kind} の段にフォームがありません`);
   return form;
 }
 
-/** ステップ2 = 完了状態の中にあるフォーム。無ければ未実装 */
-function stepTwoForm(root, { required = true } = {}) {
-  const form = doneRegion(root).querySelector('form');
-  if (required) {
-    assert.ok(
-      form,
-      'ステップ2のフォームが .waitlist__done の中にありません。' +
-        'ステップ2は完了状態の中に置く（別ページへ飛ばさない）',
-    );
-  }
-  return form;
+/** 旧ステップ1 = メールアドレスの段 */
+function emailForm(root) {
+  return stepForm(root, 'email');
+}
+
+/** 旧ステップ2 = アンケートの段 */
+function surveyForm(root) {
+  return stepForm(root, 'survey');
 }
 
 /** 利用者が値を入れる欄。送信ボタンや hidden は数えない */
@@ -144,76 +156,76 @@ function chipValues(scope, name) {
 }
 
 /* ======================================================================== */
-/* 完了条件1: ステップ1の入力欄はメールアドレス1つだけ                      */
+/* メールアドレスの段の入力欄はメールアドレス1つだけ                        */
 /* ======================================================================== */
 
-test('完了条件1: ステップ1の入力欄がメールアドレス1つだけである', () => {
+test('メールアドレスの段の入力欄がメールアドレス1つだけである', () => {
   const root = tree(renderWaitlist());
-  const controls = inputControls(stepOneForm(root));
+  const controls = inputControls(emailForm(root));
 
   assert.deepEqual(
     controls.map((el) => el.name),
     ['email'],
-    `ステップ1の入力欄が ${controls.map((el) => el.name || '(無名)').join(' / ')} です。` +
+    `メールアドレスの段の入力欄が ${controls.map((el) => el.name || '(無名)').join(' / ')} です。` +
       'メールアドレス1つだけにする',
   );
   assert.equal(controls[0].getAttribute('type'), 'email');
 });
 
-test('完了条件1: 見たい成分・購入先・自由記述はステップ1に残っていない', () => {
+test('見たい成分・購入先・自由記述はメールアドレスの段に残っていない', () => {
   const root = tree(renderWaitlist());
-  const stepOne = stepOneForm(root);
+  const step = emailForm(root);
 
   for (const name of ['nutrients', 'channel', 'nutrients_other', 'requests']) {
     assert.equal(
-      stepOne.querySelectorAll(`[name="${name}"]`).length,
+      step.querySelectorAll(`[name="${name}"]`).length,
       0,
-      `ステップ1に ${name} が残っています。ステップ2（完了状態の中）へ移す`,
+      `メールアドレスの段に ${name} が残っています。アンケートの段へ移す`,
     );
   }
 });
 
 /* ======================================================================== */
-/* 完了条件5: 自由記述の注記がステップ2にある                               */
+/* 🔒 自由記述の注記を、自由記述から離さない（N-01 / N-05）                  */
 /* ======================================================================== */
 
-test('完了条件5: 🔒 自由記述の注記（lp.form.freeTextNote）がステップ2にある', () => {
+test('🔒 自由記述の注記（lp.form.freeTextNote）が段の中にある', () => {
   for (const [locale, t] of [
     ['ja', tJa],
     ['en', tEn],
   ]) {
-    const root = tree(renderWaitlist(t));
+    const root = tree(renderWaitlist(t, locale));
     const note = t('lp.form.freeTextNote');
     assert.ok(
-      doneRegion(root).textContent.includes(note),
-      `${locale}: 自由記述の注記がステップ2にありません。` +
+      flowRegion(root).textContent.includes(note),
+      `${locale}: 自由記述の注記が段の中にありません。` +
         'N-01 / N-05 に対する唯一の防波堤なので、自由記述と一緒に移す',
     );
   }
 });
 
-test('完了条件5: 🔒 注記は自由記述と同じ側にある（本文だけ移して注記を置き去りにしない）', () => {
+test('🔒 注記は自由記述と同じ段にある（本文だけ移して注記を置き去りにしない）', () => {
   const root = tree(renderWaitlist());
-  const done = doneRegion(root);
-  const freeTextFields = done.querySelectorAll('[name="nutrients_other"],[name="requests"]');
+  const survey = surveyForm(root);
+  const freeTextFields = survey.querySelectorAll('[name="nutrients_other"],[name="requests"]');
 
   assert.ok(
     freeTextFields.length >= 2,
-    'ステップ2に自由記述（nutrients_other / requests）がありません',
+    'アンケートの段に自由記述（nutrients_other / requests）がありません',
   );
   assert.ok(
-    done.textContent.includes(tJa('lp.form.freeTextNote')),
-    '自由記述がステップ2にあるのに注記がありません',
+    survey.textContent.includes(tJa('lp.form.freeTextNote')),
+    '自由記述がアンケートの段にあるのに注記がありません',
   );
 });
 
 /* ======================================================================== */
-/* ステップ2の中身と、そこに置いてはいけないもの                            */
+/* アンケートの段の中身と、そこに置いてはいけないもの                       */
 /* ======================================================================== */
 
-test('ステップ2に、見たい成分・購入先・自由記述の3項目が揃っている', () => {
+test('アンケートの段に、見たい成分・購入先・自由記述の3項目が揃っている', () => {
   const root = tree(renderWaitlist());
-  const step2 = stepTwoForm(root);
+  const step2 = surveyForm(root);
 
   assert.deepEqual(
     chipValues(step2, 'nutrients'),
@@ -225,19 +237,19 @@ test('ステップ2に、見たい成分・購入先・自由記述の3項目が
     CHANNEL_CHIPS,
     '🔒 購入先のチップと並びは src/lib/waitlist_fields.js が唯一の出所',
   );
-  assert.ok(step2.querySelector('[name="nutrients_other"]'), 'ステップ2に nutrients_other がありません');
-  assert.ok(step2.querySelector('[name="requests"]'), 'ステップ2に requests がありません');
+  assert.ok(step2.querySelector('[name="nutrients_other"]'), 'アンケートの段に nutrients_other がありません');
+  assert.ok(step2.querySelector('[name="requests"]'), 'アンケートの段に requests がありません');
 });
 
-test('🔒 ステップ2を必須にしない（required を付けない）', () => {
+test('🔒 アンケートの段を必須にしない（required を付けない）', () => {
   const root = tree(renderWaitlist());
-  const step2 = stepTwoForm(root);
+  const step2 = surveyForm(root);
   const required = inputControls(step2).filter((el) => el.required);
 
   assert.deepEqual(
     required.map((el) => el.name),
     [],
-    'ステップ2の入力が必須になっています。ステップ1の送信時点で登録は成立している',
+    'アンケートの入力が必須になっています。要望はボタンを押した時点で受け取っている',
   );
 });
 
@@ -284,193 +296,34 @@ test('🔒 自由記述の maxlength は waitlist_fields.js の値と一致す�
 });
 
 /* ======================================================================== */
-/* 完了条件7: 禁止語                                                        */
+/* 禁止語                                                                   */
 /* ======================================================================== */
 
-test('完了条件7: 🔒 禁止語が待機リストの出力に含まれていない', () => {
+test('🔒 禁止語が要望の導線の出力に含まれていない', () => {
   for (const [locale, t] of [
     ['ja', tJa],
     ['en', tEn],
   ]) {
-    const html = renderWaitlist(t);
+    const html = flowRegion(tree(renderWaitlist(t, locale))).outerHTML;
     for (const banned of BANNED_WORDS) {
-      assert.ok(!html.includes(banned), `${locale}: 禁止語「${banned}」が待機リストの出力にあります`);
+      assert.ok(!html.includes(banned), `${locale}: 禁止語「${banned}」が要望の導線の出力にあります`);
     }
   }
 });
 
 /* ======================================================================== */
-/* ブラウザ相当の実行（src/assets/lp.js）                                    */
+/* ブラウザ相当の実行は tests/request_flow_behavior.test.js が持つ            */
 /* ======================================================================== */
-
-/** ステップ1だけを送る。到達したところで止める */
-async function runStepOne(options = {}) {
-  const dom = await runLpScript(renderWaitlist(), options);
-  const stepOne = stepOneForm(dom.body);
-  const email = stepOne.querySelector('input[name="email"]');
-  assert.ok(email, 'ステップ1にメールアドレスの入力欄がありません');
-
-  email.focus();
-  email.value = TEST_EMAIL;
-
-  const beforeSubmit = dom.events().length;
-  const submit = new DomEvent('submit');
-  stepOne.dispatchEvent(submit);
-  await dom.flush();
-
-  return { dom, stepOne, submit, beforeSubmit, afterStepOne: dom.events().length };
-}
-
-/** ステップ2まで送る */
-async function runStepTwo(options = {}) {
-  const state = await runStepOne(options);
-  const { dom } = state;
-  const step2 = stepTwoForm(dom.body);
-
-  const chip = step2.querySelector('input[name="nutrients"][value="creatine"]');
-  assert.ok(chip, 'ステップ2に creatine のチップがありません');
-  chip.checked = true;
-
-  const channel = step2.querySelector('input[name="channel"][value="rakuten"]');
-  assert.ok(channel, 'ステップ2に rakuten のチップがありません');
-  channel.checked = true;
-
-  step2.querySelector('[name="nutrients_other"]').value = NUTRIENTS_OTHER_INPUT;
-  step2.querySelector('[name="requests"]').value = REQUESTS_INPUT;
-
-  const submit = new DomEvent('submit');
-  step2.dispatchEvent(submit);
-  await dom.flush();
-
-  return { ...state, step2, stepTwoSubmit: submit, afterStepTwo: dom.events().length };
-}
-
-test('完了条件2: ステップ1の送信だけで /api/waitlist へ登録が飛ぶ（ステップ2に進まなくてよい）', async () => {
-  const { dom, stepOne, submit } = await runStepOne();
-
-  assert.equal(dom.fetchCalls.length, 1, `送信が ${dom.fetchCalls.length} 回です（1回であるべき）`);
-  const [call] = dom.fetchCalls;
-  assert.equal(call.method, 'POST');
-  assert.ok(call.url.startsWith('/api/waitlist'), `送信先が ${call.url} です`);
-  assert.equal(call.body.email, TEST_EMAIL);
-
-  assert.ok(submit.defaultPrevented, '🔒 送信で既定の遷移が止まっていません');
-  assert.equal(dom.navigations.length, 0, '🔒 送信後に別ページへ飛んでいます');
-  assert.equal(stepOne.hidden, true, 'ステップ1のフォームが隠れていません');
-  assert.equal(doneRegion(dom.body).hidden, false, '完了状態が表示されていません');
-});
-
-test('完了条件2: 送信に失敗したときは完了状態に切り替えない', async () => {
-  const { dom, stepOne } = await runStepOne({ respond: () => ({ reject: true }) });
-
-  assert.equal(stepOne.hidden, false, '失敗したのにフォームが隠れています');
-  assert.equal(doneRegion(dom.body).hidden, true, '失敗したのに完了状態が出ています');
-  assert.equal(dom.navigations.length, 0, '🔒 別ページへ飛んでいます');
-});
-
-test('完了条件3: ステップ2の送信が、ステップ1と同じメールアドレスを載せて飛ぶ', async () => {
-  const { dom, stepTwoSubmit } = await runStepTwo();
-
-  assert.equal(dom.fetchCalls.length, 2, `送信が ${dom.fetchCalls.length} 回です（2回であるべき）`);
-  const [first, second] = dom.fetchCalls;
-
-  assert.ok(second.url.startsWith('/api/waitlist'), `ステップ2の送信先が ${second.url} です`);
-  assert.equal(second.method, 'POST');
-  assert.equal(
-    second.body.email,
-    first.body.email,
-    '🔒 ステップ2が別のメールアドレスで飛んでいます。同一レコードへの追記にならない',
-  );
-  assert.ok(stepTwoSubmit.defaultPrevented, '🔒 ステップ2の送信で既定の遷移が止まっていません');
-  assert.equal(dom.navigations.length, 0, '🔒 ステップ2の送信後に別ページへ飛んでいます');
-});
-
-test('完了条件3: ステップ2の送信に、入力した3項目が載っている', async () => {
-  const { dom } = await runStepTwo();
-  const body = dom.fetchCalls[1].body;
-
-  const nutrients = Array.isArray(body.nutrients) ? body.nutrients : [body.nutrients];
-  const channel = Array.isArray(body.channel) ? body.channel : [body.channel];
-  assert.ok(nutrients.includes('creatine'), `見たい成分が送られていません（${JSON.stringify(body.nutrients)}）`);
-  assert.ok(channel.includes('rakuten'), `購入先が送られていません（${JSON.stringify(body.channel)}）`);
-  assert.equal(body.nutrients_other, NUTRIENTS_OTHER_INPUT);
-  assert.equal(body.requests, REQUESTS_INPUT);
-});
-
-test('完了条件4: ステップ2への到達が、それまでに無い GA4 イベントとして送られる', async () => {
-  const { dom, beforeSubmit, afterStepOne } = await runStepOne();
-  const events = dom.events();
-
-  const before = new Set(events.slice(0, beforeSubmit).map((one) => one.name));
-  // ステップ1の成功そのものを表す waitlist_submit は「到達」ではない
-  before.add('waitlist_submit');
-  const reached = events
-    .slice(beforeSubmit, afterStepOne)
-    .map((one) => one.name)
-    .filter((name) => !before.has(name));
-
-  assert.ok(
-    reached.length > 0,
-    'ステップ2に到達したことを表す GA4 イベントがありません。' +
-      '到達数と送信数を別々に数えられるようにする（完了条件4）',
-  );
-  assert.equal(
-    new Set(reached).size,
-    reached.length,
-    `到達のイベントが重複して送られています（${reached.join(' / ')}）`,
-  );
-});
-
-test('完了条件4: ステップ2の送信が、到達とは別の GA4 イベントとして送られる', async () => {
-  const { dom, afterStepOne, afterStepTwo } = await runStepTwo();
-  const events = dom.events();
-
-  const seenBefore = new Set(events.slice(0, afterStepOne).map((one) => one.name));
-  const sent = events
-    .slice(afterStepOne, afterStepTwo)
-    .map((one) => one.name)
-    .filter((name) => !seenBefore.has(name));
-
-  assert.ok(
-    sent.length > 0,
-    'ステップ2の送信を表す GA4 イベントがありません（到達と同じ名前では数を分けられない）',
-  );
-});
-
-test('完了条件4: 🔒 GA4 に自由記述の本文とメールアドレスを送らない（0/1 だけ）', async () => {
-  const { dom, afterStepOne } = await runStepTwo();
-  const events = dom.events();
-
-  for (const { name, params } of events) {
-    const dumped = JSON.stringify(params);
-    assert.ok(
-      !dumped.includes(SENTINEL),
-      `GA4 イベント ${name} に自由記述の本文が含まれています: ${dumped}`,
-    );
-    assert.ok(!dumped.includes(TEST_EMAIL), `GA4 イベント ${name} にメールアドレスが含まれています`);
-  }
-
-  const flags = events
-    .slice(afterStepOne)
-    .flatMap(({ params }) => Object.values(params))
-    .filter((value) => value === 0 || value === 1);
-  assert.ok(
-    flags.includes(1),
-    '自由記述が「書かれたかどうか」の 0/1 で数えられていません' +
-      '（既存の has_nutrients_other / has_requests と同じ形にする）',
-  );
-});
-
-// ステップ1だけの経路でも見る（回帰の見張り。ステップ2の実装前から通っていること）
-test('🔒 GA4 にメールアドレスを送らない（ステップ1の経路）', async () => {
-  const { dom } = await runStepOne();
-  for (const { name, params } of dom.events()) {
-    assert.ok(
-      !JSON.stringify(params).includes(TEST_EMAIL),
-      `GA4 イベント ${name} にメールアドレスが含まれています`,
-    );
-  }
-});
+/*
+ * もとはここに `src/assets/lp.js` を駆動する検査が7件あった（ステップ1の送信・
+ * 失敗時の扱い・ステップ2の送信・GA4 のイベントの分離・自由記述とメールアドレスを
+ * GA4 へ送らないこと）。**T-051 で LP が段構造へ置き換わり、段を動かすのは
+ * `src/assets/request.js` になった**ため、同じ検査は
+ * tests/request_flow_behavior.test.js（段の挙動・送信本文・GA4）と
+ * tests/request_unify.test.js（匿名シグナル）へ移した。
+ *
+ * ⚠️ ここへ戻さないこと。同じ挙動を2つのファイルが別々の前提で見張ることになる。
+ */
 
 /* ======================================================================== */
 /* Worker 側: 同一レコードへの追記と、列が増えていないこと                   */
@@ -520,7 +373,7 @@ function targetsExistingRow(sql) {
   return /ON CONFLICT\s*\(\s*EMAIL\s*\)/.test(flat) || /^UPDATE\s+WAITLIST\b.*WHERE.*EMAIL/.test(flat);
 }
 
-test('完了条件2: メールアドレスだけの送信でレコードが作られる', async () => {
+test('メールアドレスだけの送信でレコードが作られる', async () => {
   const { env, writes } = makeEnv();
   const res = await worker.fetch(post({ email: TEST_EMAIL }), env);
 
@@ -531,7 +384,7 @@ test('完了条件2: メールアドレスだけの送信でレコードが作�
   assert.equal(writes[0].args[0], TEST_EMAIL);
 });
 
-test('完了条件3: 🔒 ステップ2の送信は既存の行を狙う（新しい行を作らない）', async () => {
+test('🔒 アンケートを相乗りさせた送信は既存の行を狙う（新しい行を作らない）', async () => {
   const { env, writes } = makeEnv();
   await worker.fetch(post({ email: TEST_EMAIL }), env);
   await worker.fetch(
@@ -557,7 +410,7 @@ test('完了条件3: 🔒 ステップ2の送信は既存の行を狙う（新�
   );
 });
 
-test('完了条件3: ステップ2で送った3項目が保存の引数に載る', async () => {
+test('アンケートの3項目が保存の引数に載る', async () => {
   const { env, writes } = makeEnv();
   await worker.fetch(
     post({
@@ -591,6 +444,17 @@ test('🔒 スキーマの waitlist テーブルの列が6つのままである'
   assert.deepEqual(columns, STORED_COLUMNS, '🔒 保存列が変わっています');
 });
 
+/**
+ * 表ごとに「足してよい列」。**ここに無い名前を移行 SQL で足さない。**
+ * ⚠️ `request_signal.page` は PO 判断で足された（T-058、2026-09-08）。
+ *    それ以前は request_signal に足せる列は無かった。**戻さないこと。**
+ * 🔒 `waitlist` 側は今も6列で打ち止めである（T-058 でも足していない）。
+ */
+const ALLOWED_ADDED_COLUMNS = {
+  waitlist: STORED_COLUMNS,
+  request_signal: ['page'],
+};
+
 test('🔒 移行 SQL が保存列の外に列を足していない', async () => {
   const dir = 'worker/migrations';
   const files = (await readdir(dir)).filter((name) => name.endsWith('.sql'));
@@ -600,11 +464,18 @@ test('🔒 移行 SQL が保存列の外に列を足していない', async () =
       .split('\n')
       .map((line) => line.replace(/--.*/, ''))
       .join('\n');
-    for (const [, column] of sql.matchAll(/ADD COLUMN\s+([\w]+)/gi)) {
+    for (const [, table, column] of sql.matchAll(/ALTER TABLE\s+(\w+)\s+ADD COLUMN\s+(\w+)/gi)) {
+      const allowed = ALLOWED_ADDED_COLUMNS[table.toLowerCase()];
+      assert.ok(allowed, `${file}: 想定していない表 "${table}" に列を足しています`);
       assert.ok(
-        STORED_COLUMNS.includes(column.toLowerCase()),
-        `${file}: 保存列にない列 "${column}" を足しています`,
+        allowed.includes(column.toLowerCase()),
+        `${file}: ${table} の保存列にない列 "${column}" を足しています`,
       );
     }
+    assert.equal(
+      (sql.match(/ADD COLUMN/gi) || []).length,
+      (sql.match(/ALTER TABLE\s+\w+\s+ADD COLUMN/gi) || []).length,
+      `${file}: どの表への ADD COLUMN か読み取れない行があります`,
+    );
   }
 });

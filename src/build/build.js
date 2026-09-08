@@ -326,6 +326,7 @@ async function main() {
   await cp('src/styles/products.css', path.join(DIST, 'assets', 'products.css'));
   await cp('src/assets/lp.js', path.join(DIST, 'assets', 'lp.js'));
   await cp('src/assets/products.js', path.join(DIST, 'assets', 'products.js'));
+  await cp('src/assets/request.js', path.join(DIST, 'assets', 'request.js'));
   await cp('src/assets/images', path.join(DIST, 'assets', 'images'), { recursive: true }).catch(() => { });
 
   // --- 結果 ------------------------------------------------------------
