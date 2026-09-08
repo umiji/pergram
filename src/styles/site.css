@@ -364,24 +364,40 @@ table th {
  */
 .request-band {
   margin-top: var(--space-8);
+  /* 🔒 1列と2列の切り替えは、画面幅ではなく**帯そのものの幅**で判定する（design.md §4.4）。
+     @media へ書き戻すと (1) LP と製品一覧で分岐が割れ、(2) 768px の帯（721px）が
+     920px の帯（561px）より広いという幅の非単調性を踏む。
+     ⚠️ @container が効かない環境では1列のままになる。1列は完了条件を単独で満たすので、
+        これは進歩的強化であって壊れ方を持たない。**@media の代替を足さないこと**。 */
+  container: request-band / inline-size;
 }
 .request-band__inner {
   display: grid;
-  gap: var(--space-3);
-  /* 🔒 1列のときはボタンを帯の幅いっぱいに倒す（旧 justify-items: start は、
-     幅 888px の帯の左端に 230px のボタンが貼り付いて「置き忘れ」に見えていた）。
-     900px 以上の製品一覧だけ2列にする指定は products.css が持つ（design.md §4）。 */
+  /* 🔒 既定は1列。上からリード文 → ボタン → 注記。
+     注記をボタンの直下 8px へ置き、リード文との間は 16px 空ける（design.md §4.7）。
+     間隔の差が「注記はボタンの条件である」ことを表す。等間隔にしない。 */
+  grid-template-columns: minmax(0, 1fr);
   justify-items: stretch;
+  row-gap: var(--space-2);
 }
+/* 🔒 word-break: keep-all と overflow-wrap: break-word は**対で置く**（design.md §4.3）。
+      日本語を「、」「。」の後でしか折り返させないので、最終行は必ず 16字か 11字になり、
+      孤立行が構造上作れなくなる。keep-all だけだと、切れない塊（最長 199px）が
+      入らない幅で帯からはみ出す。text-wrap: balance / pretty はこれを解決しない（実測済み）。
+      この指定をリード文と注記以外へ広げない。 */
 .request-band__lede {
-  margin: 0;
+  margin: 0 0 var(--space-2);
   font-size: var(--size-sm);
   line-height: 1.8;
   color: var(--muted-strong);
+  word-break: keep-all;
+  overflow-wrap: break-word;
 }
 .request-band__button {
-  /* 1列のときは帯の幅いっぱい。2列（900px 以上の製品一覧）では右列の幅いっぱい */
+  /* 器が上限より狭ければ器いっぱい、広ければ上限で止まる。この1規則で全ての幅を賄う
+     （design.md §4.6）。旧実装の 320px 固定は捨てた。 */
   width: 100%;
+  max-width: var(--band-cta-max);
   /* 🔒 タップ領域 44px 以上 */
   min-height: var(--tap-target);
 }
@@ -398,6 +414,40 @@ table th {
   font-size: var(--size-sm);
   line-height: 1.8;
   color: var(--muted-weak);
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+/*
+ * 2列になるのは帯自体が 56rem 以上のときだけ（製品一覧の 1280px 以上）。
+ * 🔒 左（読ませる列）は minmax(0, max-content)。列がリード文に吸い付くので、
+ *    リード文の右端とボタンの左端の距離は常に column-gap = 48px になり、
+ *    死んだ空白が構造として作れなくなる。旧実装は左を 1fr にしていたため
+ *    1440px で 360px の穴が開いた。**1fr へ戻さないこと**。
+ * 🔒 左そろえ（justify-content: start）。中央寄せにすると左そろえの一覧の中で
+ *    視線の軸が2本になる。1440px で右に残る 181px は意図した版面の上限であって穴ではない。
+ */
+@container request-band (min-width: 56rem) {
+  .request-band__inner {
+    grid-template-columns: minmax(0, max-content) minmax(20rem, var(--band-cta-max));
+    column-gap: var(--space-12);
+    align-items: center;
+    justify-content: start;
+  }
+  .request-band__lede {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    margin-block-end: 0;
+  }
+  .request-band__button {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  /* 🔒 注記は2列でもボタンの直下（同じ列の2行目）。左列へ移さない */
+  .request-band__note {
+    grid-column: 2;
+    grid-row: 2;
+  }
 }
 
 /*

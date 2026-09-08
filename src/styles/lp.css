@@ -677,13 +677,16 @@
 /* 帯そのものが --signal-band なので、器の面は白へ抜く。同じ色を重ねると
    枠線だけの薄い箱になり、押す場所として立ち上がらない（開いた段も白い面） */
 .waitlist-band .request-band__inner {
-  justify-items: stretch;
+  /* 🔒 LP の帯は見出しから中央そろえで組まれている。中身を中央そろえにしないと
+        ボタンだけ左端に付いて軸が割れる（実測で確認した。design.md §4.8）。
+        製品一覧側（左そろえ）とは別の判断であって、面の体系の話ではない。 */
+  justify-items: center;
   text-align: center;
   background: var(--surface);
 }
-.waitlist-band .request-band__button {
-  width: 100%;
-}
+/* ⚠️ .request-band__button の width / max-width はここが持たない。site.css の共通規則
+      （width: 100% + max-width: var(--band-cta-max)）が全ての幅を賄う（design.md §4.6）。
+      ここへ写すと2つ目の出所になる。 */
 /* 🔒 先頭の段の上の余白はここが持たない。段の器（.request-flow）が
       「見えている段が1つ以上あるとき」だけ持つ形へ site.css で一本化した（T-053）。
       値は製品一覧と同じ --space-6 なので、ここへ写すと2つ目の出所になる
