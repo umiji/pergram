@@ -670,22 +670,22 @@
   margin: 0 0 var(--space-6);
 }
 
-/* 帯の中では第1段階のボタンを主役にする。器の枠は帯そのものが担うので重ねない */
-.waitlist-band .request-band {
-  margin-top: 0;
-}
+/* ⚠️ 帯の中では第1段階のボタンを主役にする。器の枠は帯そのものが担うので重ねない。
+      **その margin-block-start: 0 は site.css が持つ**（T-061 / design.md §4.11）。
+      ここへ戻すと完了条件 B-6（lp.css に帯の幾何の宣言が0件）が落ちる。 */
 /* 帯そのものが --signal-band なので、器の面は白へ抜く。同じ色を重ねると
    枠線だけの薄い箱になり、押す場所として立ち上がらない（開いた段も白い面） */
 .waitlist-band .request-band__inner {
   /* 🔒 LP の帯は見出しから中央そろえで組まれている。中身を中央そろえにしないと
-        ボタンだけ左端に付いて軸が割れる（実測で確認した。design.md §4.8）。
-        製品一覧側（左そろえ）とは別の判断であって、面の体系の話ではない。 */
+        ボタンだけ左端に付いて軸が割れる（実測で確認した。design.md §4.11）。
+        製品一覧側（左そろえ）とは別の判断であって、面の体系の話ではない。
+        ⚠️ 箱（.request-band__text / __action）の justify-items は site.css が持つ。 */
   justify-items: center;
   text-align: center;
   background: var(--surface);
 }
 /* ⚠️ .request-band__button の width / max-width はここが持たない。site.css の共通規則
-      （width: 100% + max-width: var(--band-cta-max)）が全ての幅を賄う（design.md §4.6）。
+      （width: 100% + max-width: var(--band-cta-max)）が全ての幅を賄う（design.md §4.13）。
       ここへ写すと2つ目の出所になる。 */
 /* 🔒 先頭の段の上の余白はここが持たない。段の器（.request-flow）が
       「見えている段が1つ以上あるとき」だけ持つ形へ site.css で一本化した（T-053）。

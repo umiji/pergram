@@ -1,5 +1,5 @@
 /**
- * 「成分・製品の追加をリクエスト」の導線と、その後段（T-050 / T-051）。
+ * 「正式版のリリースを応援する」の導線と、その後段（T-050 / T-051、文言は T-061）。
  * **LP（/{locale}/）と製品一覧（/{locale}/{nutrient}/）で共用する。**
  *
  * 広告で連れてきた人に**メールアドレスという重い対価**をいきなり求めていたため、
@@ -81,6 +81,18 @@ export const REQUEST_PAGE_LP = 'lp';
  *    どちらの位置から押されたかを分けて数えられなくなる。
  * 🔒 注記（「登録は不要」）をボタンから離さない。**対価が要らないことが
  *    押せる理由そのもの**なので、離すと押下率の意味が変わる。
+ *    **行動列（`.request-band__action`）の中、ボタンの直下に置く。左列へ残さない**
+ *    （T-061 / design.md §4.2。Primer CTABanner の `minimal` はここで注記が
+ *    左列に残る構造で、pergram はその点を採らない）。
+ *
+ * === 構図は2列（T-061 / design.md §4.1）===
+ * 左＝テキスト列（主文 + 副文）、右＝行動列（マイクロコピー / 受領 / ボタン / 注記）。
+ * 🔒 **DOM 順が視覚順である。`order` / `*-reverse` で入れ替えない**（完了条件 B-4b）。
+ *    CSS Flexbox 仕様 §5.4 の規範文。Tab 順が DOM のまま残り WCAG 2.4.3 に反する。
+ * 🔒 受領メッセージ（`data-request-received`）は**中身を空で出す**。文言は押されたときに
+ *    JS が `data-message` から書き込む（design.md §4.9）。最初から入れて `hidden` を
+ *    外すだけにすると `role="status"` の読み上げが飛ぶ。
+ * 🔒 器そのものは初期状態で `hidden`。JS が動かない環境でも帯は壊れない（完了条件 C-5）。
  *
  * @param {(key: string, params?: object) => string} t
  * @param {{ location: string }} options `location` は GA4 に送る位置の名前
@@ -88,14 +100,24 @@ export const REQUEST_PAGE_LP = 'lp';
 export function requestCta(t, { location }) {
   return `<section class="request-band">
   <div class="request-band__inner">
-    <p class="request-band__lede">${escapeHtml(t('request.lede'))}</p>
-    <button class="btn btn--signal request-band__button" type="button"
-      data-request-cta data-cta="${escapeHtml(location)}"
-      aria-controls="${REQUEST_SURVEY_STEP_ID}" aria-expanded="false"
-      data-label-received="${escapeHtml(t('request.received'))}">${escapeHtml(
-        t('request.cta'),
-      )}</button>
-    <p class="request-band__note">${escapeHtml(t('request.note'))}</p>
+    <div class="request-band__layout">
+      <div class="request-band__text">
+        <p class="request-band__lede">${escapeHtml(t('request.lede'))}</p>
+        <p class="request-band__sub">${escapeHtml(t('request.sub'))}</p>
+      </div>
+      <div class="request-band__action">
+        <p class="request-band__micro" data-request-micro>${escapeHtml(t('request.micro'))}</p>
+        <p class="request-band__received" role="status" data-request-received
+          data-message="${escapeAttribute(t('request.receivedMessage'))}" hidden></p>
+        <button class="btn btn--signal request-band__button" type="button"
+          data-request-cta data-cta="${escapeHtml(location)}"
+          aria-controls="${REQUEST_SURVEY_STEP_ID}" aria-expanded="false"
+          data-label-received="${escapeHtml(t('request.received'))}">${escapeHtml(
+            t('request.cta'),
+          )}</button>
+        <p class="request-band__note">${escapeHtml(t('request.note'))}</p>
+      </div>
+    </div>
   </div>
 </section>`;
 }

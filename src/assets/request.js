@@ -1,5 +1,5 @@
 /**
- * 「成分・製品の追加をリクエスト」の段階（T-050 / T-051）。依存パッケージなし。
+ * 「正式版のリリースを応援する」の段階（T-050 / T-051、文言は T-061）。依存パッケージなし。
  *
  * **LP（/{locale}/）と製品一覧（/{locale}/{nutrient}/）の両方で動く。**
  * 段は 要望 → アンケート → メール → 支援 の順に開く。開くまでは HTML 側で
@@ -188,12 +188,29 @@
   /**
    * 押した本人へのフィードバック。
    * 🔒 ここで数を出さない。出した瞬間に「人気」の表示になる。
+   *
+   * === 受領メッセージ（T-061 / design.md §4.9）===
+   * 🔒 **マイクロコピーと入れ替える。別の場所へ足さない。** 注記の下へ足すと帯が
+   *    22.5px 伸び、押した直後にボタンが動く。入れ替えなら帯の高さが変わらない。
+   * 🔒 **既に出ていれば何もしない。** `role="status"` は中身が変化したときに読み上げるので、
+   *    押し直しで同じ文を書き直すと支援技術が2度読む（完了条件 C-3）。
+   * 🔒 **文言はここで書き込む。** HTML に埋めて hidden を外すだけにすると読み上げが飛ぶ
+   *    （上の finishStep の ⚠️ と同じ理由）。
    */
   function markReceived(button) {
     const received = button.dataset.labelReceived;
     if (received) button.textContent = received;
     button.classList.add('is-received');
     button.setAttribute('aria-expanded', 'true');
+
+    const band = button.closest('.request-band');
+    if (!band) return;
+    const slot = band.querySelector('[data-request-received]');
+    if (!slot || !slot.hidden) return;
+    const micro = band.querySelector('[data-request-micro]');
+    if (micro) micro.hidden = true;
+    slot.textContent = slot.dataset.message || '';
+    slot.hidden = false;
   }
 
   /* ---- 匿名シグナル: ブラウザごとに1行だけ残す（T-051） ---------------- */

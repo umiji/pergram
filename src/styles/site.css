@@ -354,50 +354,139 @@ table th {
 }
 
 
-/*
+/* ---- 要望の帯（T-061 / design.md §4）--------------------------------
  * リストの前と後ろに置く要望ボタン。位置は data-cta の値で分けて数える。
  *
+ * 🔒 帯の幾何を決める値は **ここだけ**。products.css / lp.css へ書かない。
+ *    この 🔒 は T-051 → T-053 → T-057 と3回破られている。4回目を作らない。
  * 🔒 押下数を画面に出さない。景表法の「人気」表示になる。
  *    出るのは押した本人のボタンの状態変化だけ（src/assets/request.js）。
  * 🔒 注記（「登録は不要」）をボタンから離さない。対価が要らないことが押せる理由なので、
- *    離すと押下率の意味が変わる。
+ *    離すと押下率の意味が変わる。**行動列（右列）に置き、左列へ残さない**（design.md §4.2）。
+ * 🔒 構図は「左にテキスト、右に行動のブロック」の2列（design.md §4.1）。
+ *    order / *-reverse で視覚順を入れ替えない（完了条件 B-4b）。
  */
 .request-band {
-  margin-top: var(--space-8);
-  /* 🔒 1列と2列の切り替えは、画面幅ではなく**帯そのものの幅**で判定する（design.md §4.4）。
-     @media へ書き戻すと (1) LP と製品一覧で分岐が割れ、(2) 768px の帯（721px）が
-     920px の帯（561px）より広いという幅の非単調性を踏む。
+  margin-block-start: var(--space-8);
+  /* 🔒 1列と2列の切り替えは、画面幅ではなく**帯そのものの幅**で判定する（design.md §4.7）。
+     @media へ書き戻すと (1) LP と製品一覧で分岐が割れ、(2) 768px の帯（736px）が
+     900px の帯（556px）より広いという幅の非単調性を踏む。
      ⚠️ @container が効かない環境では1列のままになる。1列は完了条件を単独で満たすので、
         これは進歩的強化であって壊れ方を持たない。**@media の代替を足さないこと**。 */
   container: request-band / inline-size;
 }
+/* 🔒 LP の帯は器そのものが余白（44px / 96px）を持つので、ここでは重ねない。
+      **この1行を lp.css へ戻さない**（完了条件 B-6 が margin の宣言を数える。T-061）。 */
+.waitlist-band .request-band {
+  margin-block-start: 0;
+}
+
+/* 面（§1 の役割 B）は全幅のまま。組版は中の .request-band__layout が持つ */
 .request-band__inner {
+  display: block;
+}
+
+/* 🔒 版面。**面を狭めず、中身だけを止めて中央へ寄せる**（design.md §4.6）。
+      無制限に広げると 1440px で右列が孤立する（完了条件 B-1d）。
+      ⚠️ 2列のときだけ中身がページの軸から内側へ入る（1280px で 36px / 1440px で 96px）。
+         これは意図した挙動である。**「ずれている」と読んで margin-inline: 0 に直さない。** */
+.request-band__layout {
+  width: 100%;
+  max-width: var(--band-max);
+  margin-inline: auto;
   display: grid;
-  /* 🔒 既定は1列。上からリード文 → ボタン → 注記。
-     注記をボタンの直下 8px へ置き、リード文との間は 16px 空ける（design.md §4.7）。
-     間隔の差が「注記はボタンの条件である」ことを表す。等間隔にしない。 */
   grid-template-columns: minmax(0, 1fr);
   justify-items: stretch;
+  align-items: start;
+  /* 1列のときだけ効く。帯の中で広い間隔はここ1箇所（design.md §4.5） */
+  row-gap: var(--space-6);
+}
+
+/* 列そのものを箱にする。🔒 6要素をグリッドへ直接置かない ——
+   要素ごとに grid-column / grid-row を配ると、書き忘れた1つだけが別の場所へ落ちる
+   （T-057 の指定が実際にそうなっていた。design.md §4.1）。 */
+.request-band__text,
+.request-band__action {
+  display: grid;
+  width: 100%;
+  justify-items: stretch;
+  align-content: start;
   row-gap: var(--space-2);
 }
-/* 🔒 word-break: keep-all と overflow-wrap: break-word は**対で置く**（design.md §4.3）。
-      日本語を「、」「。」の後でしか折り返させないので、最終行は必ず 16字か 11字になり、
-      孤立行が構造上作れなくなる。keep-all だけだと、切れない塊（最長 199px）が
-      入らない幅で帯からはみ出す。text-wrap: balance / pretty はこれを解決しない（実測済み）。
-      この指定をリード文と注記以外へ広げない。 */
+
+/* 🔒 箱の中では全要素を同じ幅にする。これで列の中の左端が一致する（完了条件 B-1a）。
+      **この6つから1つでも外さないこと。** 外した要素だけが別の幅を持つ。 */
+.request-band__lede,
+.request-band__sub,
+.request-band__micro,
+.request-band__received,
+.request-band__button,
+.request-band__note {
+  width: 100%;
+  max-width: var(--band-cta-max);
+  margin: 0;
+}
+
+/* 🔒 word-break: keep-all と overflow-wrap: break-word は**対で置く**（design.md §4.8）。
+      日本語を「、」「。」の後でしか折り返させないので、孤立行が構造上作れなくなる。
+      keep-all だけだと、切れない塊が入らない幅で帯からはみ出す。
+      text-wrap: balance / pretty はこれを解決しない（実測済み）。
+      🔒 この指定を帯の5つの文（主文・副文・マイクロコピー・受領・注記）以外へ広げない。 */
+
+/* T1（§3）。帯の中でただ1つの主文。🔒 T3（12.5px）へ戻さない ——
+   戻すと帯の中で「どれが呼びかけの本体か」が決まらなくなる（design.md §4.0 / §4.3） */
 .request-band__lede {
-  margin: 0 0 var(--space-2);
+  font-size: var(--size-md);
+  font-weight: 700;
+  line-height: 1.5;
+  color: var(--ink);
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+/* T3（§3）。主文の裏付け */
+.request-band__sub {
   font-size: var(--size-sm);
+  font-weight: 400;
   line-height: 1.8;
   color: var(--muted-strong);
   word-break: keep-all;
   overflow-wrap: break-word;
 }
+/* T4（§3）。ボタンを上下から挟む2つの条件。🔒 **同じ値にする**（design.md §4.2 / §4.3）。
+   片方だけ弱めると、上のマイクロコピーが副文の続きに見える */
+.request-band__micro,
+.request-band__note {
+  font-size: var(--size-sm);
+  font-weight: 400;
+  line-height: 1.8;
+  color: var(--muted-weak);
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+/* T2（§3）。🔒 受け取ったことを示す色は画面内で1つ（--signal）。
+   🔒 マイクロコピーと**入れ替わりで同じ枠に出す**。別の場所へ足すと帯が伸び、
+      押した瞬間にボタンが動く（design.md §4.9）。
+   🔒 prefers-reduced-motion の打ち消しをここに書かない。site.css 末尾の
+      全称セレクタの打ち消しが効く。2つ目を足すとどちらが効いているか分からなくなる */
+.request-band__received {
+  font-size: var(--size-sm);
+  font-weight: 700;
+  line-height: 1.8;
+  color: var(--signal);
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  animation: request-band-receipt 160ms ease-out both;
+}
+@keyframes request-band-receipt {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 .request-band__button {
-  /* 器が上限より狭ければ器いっぱい、広ければ上限で止まる。この1規則で全ての幅を賄う
-     （design.md §4.6）。旧実装の 320px 固定は捨てた。 */
-  width: 100%;
-  max-width: var(--band-cta-max);
   /* 🔒 タップ領域 44px 以上 */
   min-height: var(--tap-target);
 }
@@ -407,46 +496,47 @@ table th {
   color: var(--signal);
   border-color: var(--signal);
 }
-/* 🔒 T4。リード文とサイズを揃え、色だけで弱める。「対価が要らない」という条件は
-      リード文と同じ大きさで読めなければ意味がない（design.md §3） */
-.request-band__note {
-  margin: 0;
-  font-size: var(--size-sm);
-  line-height: 1.8;
-  color: var(--muted-weak);
-  word-break: keep-all;
-  overflow-wrap: break-word;
+
+/* 🔒 LP は常に1列（帯が 640px なので下の @container が効かない）。
+      箱の中身を中央へ寄せて、lp.css の text-align: center と軸を揃える（design.md §4.11） */
+.waitlist-band .request-band__text,
+.waitlist-band .request-band__action {
+  justify-items: center;
 }
 
 /*
- * 2列になるのは帯自体が 56rem 以上のときだけ（製品一覧の 1280px 以上）。
- * 🔒 左（読ませる列）は minmax(0, max-content)。列がリード文に吸い付くので、
- *    リード文の右端とボタンの左端の距離は常に column-gap = 48px になり、
- *    死んだ空白が構造として作れなくなる。旧実装は左を 1fr にしていたため
- *    1440px で 360px の穴が開いた。**1fr へ戻さないこと**。
- * 🔒 左そろえ（justify-content: start）。中央寄せにすると左そろえの一覧の中で
- *    視線の軸が2本になる。1440px で右に残る 181px は意図した版面の上限であって穴ではない。
+ * 2列（帯そのものが 50rem = 800px 以上のとき。製品一覧の 1280px 以上）。
+ * 🔒 左列は minmax(0, max-content)。列が主文に吸い付くので、左列の右端と右列の左端の距離は
+ *    常に column-gap = 48px になり、死んだ空白が構造として作れなくなる（完了条件 B-1c）。
+ *    **1fr へ戻さない** —— 戻すと 1440px で 360px の穴が開く（T-057 が直した壊れ方）。
+ * 🔒 justify-content: space-between にしない。右列が版面の右端へ飛び、B-1c が壊れる。
+ * 🔒 align-items: center にしない。**右列がブロック（3要素）だから上そろえである**
+ *    （ベンチマークの分岐条件。実例は GitLab と DigitalOcean。design.md §4.4）。
+ *    右列がボタン1個になったら初めて垂直中央が候補になる。
+ * 🔒 要素ごとの grid-column / grid-row をここへ書かない。書き忘れた要素だけが
+ *    別の場所へ落ちる（T-057 の残骸が実際にそうなっていた。design.md §4.16）。
  */
-@container request-band (min-width: 56rem) {
-  .request-band__inner {
+@container request-band (min-width: 50rem) {
+  .request-band__layout {
     grid-template-columns: minmax(0, max-content) minmax(20rem, var(--band-cta-max));
     column-gap: var(--space-12);
-    align-items: center;
+    row-gap: 0;
     justify-content: start;
+    align-items: start;
   }
-  .request-band__lede {
+  .request-band__text {
     grid-column: 1;
-    grid-row: 1 / span 2;
-    margin-block-end: 0;
+    grid-row: 1;
   }
-  .request-band__button {
+  .request-band__action {
     grid-column: 2;
     grid-row: 1;
   }
-  /* 🔒 注記は2列でもボタンの直下（同じ列の2行目）。左列へ移さない */
-  .request-band__note {
-    grid-column: 2;
-    grid-row: 2;
+  /* 🔒 右列のボタンは文字幅。列いっぱいに伸ばさない（ベンチマーク 含意2。実測11例中9例）。
+        1列のときは上の共通規則で全幅になる —— 親指で押す幅では全幅が正しい */
+  .request-band__button {
+    width: max-content;
+    max-width: 100%;
   }
 }
 
