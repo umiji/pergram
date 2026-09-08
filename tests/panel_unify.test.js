@@ -434,7 +434,9 @@ test('B-4 T3: 本文・リードの字送りが揃っている', () => {
   for (const selector of [
     '.explainer__body',
     '.notice',
-    '.request-band__lede',
+    // ⚠️ .request-band__lede は T-061 で T3 → T1 へ移した（design.md §3 の追記 / §4.3）。
+    //    帯の中に「面の頭」が1つ要る。**この一覧へ戻さない**
+    '.request-band__sub',
     '.request-flow__lede',
     THANKS_CLASS,
   ]) {

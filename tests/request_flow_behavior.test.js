@@ -624,7 +624,7 @@ test('🔒 匿名シグナルの送信が同期的に失敗しても、段は開
 const LP_SCRIPT = 'src/assets/lp.js';
 
 /** ヘッダの CTA。第1段階のボタンではないので、これは今までどおり cta_click で数える */
-const HEADER_CTA = '<a href="#waitlist" data-cta="header_waitlist">機能追加リクエスト</a>';
+const HEADER_CTA = '<a href="#waitlist" data-cta="header_waitlist">正式版を応援する</a>';
 
 const ctaClicks = (dom) => dom.gtagCalls.filter((call) => call[1] === 'cta_click');
 

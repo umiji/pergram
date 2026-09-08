@@ -256,15 +256,20 @@ test('完了条件3 要望ボタンの data-cta の値が互いに異なる', ()
 /* 完了条件4: ボタンの文言と、登録が不要である旨の注記                       */
 /* ====================================================================== */
 
-test('完了条件4 要望ボタンが「他の成分・製品追加をリクエスト」の旨を名乗る', () => {
+/**
+ * ⚠️ **文言は T-061（2026-09-08 / PO 判断）で変わった。**
+ * 「成分・製品の追加をリクエスト」は**サービス側の都合**（何を掲載するか）を名乗っており、
+ * 押す人が得るものが無かった。**押す人の意思表示そのもの**を名乗る形へ変えている
+ * （docs/design/design.md §4.12）。**旧文言へ戻さない。**
+ */
+test('完了条件4 要望ボタンが「正式版のリリースを応援する」の旨を名乗る', () => {
   const buttons = requestButtons(tree(renderProducts()));
   assert.ok(buttons.length > 0, '要望ボタンが見つからない');
 
   for (const button of buttons) {
     const label = text(button);
-    assert.ok(/リクエスト/.test(label), `ボタンが「リクエスト」と名乗っていない: ${label}`);
-    assert.ok(/追加/.test(label), `ボタンが「追加」に触れていない: ${label}`);
-    assert.ok(/成分|製品/.test(label), `ボタンが成分・製品に触れていない: ${label}`);
+    assert.ok(/応援/.test(label), `ボタンが「応援」と名乗っていない: ${label}`);
+    assert.ok(/正式版|リリース/.test(label), `ボタンが正式版のリリースに触れていない: ${label}`);
   }
 });
 
@@ -292,8 +297,9 @@ test('完了条件4 en の製品一覧にも要望ボタンが2つ出る', () =>
 
   for (const button of buttons) {
     const label = text(button).toLowerCase();
-    assert.ok(/request/.test(label), `en のボタンが request と名乗っていない: ${label}`);
-    assert.ok(/nutrient|product|ingredient/.test(label), `en のボタンが対象に触れていない: ${label}`);
+    // ⚠️ T-061 で文言が変わった（design.md §4.12）。旧 "request a nutrient" へ戻さない
+    assert.ok(/support/.test(label), `en のボタンが support と名乗っていない: ${label}`);
+    assert.ok(/release|version/.test(label), `en のボタンが正式版のリリースに触れていない: ${label}`);
   }
 });
 

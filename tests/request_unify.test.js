@@ -66,12 +66,22 @@ const REQUEST_SCRIPT = 'src/assets/request.js';
 
 /** 完了条件1。製品一覧から消えていること */
 const RETIRED_LABEL = 'リリース通知を受け取る';
-/** 完了条件2。LP・製品一覧の本文の要望ボタン */
-const BODY_CTA_LABEL = '成分・製品の追加をリクエスト';
-/** 完了条件3。LP・製品一覧のヘッダの CTA */
-const HEAD_CTA_LABEL = '機能追加リクエスト';
-/** 完了条件3。短縮表記を出す場合も、この語で始めること */
-const HEAD_CTA_PREFIX = '機能追加';
+/**
+ * 完了条件2。LP・製品一覧の本文の要望ボタン。
+ * ⚠️ **T-061（2026-09-08 / PO 判断）で文言が変わった。** 旧「成分・製品の追加をリクエスト」は
+ *    サービス側の都合を名乗っていた。**押す人の意思表示**を名乗る形へ変えている
+ *    （docs/design/design.md §4.12）。**旧文言へ戻さない。**
+ */
+const BODY_CTA_LABEL = '正式版のリリースを応援する';
+/** 完了条件3。LP・製品一覧のヘッダの CTA（T-061 で「機能追加リクエスト」から変えた） */
+const HEAD_CTA_LABEL = '正式版を応援する';
+/**
+ * 完了条件3。短縮表記（`request.headerCtaShort`）も**この語を含む**こと。
+ * ⚠️ T-061 までは「同じ語で始まる」で見ていたが、短縮表記が「応援する」になり
+ *    先頭一致では表せなくなった。**見ている中身は変わっていない** ——
+ *    同じ導線が2つの名前を持たないこと（T-024 の失敗の形）である。
+ */
+const HEAD_CTA_KEYWORD = '応援';
 /** 完了条件6。LP の旧・メールアドレス先行フォーム */
 const RETIRED_FORM_CLASS = 'waitlist--step1';
 
@@ -244,7 +254,7 @@ test('完了条件1 待機リストの案内ブロックが製品一覧から出
 /* 完了条件2: 本文の要望ボタンの文言が LP・製品一覧で同じ                   */
 /* ====================================================================== */
 
-test('完了条件2 製品一覧の本文の要望ボタンが「成分・製品の追加をリクエスト」である', () => {
+test('完了条件2 製品一覧の本文の要望ボタンが「正式版のリリースを応援する」である', () => {
   const buttons = bodyRequestCtas(tree(renderProducts()));
   assert.ok(buttons.length > 0, '製品一覧の本文に data-request-cta のボタンが無い');
 
@@ -256,7 +266,7 @@ test('完了条件2 製品一覧の本文の要望ボタンが「成分・製品
   }
 });
 
-test('完了条件2 LP の本文の要望ボタンが「成分・製品の追加をリクエスト」である', () => {
+test('完了条件2 LP の本文の要望ボタンが「正式版のリリースを応援する」である', () => {
   const buttons = bodyRequestCtas(tree(renderLp()));
   assert.ok(buttons.length > 0, 'LP の本文に data-request-cta のボタンが無い');
 
@@ -297,7 +307,7 @@ for (const [name, render, expectedPage] of [
   ['製品一覧', () => renderProducts(), 'ja:protein'],
   ['LP', () => renderLp(), 'ja:lp'],
 ]) {
-  test(`完了条件3 ${name}のヘッダの CTA が「機能追加リクエスト」である`, () => {
+  test(`完了条件3 ${name}のヘッダの CTA が「正式版を応援する」である`, () => {
     const root = tree(render());
     const labels = headerCtaLabels(root, 'ja');
     assert.ok(
@@ -306,15 +316,15 @@ for (const [name, render, expectedPage] of [
     );
   });
 
-  test(`完了条件3 ${name}のヘッダの短縮表記も同じ語で始まる`, () => {
+  test(`完了条件3 ${name}のヘッダの短縮表記も同じ語を含む`, () => {
     const root = tree(render());
     const cta = headerCtaNamed(root, 'ja', HEAD_CTA_LABEL);
     assert.ok(cta, `${name}のヘッダに「${HEAD_CTA_LABEL}」の CTA が無い`);
 
     for (const variant of labelVariants(cta)) {
       assert.ok(
-        variant.startsWith(HEAD_CTA_PREFIX),
-        `${name}のヘッダの CTA に「${HEAD_CTA_PREFIX}」で始まらない表記がある: ${variant}`,
+        variant.includes(HEAD_CTA_KEYWORD),
+        `${name}のヘッダの CTA に「${HEAD_CTA_KEYWORD}」を含まない表記がある: ${variant}`,
       );
     }
   });
