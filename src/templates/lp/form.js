@@ -38,9 +38,8 @@ import { requestCta, requestFlow, requestPageId, REQUEST_PAGE_LP } from '../requ
 export function waitlist(t, { support = null, locale = 'ja' } = {}) {
   return `<section class="waitlist-band" id="waitlist">
   <div class="waitlist-band__inner">
-    <h2 class="waitlist-band__heading">${escapeHtml(t('lp.form.heading'))}</h2>
     ${requestCta(t, { location: 'lp_request' })}
-    ${requestFlow(t, { support, headingLevel: 3, page: requestPageId(locale, REQUEST_PAGE_LP) })}
+    ${requestFlow(t, { support, headingLevel: 2, page: requestPageId(locale, REQUEST_PAGE_LP) })}
   </div>
 </section>`;
 }
