@@ -47,7 +47,10 @@ npx wrangler d1 create pergram-preview
 npm run d1:schema     # 本番
 ```
 
-`waitlist` と `price_alert` ができる。確認は `npx wrangler d1 info pergram` の `num_tables`。
+`waitlist` / `price_alert` / `request_signal` / `request_survey` の**4表**ができる。
+確認は `npx wrangler d1 info pergram` の `num_tables`（このコマンドが数えるのはテーブルなので、
+索引は含まれない）。表が増えたらこの行も直すこと —— 実態と食い違うと、
+`num_tables` を見た人が「足りている」と読み違える。
 
 ⚠️ `CREATE TABLE IF NOT EXISTS` は**既存のテーブルに列を足さない**。
 稼働中の DB に列を増やしたときは `worker/migrations/` の SQL を1度だけ流す。

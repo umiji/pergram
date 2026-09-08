@@ -53,7 +53,10 @@ N-09 / N-10 は**成分の除外ではなく文脈の除外**。亜鉛は筋ト�
 
 - 年齢・性別・服用中サプリは **localStorage / IndexedDB のみ**。サーバへ送信しない
 - サーバが保持してよいのは次の4つだけ。
-  列を足すときは `worker/schema.sql`・`worker/migrations/`・`tests/worker.test.js` を必ず揃える
+  列を足すときは `worker/schema.sql`・`worker/migrations/`・**その表を検査しているテスト**を
+  必ず揃える。表ごとに置き場が違うので、下の一覧の各項目に書いてある正典から辿ること
+  （`waitlist` / `price_alert` → `tests/worker.test.js`、`request_signal` →
+  `tests/request_unify.test.js`、`request_survey` → `tests/request_survey.test.js`）
   - 待機リストの6列（`email` / `nutrients` / `channel` / `nutrients_other` / `requests` /
     `created_at`）。**🔒 ここは6列で打ち止め。**匿名の押下を相乗りさせない（T-058）
   - 価格アラートの**監視製品ID のみ**
