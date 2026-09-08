@@ -10,8 +10,12 @@
  * 🔒 GA4 に個人識別情報を送らない。**メールアドレスをイベントパラメータに含めない。**
  * 🔒 自由記述の**本文**を GA4 へ送らない。書かれたかどうか（0 / 1）だけを数える。
  * 🔒 待機リスト（/api/waitlist）へ送るのは既存の6列の範囲だけ。列を足さない。
- *    アンケートの回答は、メールアドレスの段を送ったときに相乗りする
- *    （メールアドレスが無ければ保存しない。保存の鍵がそれしかない）。
+ *    アンケートの回答は、メールアドレスの段を送ったときにもここへ相乗りする。
+ * 🔒 **アンケートの回答は、送った時点で /api/request-survey へも匿名で送る**（T-070）。
+ *    ⚠️ 以前は「メールアドレスが無ければ保存しない。保存の鍵がそれしかない」だった。
+ *    `waitlist` は email が主キーで匿名の行が入らないためで、その結果
+ *    **「押した → 成分を答えた → メールは入れない」人の回答を全部捨てていた。**
+ *    匿名の受け口ができたので、その仕様は上書きされている。**戻さないこと。**
  * 🔒 送信後に別ページへ飛ばさない。同じ画面で完了状態に切り替える。
  * 🔒 匿名シグナル（/api/request-signal）が失敗しても**段は必ず開く**。
  *    保存は計測の都合であって、ユーザーの用ではない。
@@ -28,6 +32,20 @@
 
   /** 第1段階の押下を1行だけ残す受け口。持つのは UUID と日時だけ */
   const SIGNAL_ENDPOINT = '/api/request-signal';
+
+  /**
+   * 第2段階のアンケートの回答を**匿名のまま**残す受け口（T-070）。
+   *
+   * 🔒 **メールアドレスを入れなかった人の回答は、以前ここが無くて全部捨てられていた。**
+   *    `waitlist` は `email` が主キーなので、匿名の行は物理的に入らない。
+   *    「押した → 成分を答えた → メールは入れない」人の回答は、次に何を載せるかを
+   *    決める情報そのものである。**この送信を消さないこと。**
+   * 🔒 送る本文は `{ id, nutrients, channel, nutrients_other, requests }` **ちょうど。**
+   *    メールアドレスを混ぜない（混ぜた瞬間に匿名でなくなる）。`page` も送らない
+   *    （どのページかは同じ id の `request_signal` の行が持っている）。
+   *    受け口はキー集合がちょうど一致しなければ 400 で捨てる。
+   */
+  const SURVEY_ENDPOINT = '/api/request-survey';
 
   /**
    * ブラウザごとの識別子の置き場。
@@ -259,6 +277,21 @@
   let signalSent = false;
 
   /**
+   * このブラウザの識別子。押下のときに決まり、**アンケートの回答も同じものを使う**（T-070）。
+   *
+   * 🔒 アンケート専用の識別子を作らない。別の値で送ると同じブラウザが2人に見え、
+   *    受け口の主キーによる上書きも効かなくなる（何度答えても行が増える）。
+   * 🔒 ここが空のときは**送らない**。newSignalId() と同じ理由で、
+   *    疑似乱数を自作して埋めない（衝突すれば行が潰れ、回答が静かに目減りする）。
+   */
+  let signalId = null;
+
+  /** 押下時に決まった識別子。決まっていなければ localStorage の保存分を使う */
+  function currentSignalId() {
+    return signalId || readStored(SIGNAL_STORAGE_KEY);
+  }
+
+  /**
    * 第1段階の押下をサーバへ1行残す。
    *
    * 🔒 **応答を待たない。失敗しても握り潰す。** 段の開閉はこの結果に依存しない。
@@ -291,13 +324,17 @@
 
     const stored = readStored(SIGNAL_STORAGE_KEY);
 
-    // このブラウザの押下は既にサーバへ入っている。2回目以降は送らない（段は開く）
-    if (stored && readStored(SIGNAL_ACK_STORAGE_KEY) === stored) return;
-
     // 🔒 保存済みがあればそれを使い回す。ここで作り直すと同じブラウザが2人になる
     const id = stored || newSignalId();
     if (!id) return;
     if (!stored) writeSignalId(id);
+
+    // 🔒 **確認より先に控える。** アンケートの回答は同じ id で送る（T-070）ので、
+    //    受領済みで送信を打ち切る回でも、識別子だけは分かっている必要がある
+    signalId = id;
+
+    // このブラウザの押下は既にサーバへ入っている。2回目以降は送らない（段は開く）
+    if (readStored(SIGNAL_ACK_STORAGE_KEY) === id) return;
 
     // `.catch()` が拾うのは**拒否されたときだけ**である。fetch を持たない環境や
     // 引数を受け付けない環境では**その場で投げる**ので、同期の側も包む
@@ -353,6 +390,47 @@
     return value === '' ? null : value;
   }
 
+  /**
+   * アンケートの回答を匿名の1行として残す（T-070）。
+   *
+   * 🔒 **応答を待たない。失敗しても握り潰す。** 段の開閉はこの結果に依存しない
+   *    （sendRequestSignal と同じ方針。保存は計測の都合であって利用者の用ではない）。
+   * 🔒 送るのは押下と同じ識別子。無ければ**送らない**（作り直さない）。
+   * 🔒 本文にメールアドレスを入れない。`page` も入れない。キーを増やすと受け口が
+   *    400 で捨てる（キー集合ちょうど一致）。
+   * ⚠️ 送り直しの仕掛けは持たない。受け口は同じ id への上書きなので、次に答えた回が
+   *    そのまま行を更新する。押下の匿名シグナル（`_ack`）のように「1行も残らない」
+   *    状態が続く経路ではない。
+   *
+   * @param {{nutrients: string[], channel: string[], nutrients_other: string|null,
+   *          requests: string|null}} answer
+   */
+  function sendRequestSurvey(answer) {
+    const id = currentSignalId();
+    if (!id) return;
+
+    // `.catch()` が拾うのは拒否されたときだけ。fetch を持たない環境では
+    // その場で投げるので、同期の側も包む（sendRequestSignal と同じ）
+    try {
+      fetch(SURVEY_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id,
+          nutrients: answer.nutrients,
+          channel: answer.channel,
+          nutrients_other: answer.nutrients_other,
+          requests: answer.requests,
+        }),
+        keepalive: true,
+      }).catch(() => {
+        /* 計測の都合。ユーザーには何も見せない */
+      });
+    } catch (err) {
+      /* 同上。次の段は既に開いている */
+    }
+  }
+
   function toEmailStep() {
     const opened = openStep('email');
     if (opened) track('request_email_view', {});
@@ -395,8 +473,13 @@
         has_requests: requests ? 1 : 0,
       });
 
+      // 🔒 **段を進めるのが先。** 保存は計測の都合であって利用者の用ではない
+      //    （押下の匿名シグナルと同じ順序で担保する）
       finishStep('survey');
       toEmailStep();
+
+      // 🔒 メールアドレスを入れない人の回答は、以前ここが無くて全部捨てられていた（T-070）
+      sendRequestSurvey(answers);
     });
   }
 
