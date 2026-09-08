@@ -10,11 +10,15 @@
 
 import { handleWaitlist } from './waitlist.js';
 import { handleRequestSignal } from './request_signal.js';
+import { handleRequestSurvey } from './request_survey.js';
 
 const ROUTES = {
   '/api/waitlist': { POST: handleWaitlist },
   // 要望の第1段階を匿名の1行として残す（T-051）。持つのは UUID と日時だけ
   '/api/request-signal': { POST: handleRequestSignal },
+  // 第2段階のアンケートの回答を匿名のまま残す（T-070）。
+  // メールアドレスを入れなかった人の回答は、以前ここが無くて全部捨てられていた
+  '/api/request-survey': { POST: handleRequestSurvey },
 };
 
 /**

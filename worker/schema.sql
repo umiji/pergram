@@ -49,3 +49,30 @@ CREATE TABLE IF NOT EXISTS request_signal (
   created_at TEXT NOT NULL,
   page       TEXT
 );
+
+-- 匿名のアンケート回答（T-070）。**メールアドレスを入れなかった人の回答の置き場。**
+--
+-- === なぜ waitlist でも request_signal でもないのか 🔒 ===
+-- `waitlist` は `email` が主キーなので、**メールアドレスの無い行は物理的に入らない。**
+--   （SQLite では主キーを後から変えられない。列も6列で打ち止め＝T-058）
+-- `request_signal` は3列で打ち止めで、**個人を識別できるものを何も持たないことが
+--   あの行の存在理由**である。自由記述を混ぜた時点でそれが成り立たない。
+-- そこで匿名のまま回答を残せる第3のテーブルを置く。
+--
+-- 🔒 列はこの6つで打ち止め。**email を足さない**（足した瞬間に匿名でなくなる）。
+--    IP・User-Agent・リファラも足さない。**ページ内の位置（上の帯 / 下の帯）も入れない。**
+--    位置は GA4 の location（data-cta）が持つ。列を足すのは改めて PO 判断を要する。
+-- ⚠️ 「どのページか」もここには持たない。同じ id の行が `request_signal` にあり、
+--    そちらの `page` と突き合わせられる。二重に持つとずれる。
+-- 🔒 id は `request_signal.id` と**同じ値**（ブラウザが作る UUID v4、
+--    localStorage の `pergram.request_signal_id`）。主キーにしてあるのは、
+--    同じブラウザが何度答えても行を増やさず上書きするためである。
+-- 🔒 自由記述は長さで切るだけ。中身を解釈して弾かない（N-01 / N-05）。
+CREATE TABLE IF NOT EXISTS request_survey (
+  id              TEXT PRIMARY KEY,
+  nutrients       TEXT,
+  channel         TEXT,
+  nutrients_other TEXT,
+  requests        TEXT,
+  created_at      TEXT NOT NULL
+);
