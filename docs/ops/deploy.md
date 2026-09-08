@@ -61,6 +61,30 @@ npx wrangler d1 execute pergram --remote --file worker/migrations/2026-08-10_wai
 🔒 サーバに置いてよい列は [worker/schema.sql](../../worker/schema.sql) にあるものだけ。
 年齢・性別・体調・服薬情報の列を足さない。
 
+### ⚠️ 移行が先、`main` への merge が後 — 順序を逆にすると書き込みが全部失敗する
+
+**新しいテーブルを使うコードを先にデプロイすると、テーブルができるまでの間、その受け口への
+書き込みが全部失敗する**（D1 が `no such table` を返し、受け口は 503 を返す）。
+利用者の画面は何事もなく進むので、**失敗したことが誰にも見えない。**
+T-058 で実際に踏んだ危険であり、そのときは移行を先に流して収めた。
+
+**デプロイは `main` への push で自動的に走る**（下の §4。Production branch = `main`）。
+つまり **`main` へ merge した時点で本番へ出る**ので、順序はこうなる。
+
+1. 作業ブランチのまま、移行 SQL を本番の D1 へ流す（下のコマンド）
+2. `npx wrangler d1 info pergram` の `num_tables` が増えたことを確認する
+3. そのあとで `main` へ merge する
+
+未実施の移行 SQL は次のとおり（流したら「済」と書き足す）。
+
+```bash
+# 匿名のアンケート回答のテーブル request_survey を作る（T-070、2026-09-08）
+npx wrangler d1 execute pergram --remote --file worker/migrations/2026-09-08_request_survey.sql
+```
+
+`CREATE TABLE IF NOT EXISTS` なので2度流しても壊れない（`ALTER TABLE ADD COLUMN` の
+移行とはここが違う）。それでも**流したかどうかは `num_tables` で必ず確認する。**
+
 ## 4. Worker を GitHub と繋ぐ
 
 Cloudflare ダッシュボード → Workers & Pages → 対象の Worker → Settings → Build。

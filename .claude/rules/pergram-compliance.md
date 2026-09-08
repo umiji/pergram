@@ -52,7 +52,7 @@ N-09 / N-10 は**成分の除外ではなく文脈の除外**。亜鉛は筋ト�
 ## データ保護
 
 - 年齢・性別・服用中サプリは **localStorage / IndexedDB のみ**。サーバへ送信しない
-- サーバが保持してよいのは次の3つだけ。
+- サーバが保持してよいのは次の4つだけ。
   列を足すときは `worker/schema.sql`・`worker/migrations/`・`tests/worker.test.js` を必ず揃える
   - 待機リストの6列（`email` / `nutrients` / `channel` / `nutrients_other` / `requests` /
     `created_at`）。**🔒 ここは6列で打ち止め。**匿名の押下を相乗りさせない（T-058）
@@ -64,6 +64,16 @@ N-09 / N-10 は**成分の除外ではなく文脈の除外**。亜鉛は筋ト�
     ⚠️ `page` は PO 判断で足された（T-058、2026-09-08）。T-051 の「UUID と日時の2つだけ」は
     その時点で上書きされている。**「規約違反だから」と削らないこと**（正典は
     `worker/request_signal.js` の冒頭）
+  - 匿名のアンケート回答 `request_survey` の6列（`id` = `request_signal.id` と同じ
+    ブラウザの UUID v4 / `nutrients` / `channel` / `nutrients_other` / `requests` /
+    `created_at`）。**🔒 ここも6列で打ち止め。**
+    **`email` を入れない —— 入れた瞬間に匿名でなくなる。** IP・User-Agent・リファラも
+    入れない。**ページ内の位置（上の帯 / 下の帯）も入れない**（位置は GA4 の `data-cta`）。
+    「どのページか」も持たない（同じ `id` の `request_signal` の行が持っており、
+    二重に持てばずれる）。⚠️ この表は**メールアドレスを入れなかった人のアンケート
+    回答が全部捨てられていた**ために足された（T-070、2026-09-08）。`id` を主キーに
+    してあるのは、同じブラウザが何度答えても行を増やさず上書きするためである。
+    正典は `worker/request_survey.js`
 - **自由記述（`nutrients_other` / `requests`）は症状・服薬の書き込み口になりうる（N-01 / N-05）。**
   防波堤はフォーム側の注記（`lp.form.freeTextNote`）とラベルの限定であって、サーバ側の
   検閲ではない。**中身を解釈して弾こうとしない** — 誤検知で正当な要望を捨てるほうが害が大きい。
