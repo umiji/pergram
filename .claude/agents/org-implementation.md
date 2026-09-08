@@ -29,6 +29,7 @@ color: green
 | `superpowers:verification-before-completion` | 「できた」と言う前に、実際に動かして確かめる手順 | **完了報告を書く直前に必ず** |
 | `ecc:accessibility` | 誰でも使える画面にするための実装の型（意味を持つHTML要素、キーボードだけでの操作、文字と背景の明度差）。WCAG 2.2 AA 基準 | `src/templates/` `src/styles/` を書き換えるとき |
 | `ecc:database-migrations` | データベースのスキーマ変更を安全に進める手順（後方互換の保ち方、巻き戻し、無停止での適用） | `worker/schema.sql` `worker/migrations/` を変更するとき |
+| `browser-measure` | **ブラウザで幅ごとのレイアウトを実測する測定台**（Chrome ヘッドレス + CDP、依存なし）。位置・寸法・横溢れ・行ごとの文字列を JSON で返す | **`src/styles/` `src/templates/` を変えた後、見た目の完了条件を実測で確かめるとき必ず。** 起動コードを自分で書き起こさない |
 
 **`superpowers:verification-before-completion` を必ず呼ぶ理由。** あなたの完了報告は「ローカル検証の結果」を必須項目にしている（下の「出力」）。これは形式を埋めさせるための欄ではなく、**実際に動かしていない完了報告を後工程へ流さない**ための欄である。テストが緑であることは論理についての証拠であって、**利用者が通る経路が動く証拠ではない。**
 
