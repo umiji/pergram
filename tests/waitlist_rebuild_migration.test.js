@@ -104,6 +104,73 @@ test('1度流せば移行できる（番兵が正常な経路を邪魔しない�
   assert.equal(rows(db).length, 2, '移行後の表に匿名の行が入らない');
 });
 
+/*
+ * 番兵には副作用がある —— 1文目が成功すると、旧 `waitlist` に空の `id` 列が足される。
+ * そこで止まると「`id` はあるが CHECK も UNIQUE も無い、作り直されていない表」が残る。
+ *
+ * 🔒 **この状態を「完了」と読んではならない。** 制約の無い表のまま本番が動き続ける。
+ *    完了の判定は `id` 列の有無ではなく、**CHECK 制約が DDL に現れるか**で行う
+ *    （docs/ops/deploy.md §3「移行できたかの判定」）。
+ */
+
+/** 表の DDL。完了の判定はここに CHECK が現れるかで行う */
+const ddl = (db) =>
+  db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='waitlist'").get().sql;
+const columns = (db) =>
+  db
+    .prepare("SELECT name FROM pragma_table_info('waitlist')")
+    .all()
+    .map((row) => row.name);
+
+/** 番兵の1文目だけが通って止まった状態を作る */
+const sentinelOnly = (db) => db.exec('ALTER TABLE waitlist ADD COLUMN id TEXT;');
+
+test('🔒 番兵だけが通った状態は「完了」と見分けが付く', sqliteOptions, () => {
+  const done = production();
+  done.exec(migrationSql);
+
+  const stuck = production();
+  sentinelOnly(stuck);
+
+  // id 列の有無では区別できない。**これが誤判定の入口である**
+  assert.ok(columns(done).includes('id'));
+  assert.ok(
+    columns(stuck).includes('id'),
+    '前提が変わっている: 番兵が id 列を足さないなら、この検査ごと見直すこと',
+  );
+
+  // CHECK 制約の有無なら区別できる
+  assert.match(ddl(done), /CHECK/i, '移行できた表の DDL に CHECK が無い');
+  assert.doesNotMatch(
+    ddl(stuck),
+    /CHECK/i,
+    '🔒 番兵だけが通った表に CHECK がある。完了と未完了を見分けられない',
+  );
+});
+
+test('番兵だけが通った状態は、deploy.md の手順で復旧できる', sqliteOptions, () => {
+  const db = production();
+  sentinelOnly(db);
+
+  // そのまま流し直しても番兵が発火して進めない
+  assert.throws(() => db.exec(migrationSql), /duplicate column name: id/i);
+
+  // 🔒 足された列は必ず全行 NULL である（誰も書き込む前に止まっている）
+  assert.equal(
+    db.prepare('SELECT COUNT(*) AS n FROM waitlist WHERE id IS NOT NULL').get().n,
+    0,
+    '番兵が足した列に値が入っている。落とす前に中身を確認すること',
+  );
+
+  // deploy.md の復旧: 足された列を落として、移行前の姿へ戻してから流し直す
+  db.exec('ALTER TABLE waitlist DROP COLUMN id;');
+  db.exec(migrationSql);
+
+  assert.match(ddl(db), /CHECK/i, '復旧手順を踏んでも移行できていない');
+  assert.equal(rows(db)[0].email, 'one@example.com', '復旧の過程で登録者が失われている');
+  assert.equal(rows(db)[0].id, null);
+});
+
 test('改名の直前で止まった状態は、deploy.md の1文で復旧できる', sqliteOptions, () => {
   const db = production();
   // D1 は明示トランザクションを張れないので、DROP は成功して改名で失敗しうる

@@ -38,8 +38,17 @@
 --    **消えても画面にもログにも何も出ない。**（T-071 レビュー B-1 が実測した）
 --
 -- 2度目に流したときに出るエラー:
---    duplicate column name: id            → 既に移行済み。**何もしなくてよい**
---    no such table: waitlist              → 途中で止まった跡。docs/ops/deploy.md §3 の復旧手順へ
+--    duplicate column name: id            → 移行済み **か、この1文だけが通って止まった跡**
+--    no such table: waitlist              → 途中で止まった跡
+--  どちらも docs/ops/deploy.md §3 の「移行できたかの判定」と復旧手順で見分ける。
+--
+-- ⚠️ **この1文には副作用がある。** 成功すると旧 `waitlist` に空の `id` 列が足される。
+--    ここで止まると「`id` はあるが CHECK も UNIQUE も無い、作り直されていない表」が残り、
+--    **`id` 列の有無で完了を判定すると「完了」と読めてしまう。**
+--    🔒 **完了の判定は `SELECT sql FROM sqlite_master WHERE name='waitlist'` に
+--    CHECK が現れるかで行うこと。** 作り直しの成果は CHECK と UNIQUE であって `id` 列ではない。
+--    その状態からの復旧は `ALTER TABLE waitlist DROP COLUMN id;` してから流し直す
+--    （この列は必ず全行 NULL なので、落としても失われるデータは無い）。
 ALTER TABLE waitlist ADD COLUMN id TEXT;
 
 CREATE TABLE waitlist_new (

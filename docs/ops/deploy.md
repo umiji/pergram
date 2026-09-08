@@ -81,7 +81,7 @@ Production branch = `main` はビルドの扱いを決めるだけで、デプ�
 T-058 で実際に踏んでいる。したがって順序はこうなる。
 
 1. **push する前に**、移行 SQL を本番の D1 へ流す（下のコマンド）
-2. `npx wrangler d1 info pergram` と `PRAGMA table_info(waitlist)` で、意図した姿になったことを確認する
+2. **下の「移行できたかの判定」で、意図した姿になったことを確認する**（`id` 列の有無では判定しない）
 3. そのあとで push / merge する
 
 未実施の移行 SQL は次のとおり（流したら「済」と書き足す）。
@@ -108,9 +108,23 @@ npx wrangler d1 export pergram --remote --table waitlist --output waitlist_backu
 
 | 出たエラー | 意味 | すること |
 |---|---|---|
-| `duplicate column name: id` | 既に移行済み | **何もしなくてよい**（データは無傷） |
+| `duplicate column name: id` | 移行済み **か、番兵だけが通って止まった跡** | 下の「移行できたかの判定」で見分ける |
 | `no such table: waitlist` | 途中で止まった跡 | 下の復旧手順へ |
-| エラー無し | 移行できた | `PRAGMA table_info(waitlist)` に `id` があることを確認する |
+| エラー無し | 移行できた | 下の「移行できたかの判定」で確認する |
+
+#### 移行できたかの判定 🔒 **`id` 列の有無で判定しない**
+
+```bash
+npx wrangler d1 execute pergram --remote --command   "SELECT sql FROM sqlite_master WHERE type='table' AND name='waitlist'"
+```
+
+**出力に `CHECK` が現れれば完了、現れなければ未完了である。**
+
+> ⚠️ **`PRAGMA table_info(waitlist)` に `id` があるかでは判定できない。**
+> 番兵（移行SQL の1文目）が `id` 列を足してから残りの文へ進むので、
+> **1文目だけ成功して止まると「`id` はあるが CHECK も UNIQUE も無い、作り直されていない表」**
+> が残る。この状態を「完了」と読むと、**制約の無い表のまま本番が動き続ける。**
+> 作り直しの成果は CHECK 制約と UNIQUE であって、`id` 列ではない。
 
 > ⚠️ **番兵の1文を消さないこと。** 消すと2度目が**失敗せずに完走し、匿名の行の `id` だけが
 > 静かに NULL になる**（1度目の改名で `waitlist_new` が消えているため、2度目の
@@ -132,11 +146,21 @@ npx wrangler d1 execute pergram --remote --command \
   "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
 ```
 
-| 残っている表 | 状態 | 復旧 |
-|---|---|---|
-| `waitlist` だけ | 完了しているか、まだ始まっていない | `PRAGMA table_info(waitlist)` に `id` があれば完了。無ければ移行SQL を流す |
-| `waitlist_new` だけ | **改名の直前で止まっている。データは `waitlist_new` の中に在る** | 下の改名を1文だけ流す |
-| 両方ある | 移し替えの途中で止まっている | `waitlist` が原本。`DROP TABLE waitlist_new` してから、移行SQL を流し直す |
+| 残っている表 | 見分け方 | 状態 | 復旧 |
+|---|---|---|---|
+| `waitlist` だけ | DDL に `CHECK` **あり** | **完了している** | 何もしない |
+| `waitlist` だけ | DDL に `CHECK` **なし**・`id` 列 **なし** | まだ始まっていない | 移行SQL を流す |
+| `waitlist` だけ | DDL に `CHECK` **なし**・`id` 列 **あり** | **番兵だけが通って止まった。作り直されていない** | 下の「番兵だけが通った場合」へ |
+| `waitlist_new` だけ | — | **改名の直前で止まっている。データは `waitlist_new` の中に在る** | 下の改名を1文だけ流す |
+| 両方ある | — | 移し替えの途中で止まっている | `waitlist` が原本。`DROP TABLE waitlist_new` してから、移行SQL を流し直す |
+
+```bash
+# 「番兵だけが通った場合」。足された空の id 列を落として、移行前の姿へ戻してから流し直す。
+# 🔒 この列は必ず全行 NULL である（番兵の直後で止まっており、誰も書き込んでいない）。
+#    落としても失われるデータは無い。落とさずに流し直すと、番兵がまた発火して進めない。
+npx wrangler d1 execute pergram --remote --command "ALTER TABLE waitlist DROP COLUMN id"
+npx wrangler d1 execute pergram --remote --file worker/migrations/2026-09-08_waitlist_rebuild.sql
+```
 
 ```bash
 # 「waitlist_new だけ」の場合。これ1文で復旧する（データは既に移し終わっている）
