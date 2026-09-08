@@ -138,7 +138,7 @@ x_reader:
     min_wait_seconds: 4
     max_wait_seconds: 11
     max_requests_per_run: 8
-    max_requests_per_day: 30
+    max_requests_per_day: 60
     # この回数だけ連続で失敗すると経路を無効化します。
     # 無効化は人が `media-agent x reset` するまで解除されません。
     circuit_breaker_failures: 3
@@ -151,7 +151,7 @@ x_reader:
     # **ただし新着順は「新しい順」なので、検索語だけを渡すとまだ伸びていない
     # 投稿ばかりが集まります。** 下の filters に min_faves:N を必ず入れてください
     # （X 側が先に母集団を絞るので、伸びている投稿が新しい順で返ります）。
-    tab: live
+    tab: top
     # 収穫した後にこちら側で落とす表示回数の下限です（検索演算子ではありません）。
     # 0 なら絞りません。**下の filters と役割が違います** — filters は X に投げる
     # 絞り込み、こちらは受け取った後の絞り込みです。表示回数の下限は X の
