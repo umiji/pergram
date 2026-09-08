@@ -8,6 +8,9 @@
 -- 🔒 NOT NULL を付けない。既存の行には page が無く、既定値も持たせない
 --    （「どのページか分からない行」を後から嘘の値で埋めない）。
 -- 🔒 waitlist にも price_alert にも触れない。触るのは request_signal だけである。
+-- 巻き戻し: `ALTER TABLE request_signal DROP COLUMN page;`（SQLite 3.35 以降）。
+--    ただし**巻き戻す前に、page を送るブラウザ側を先に戻すこと**（列が無い INSERT は失敗する）。
+--    順序を守れば無停止で戻せる。行は消えない。
 -- 🔒 足すのはこの1列だけ。IP・User-Agent・リファラ・ページ内の位置を足さない
 --    （worker/request_signal.js の冒頭が正典）。
 
