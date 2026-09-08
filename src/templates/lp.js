@@ -44,7 +44,7 @@ ${howItWorks(t, { locale, currency, displayUnit })}
 
 ${roadmap(t)}
 
-${waitlist(t, { support })}
+${waitlist(t, { support, locale })}
 </main>
 
 ${siteFooter(t, { disclosureKey })}

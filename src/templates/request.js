@@ -20,7 +20,9 @@
  * === 第1段階の計測は「GA4 だけ」ではない（T-051 / PO 判断） ===
  * T-050 では「第1段階の計測は GA4 のイベントだけで行い、サーバに列を足さない」と
  * 決めていたが、**その決定は PO 判断で上書きされている。** 押下は匿名の1行として
- * D1 にも残る（`POST /api/request-signal`、UUID と日時の2列だけ）。
+ * D1 にも残る（`POST /api/request-signal`、UUID と日時と「どのページか」の3列だけ）。
+ * ⚠️ 「どのページか」（`page`）は PO 判断で後から足された（T-058、2026-09-08）。
+ *    T-051 の「UUID と日時の2つだけ」はその時点で上書きされている。
  * 経緯と 🔒 の全文は worker/request_signal.js の冒頭にある。**そちらが正典。**
  * ⚠️ ここに「サーバに列を足さない」と書き戻さないこと。次に触る担当が
  *    `request_signal` を「規約違反だから」と削る根拠になる。
@@ -52,6 +54,25 @@ export const REQUEST_FLOW_ID = 'request-flow';
  *    押下で実際に hidden が外れるのはこの段である。
  */
 export const REQUEST_SURVEY_STEP_ID = 'request-step-survey';
+
+/**
+ * 匿名シグナルに載せる「どのページか」を組み立てる。`ja:lp` / `ja:protein` /
+ * `en:creatine` の形。**受け口（worker/request_signal.js）の `PAGE_ID` と対である。**
+ *
+ * 🔒 URL のパスをそのまま使わない。パスは将来変わるし、クエリや断片が混ざると
+ *    「どのページか」以上のものがサーバへ渡りうる。語彙を閉じて渡す。
+ * 🔒 ページ内の位置（上の帯 / 下の帯）をここに混ぜない。位置は GA4 の
+ *    `data-cta` が持つ（T-058 禁止事項）。
+ *
+ * @param {string} locale `ja` / `en`
+ * @param {string} key ページの識別子。LP は `lp`、製品一覧は成分の id
+ */
+export function requestPageId(locale, key) {
+  return `${locale}:${key}`;
+}
+
+/** LP（`/{locale}/`）を指す `key`。成分の id と衝突しないよう1語で固定する */
+export const REQUEST_PAGE_LP = 'lp';
 
 /**
  * 要望ボタン。リストの前と後ろの2箇所に置く。
@@ -261,13 +282,21 @@ function supportStep(t, support, level) {
 /**
  * 段の一式。文書順が到達順（アンケート → メール → 支援）そのものである。
  *
+ * 🔒 `page`（どのページか）はボタンではなくこの器に載せる。ボタンは1ページに複数
+ *    あるので、同じ値を2箇所に持つと片方だけずれた状態が作れてしまう。器は1つだけ。
+ *    属性名は `data-request-page`。**`data-cta` / `aria-controls` の既存の値は
+ *    変えない**（GA4 の前後比較が切れる。T-058 禁止事項）。
+ *
  * @param {(key: string, params?: object) => string} t
- * @param {{ support?: object | null, headingLevel?: number }} options
- *   `headingLevel` は段の見出しのタグ。ページの見出しの深さに合わせる
+ * @param {{ support?: object | null, headingLevel?: number, page?: string }} options
+ *   `headingLevel` は段の見出しのタグ。ページの見出しの深さに合わせる。
+ *   `page` は匿名シグナルに載せる識別子（`requestPageId()` で作る）
  */
-export function requestFlow(t, { support = null, headingLevel = DEFAULT_HEADING_LEVEL } = {}) {
+export function requestFlow(t, { support = null, headingLevel = DEFAULT_HEADING_LEVEL, page = '' } = {}) {
   const level = headingLevel;
-  return `<section class="request-flow" id="${REQUEST_FLOW_ID}" data-request-flow>
+  return `<section class="request-flow" id="${REQUEST_FLOW_ID}" data-request-flow${
+    page ? ` data-request-page="${escapeAttribute(page)}"` : ''
+  }>
 ${surveyStep(t, level)}
 ${emailStep(t, level)}
 ${supportStep(t, support, level)}

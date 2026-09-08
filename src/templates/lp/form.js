@@ -20,7 +20,7 @@
 import { escapeHtml } from '../../lib/i18n.js';
 import { CHANNEL_CHIPS } from '../../lib/waitlist_fields.js';
 import { wordmark } from '../layout.js';
-import { requestCta, requestFlow } from '../request.js';
+import { requestCta, requestFlow, requestPageId, REQUEST_PAGE_LP } from '../request.js';
 
 /**
  * 要望の導線ひとそろい。見出し → 第1段階のボタン → 段（初期状態は全て hidden）。
@@ -32,14 +32,15 @@ import { requestCta, requestFlow } from '../request.js';
  *    製品一覧の上下2箇所（products_request_top / _bottom）と分けて数える。
  *
  * @param {(key: string, params?: object) => string} t
- * @param {{ support?: object | null }} options
+ * @param {{ support?: object | null, locale?: string }} options
+ *   `locale` は匿名シグナルに載せる「どのページか」（`ja:lp`）を作るためだけに使う
  */
-export function waitlist(t, { support = null } = {}) {
+export function waitlist(t, { support = null, locale = 'ja' } = {}) {
   return `<section class="waitlist-band" id="waitlist">
   <div class="waitlist-band__inner">
     <h2 class="waitlist-band__heading">${escapeHtml(t('lp.form.heading'))}</h2>
     ${requestCta(t, { location: 'lp_request' })}
-    ${requestFlow(t, { support, headingLevel: 3 })}
+    ${requestFlow(t, { support, headingLevel: 3, page: requestPageId(locale, REQUEST_PAGE_LP) })}
   </div>
 </section>`;
 }

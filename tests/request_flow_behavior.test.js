@@ -58,10 +58,13 @@ const ALLOWED_PAYLOAD_KEYS = new Set([
   'requests',
 ]);
 
+/** 実ページと同じく「どのページか」を器に載せる（T-058）。無いと押下を送らない */
+const PAGE_ID = 'ja:protein';
+
 function page() {
   return `${requestCta(t, { location: 'products_request_top' })}
 ${requestCta(t, { location: 'products_request_bottom' })}
-${requestFlow(t, { support: market.support })}`;
+${requestFlow(t, { support: market.support, page: PAGE_ID })}`;
 }
 
 async function boot(options = {}) {
@@ -164,6 +167,40 @@ test('🔒 要望ボタンを押しただけでは待機リストへ送らない
     `第1段階でメールアドレスの受け口へ ${waitlistCalls(dom).length} 回送っています`,
   );
   assert.equal(signalCalls(dom).length, 1, '匿名シグナルが1回送られていません（T-051 完了条件7）');
+});
+
+test('🔒 匿名シグナルの送信本文は { id, page } ちょうどである（T-058 完了条件7）', async () => {
+  const { dom } = await clickRequest();
+  const { body } = signalCalls(dom)[0];
+
+  assert.deepEqual(
+    Object.keys(body).sort(),
+    ['id', 'page'],
+    `🔒 送信本文のキーが {id, page} ではありません: ${JSON.stringify(body)}`,
+  );
+  assert.match(
+    body.id,
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    'id が UUID v4 ではありません',
+  );
+  assert.equal(body.page, PAGE_ID, 'どのページで押されたかが送られていません');
+});
+
+test('🔒 どのページか分からなければ匿名シグナルを送らない（受け口が捨てる本文を投げない）', async () => {
+  const dom = await runLpScript(
+    `${requestCta(t, { location: 'products_request_top' })}
+${requestFlow(t, { support: null })}`,
+    { scriptPath: SCRIPT },
+  );
+  dom.body.querySelector('[data-request-cta]').dispatchEvent(new DomEvent('click'));
+  await Promise.resolve();
+
+  assert.equal(signalCalls(dom).length, 0, 'page の無い本文を送っています');
+  assert.equal(
+    dom.body.querySelector('[data-request-step="survey"]').hidden,
+    false,
+    '🔒 送らないことで導線まで止まっています',
+  );
 });
 
 /* ---- 第2段階: アンケート ---------------------------------------------- */

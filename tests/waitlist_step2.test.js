@@ -444,6 +444,17 @@ test('🔒 スキーマの waitlist テーブルの列が6つのままである'
   assert.deepEqual(columns, STORED_COLUMNS, '🔒 保存列が変わっています');
 });
 
+/**
+ * 表ごとに「足してよい列」。**ここに無い名前を移行 SQL で足さない。**
+ * ⚠️ `request_signal.page` は PO 判断で足された（T-058、2026-09-08）。
+ *    それ以前は request_signal に足せる列は無かった。**戻さないこと。**
+ * 🔒 `waitlist` 側は今も6列で打ち止めである（T-058 でも足していない）。
+ */
+const ALLOWED_ADDED_COLUMNS = {
+  waitlist: STORED_COLUMNS,
+  request_signal: ['page'],
+};
+
 test('🔒 移行 SQL が保存列の外に列を足していない', async () => {
   const dir = 'worker/migrations';
   const files = (await readdir(dir)).filter((name) => name.endsWith('.sql'));
@@ -453,11 +464,18 @@ test('🔒 移行 SQL が保存列の外に列を足していない', async () =
       .split('\n')
       .map((line) => line.replace(/--.*/, ''))
       .join('\n');
-    for (const [, column] of sql.matchAll(/ADD COLUMN\s+([\w]+)/gi)) {
+    for (const [, table, column] of sql.matchAll(/ALTER TABLE\s+(\w+)\s+ADD COLUMN\s+(\w+)/gi)) {
+      const allowed = ALLOWED_ADDED_COLUMNS[table.toLowerCase()];
+      assert.ok(allowed, `${file}: 想定していない表 "${table}" に列を足しています`);
       assert.ok(
-        STORED_COLUMNS.includes(column.toLowerCase()),
-        `${file}: 保存列にない列 "${column}" を足しています`,
+        allowed.includes(column.toLowerCase()),
+        `${file}: ${table} の保存列にない列 "${column}" を足しています`,
       );
     }
+    assert.equal(
+      (sql.match(/ADD COLUMN/gi) || []).length,
+      (sql.match(/ALTER TABLE\s+\w+\s+ADD COLUMN/gi) || []).length,
+      `${file}: どの表への ADD COLUMN か読み取れない行があります`,
+    );
   }
 });

@@ -14,7 +14,7 @@ import { layout, wordmark } from './layout.js';
 import { filters } from './products/filters.js';
 import { productItem } from './products/item.js';
 import { affiliateNotice, appHeader, explainer, pageHead, toolbar } from './products/head.js';
-import { requestCta, requestFlow } from './request.js';
+import { requestCta, requestFlow, requestPageId } from './request.js';
 import { supportScript } from './lp/support.js';
 import { breadcrumbList, itemList } from '../lib/jsonld.js';
 
@@ -118,7 +118,9 @@ export function productsPage(ctx) {
   const support = ctx.support ?? market.support ?? null;
   const ctaTop = waitlistPath ? requestCta(t, { location: 'products_request_top' }) : '';
   const ctaBottom = waitlistPath ? requestCta(t, { location: 'products_request_bottom' }) : '';
-  const flow = waitlistPath ? requestFlow(t, { support }) : '';
+  const flow = waitlistPath
+    ? requestFlow(t, { support, page: requestPageId(locale, nutrientId) })
+    : '';
 
   const content = `<a class="skip-link" href="#products">${escapeHtml(t('products.skipToList'))}</a>
 ${appHeader({ t, locale, waitlistPath })}

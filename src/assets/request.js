@@ -37,6 +37,12 @@
    */
   const SIGNAL_STORAGE_KEY = 'pergram.request_signal_id';
 
+  /**
+   * 受け口が通す「どのページか」の形。`worker/request_signal.js` の `PAGE_ID` と対。
+   * 形が合わなければ**送らない**（400 を貰いに行っても得るものが無い）。
+   */
+  const SIGNAL_PAGE_RE = /^[a-z]{2}:[a-z0-9-]{1,40}$/;
+
   /** GA4 送信の共通ガード。gtag 未ロード時は何もしない */
   function track(name, params) {
     if (typeof window.gtag === 'function') {
@@ -219,8 +225,11 @@
    * 第1段階の押下をサーバへ1行残す。
    *
    * 🔒 **応答を待たない。失敗しても握り潰す。** 段の開閉はこの結果に依存しない。
-   * 🔒 送るのは `{ id }` だけ。押された場所・成分・自由記述を混ぜない
-   *    （押された場所の区別は GA4 の location が持つ）。
+   * 🔒 送るのは `{ id, page }` だけ。**成分・自由記述・ページ内の位置を混ぜない。**
+   *    `page` は「どのページか」まで（`ja:lp` / `ja:protein`）で、上の帯か下の帯かは
+   *    入れない。位置の区別は GA4 の location（`data-cta`）が持つ。
+   * ⚠️ `page` は T-051 の後に PO 判断で足された（T-058、2026-09-08）。
+   *    「送るのは id だけ」へ書き戻さないこと。受け口は page の無い本文を 400 で捨てる。
    * 🔒 送信前に id を保存する。**送信後にすると、応答が返らなかった回が
    *    次回に別の UUID で数え直され、同じブラウザが2人に見える。**
    *    取りこぼす側（控えめな数字）へ倒すのが正しい。
@@ -228,6 +237,11 @@
   function sendRequestSignal() {
     if (signalSent) return;
     signalSent = true;
+
+    // どのページかが読めなければ送らない。受け口が 400 で捨てる本文なので、
+    // 投げても行は増えず、ブラウザ側の識別子だけが消費される
+    const page = flow.dataset.requestPage || '';
+    if (!SIGNAL_PAGE_RE.test(page)) return;
 
     // このブラウザは既に数えられている。2回目以降は送らない（段は開く）
     if (readSignalId()) return;
@@ -242,7 +256,7 @@
       fetch(SIGNAL_ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id }),
+        body: JSON.stringify({ id, page }),
         keepalive: true,
       }).catch(() => {
         /* 計測の都合。ユーザーには何も見せない */

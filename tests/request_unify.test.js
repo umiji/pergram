@@ -286,9 +286,14 @@ test('完了条件2 LP と製品一覧の本文の要望ボタンが同じ文言
 /* 完了条件3: ヘッダの CTA の文言が LP・製品一覧で同じ                      */
 /* ====================================================================== */
 
-for (const [name, render] of [
-  ['製品一覧', () => renderProducts()],
-  ['LP', () => renderLp()],
+/**
+ * ページごとに期待する「どのページか」。⚠️ T-051 では送信本文は `{ id }` だけだった。
+ * **PO 判断で `page` が足された**（T-058、2026-09-08）。**戻さないこと。**
+ * 🔒 上の帯か下の帯かは入れない。位置は GA4 の data-cta が持つ。
+ */
+for (const [name, render, expectedPage] of [
+  ['製品一覧', () => renderProducts(), 'ja:protein'],
+  ['LP', () => renderLp(), 'ja:lp'],
 ]) {
   test(`完了条件3 ${name}のヘッダの CTA が「機能追加リクエスト」である`, () => {
     const root = tree(render());
@@ -480,9 +485,14 @@ async function clickFirstStage(html, options = {}) {
   };
 }
 
-for (const [name, render] of [
-  ['製品一覧', () => renderProducts()],
-  ['LP', () => renderLp()],
+/**
+ * ページごとに期待する「どのページか」。⚠️ T-051 では送信本文は `{ id }` だけだった。
+ * **PO 判断で `page` が足された**（T-058、2026-09-08）。**戻さないこと。**
+ * 🔒 上の帯か下の帯かは入れない。位置は GA4 の data-cta が持つ。
+ */
+for (const [name, render, expectedPage] of [
+  ['製品一覧', () => renderProducts(), 'ja:protein'],
+  ['LP', () => renderLp(), 'ja:lp'],
 ]) {
   test(`完了条件7 ${name}の第1段階の押下で POST ${SIGNAL_ENDPOINT} が1回だけ飛ぶ`, async () => {
     const { signals } = await clickFirstStage(render());
@@ -491,19 +501,20 @@ for (const [name, render] of [
     assert.equal(signals[0].method, 'POST', `${name}: メソッドが ${signals[0].method}`);
   });
 
-  test(`完了条件7 ${name}の送信本文が { "id": "<UUID v4>" } だけである`, async () => {
+  test(`完了条件7 ${name}の送信本文が { "id": "<UUID v4>", "page": "${expectedPage}" } だけである`, async () => {
     const { signals } = await clickFirstStage(render());
     assert.equal(signals.length, 1, `${name}: 匿名シグナルが送られていない`);
 
     const { body } = signals[0];
     assert.ok(body && typeof body === 'object', `${name}: 送信本文が JSON のオブジェクトでない`);
     assert.deepEqual(
-      Object.keys(body),
-      ['id'],
-      `🔒 ${name}: 送信本文に id 以外のキーがある: ${Object.keys(body).join(' / ')}。` +
-        'IP・User-Agent・リファラ・成分・自由記述を入れない',
+      Object.keys(body).sort(),
+      ['id', 'page'],
+      `🔒 ${name}: 送信本文のキーが {id, page} でない: ${Object.keys(body).join(' / ')}。` +
+        'IP・User-Agent・リファラ・成分・自由記述・ページ内の位置を入れない',
     );
     assert.match(String(body.id), UUID_V4, `${name}: id が UUID v4 の形式でない: ${body.id}`);
+    assert.equal(body.page, expectedPage, `${name}: どのページで押されたかが違う`);
   });
 
   test(`完了条件7 ${name}の押下で段が開く（送信の結果を待たずに開く）`, async () => {
@@ -538,9 +549,14 @@ for (const [name, render] of [
 /* 完了条件8: 同じブラウザの2回目以降は送らない                             */
 /* ====================================================================== */
 
-for (const [name, render] of [
-  ['製品一覧', () => renderProducts()],
-  ['LP', () => renderLp()],
+/**
+ * ページごとに期待する「どのページか」。⚠️ T-051 では送信本文は `{ id }` だけだった。
+ * **PO 判断で `page` が足された**（T-058、2026-09-08）。**戻さないこと。**
+ * 🔒 上の帯か下の帯かは入れない。位置は GA4 の data-cta が持つ。
+ */
+for (const [name, render, expectedPage] of [
+  ['製品一覧', () => renderProducts(), 'ja:protein'],
+  ['LP', () => renderLp(), 'ja:lp'],
 ]) {
   test(`完了条件8 ${name}: localStorage に id があれば POST しない`, async () => {
     const { signals } = await clickFirstStage(render(), {
@@ -623,18 +639,30 @@ test('完了条件9 worker/schema.sql に request_signal テーブルがある',
   );
 });
 
-test('完了条件9 request_signal の列は id と created_at の2つだけである', async () => {
+/**
+ * ⚠️ T-051 ではここが `['id', 'created_at']` だった。**PO 判断で `page`（どのページで
+ * 押されたか）が1つ足された**（T-058、2026-09-08）。**戻さないこと。**
+ * 🔒 それでも列はこの3つで打ち止めである。IP・User-Agent・リファラ・成分・自由記述・
+ *    ページ内の位置を足すのは、改めて PO 判断を要する。
+ */
+const REQUEST_SIGNAL_COLUMNS = ['id', 'created_at', 'page'];
+
+test('完了条件9 request_signal の列は id と created_at と page の3つだけである', async () => {
   const columns = requestSignalBlock(await readFile('worker/schema.sql', 'utf8'));
   assert.ok(columns, 'worker/schema.sql に request_signal テーブルの定義が無い');
 
   assert.deepEqual(
     columns.map((one) => one.name),
-    ['id', 'created_at'],
-    '🔒 匿名シグナルのテーブルに UUID と日時以外の列を作らない。' +
+    REQUEST_SIGNAL_COLUMNS,
+    '🔒 匿名シグナルのテーブルに UUID と日時と page 以外の列を作らない。' +
       '個人を識別できるものを何も持たないことが、この行の存在理由である',
   );
   assert.match(columns[0].definition, /TEXT\s+PRIMARY KEY/i, 'id が TEXT PRIMARY KEY でない');
   assert.match(columns[1].definition, /TEXT\s+NOT NULL/i, 'created_at が TEXT NOT NULL でない');
+  assert.ok(
+    !/NOT NULL/i.test(columns[2].definition),
+    '🔒 page に NOT NULL を付けない。移行前に入った行の page は NULL のままである',
+  );
 });
 
 test('完了条件9 同じ内容の移行 SQL が worker/migrations/ にある', async () => {
@@ -653,13 +681,32 @@ test('完了条件9 同じ内容の移行 SQL が worker/migrations/ にある',
     `${dir} に request_signal を作る移行 SQL が無い。` +
       'CREATE TABLE IF NOT EXISTS は稼働中の DB に効かないので、移行 SQL を別に置く',
   );
+  // ⚠️ テーブルを作る移行 SQL は T-051 のもの1本で、そこには page が無い。
+  //    page は後から ALTER TABLE で足す（worker/migrations/2026-09-08_request_signal_page.sql）。
+  //    **既に流したファイルを書き換えると、流し済みの DB と食い違う。**
   for (const { file, columns } of found) {
     assert.deepEqual(
       columns.map((one) => one.name),
       ['id', 'created_at'],
-      `${file}: 移行 SQL の列が schema.sql と食い違っている`,
+      `${file}: テーブルを作る移行 SQL の列が T-051 の時点の姿と違う`,
     );
   }
+
+  const alters = [];
+  for (const file of files) {
+    const sql = (await readFile(`${dir}/${file}`, 'utf8'))
+      .split('\n')
+      .map((line) => line.replace(/--.*/, ''))
+      .join('\n');
+    for (const [, table, column] of sql.matchAll(/ALTER TABLE\s+(\w+)\s+ADD COLUMN\s+(\w+)/gi)) {
+      if (table.toLowerCase() === 'request_signal') alters.push(column.toLowerCase());
+    }
+  }
+  assert.deepEqual(
+    ['id', 'created_at', ...alters],
+    REQUEST_SIGNAL_COLUMNS,
+    '移行 SQL を全部流した後の姿が worker/schema.sql と食い違っている',
+  );
 });
 
 test('🔒 完了条件9 既存の waitlist テーブルの定義を変えていない', async () => {
@@ -723,26 +770,33 @@ function signalRequest(bodyText) {
   });
 }
 
+/** 送信本文。⚠️ T-058 から `page` は必須である（無い本文は 400 で捨てる） */
+const SAMPLE_PAGE = 'ja:protein';
+const signalBody = (over = {}) => JSON.stringify({ id: SAMPLE_UUID, page: SAMPLE_PAGE, ...over });
+
 test('完了条件10 正しい UUID なら 204 を返し、本文を返さない', async () => {
   const { env } = makeEnv();
-  const res = await worker.fetch(signalRequest(JSON.stringify({ id: SAMPLE_UUID })), env);
+  const res = await worker.fetch(signalRequest(signalBody()), env);
 
   assert.equal(res.status, 204, `成功応答が ${res.status} です（204 No Content であるべき）`);
   assert.equal(await res.text(), '', '204 なのに本文を返している');
 });
 
-test('完了条件10 保存するのは id と日時の2つだけである', async () => {
+test('完了条件10 保存するのは id と日時と page の3つだけである', async () => {
   const { env, writes } = makeEnv();
-  await worker.fetch(signalRequest(JSON.stringify({ id: SAMPLE_UUID })), env);
+  await worker.fetch(signalRequest(signalBody()), env);
 
   assert.equal(writes.length, 1, `保存が ${writes.length} 回です`);
   assert.equal(
     writes[0].args.length,
-    2,
-    `🔒 保存の引数が ${writes[0].args.length} 個。UUID と日時以外を保存しない`,
+    3,
+    `🔒 保存の引数が ${writes[0].args.length} 個。UUID と日時と page 以外を保存しない`,
   );
   assert.equal(writes[0].args[0], SAMPLE_UUID);
+  assert.ok(writes[0].args.includes(SAMPLE_PAGE), 'page が保存されていません');
 
+  // 🔒 要求ヘッダから拾ったものが混ざっていないか。page は本文から来た語彙であって、
+  //    リファラ（/ja/protein/ というパスそのもの）ではない
   const dumped = JSON.stringify(writes[0].args);
   for (const leak of ['Mozilla', '203.0.113.7', '/ja/protein/']) {
     assert.ok(
@@ -753,11 +807,13 @@ test('完了条件10 保存するのは id と日時の2つだけである', asy
 });
 
 for (const [name, bodyText] of [
-  ['UUID の形式でない id', JSON.stringify({ id: 'not-a-uuid' })],
-  ['空文字の id', JSON.stringify({ id: '' })],
-  ['id が文字列でない', JSON.stringify({ id: 12345 })],
-  ['id 以外のキーが混ざっている', JSON.stringify({ id: SAMPLE_UUID, ua: 'Mozilla/5.0' })],
-  ['id が無い', JSON.stringify({ page: '/ja/protein/' })],
+  ['UUID の形式でない id', signalBody({ id: 'not-a-uuid' })],
+  ['空文字の id', signalBody({ id: '' })],
+  ['id が文字列でない', signalBody({ id: 12345 })],
+  ['id と page 以外のキーが混ざっている', signalBody({ ua: 'Mozilla/5.0' })],
+  ['id が無い', JSON.stringify({ page: SAMPLE_PAGE })],
+  ['page が無い', JSON.stringify({ id: SAMPLE_UUID })],
+  ['page がパスそのもの', signalBody({ page: '/ja/protein/' })],
   ['空のオブジェクト', JSON.stringify({})],
   ['壊れた JSON', '{'],
   ['本文なし', undefined],
