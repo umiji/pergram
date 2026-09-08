@@ -429,7 +429,18 @@ test('アンケートの3項目が保存の引数に載る', async () => {
   }
 });
 
-test('🔒 スキーマの waitlist テーブルの列が6つのままである', async () => {
+/**
+ * 作り直したあとの `waitlist` の列（T-071）。
+ * ⚠️ **T-058 の 🔒「6列で打ち止め。匿名の押下を相乗りさせない」は PO 判断で失効した。**
+ *    匿名のアンケート回答を入れるため `id` が1列足され、`email` の PRIMARY KEY は外れた。
+ *    **「規約違反だから」と id を削らないこと**（正典は worker/schema.sql と
+ *    docs/tasks/T-071.md の決定ログ）。
+ * 🔒 それでも **1行が id と email を同時に持つことは CHECK 制約が禁じる。**
+ *    その検査は tests/request_survey.test.js の A-4 群にある。
+ */
+const SCHEMA_COLUMNS = ['id', ...STORED_COLUMNS];
+
+test('🔒 スキーマの waitlist テーブルの列が id を足した7つである', async () => {
   const schema = await readFile('worker/schema.sql', 'utf8');
   const block = schema.match(/CREATE TABLE IF NOT EXISTS waitlist\s*\(([\s\S]*?)\n\);/i);
   assert.ok(block, 'worker/schema.sql に waitlist テーブルの定義が見つかりません');
@@ -441,17 +452,21 @@ test('🔒 スキーマの waitlist テーブルの列が6つのままである'
     .map((line) => line.split(/[\s(,]/)[0].toLowerCase())
     .filter((name) => /^[a-z_]+$/.test(name) && !['primary', 'unique', 'foreign', 'check'].includes(name));
 
-  assert.deepEqual(columns, STORED_COLUMNS, '🔒 保存列が変わっています');
+  assert.deepEqual(
+    [...columns].sort(),
+    [...SCHEMA_COLUMNS].sort(),
+    '🔒 保存列が変わっています（id は T-071 で足された。列の順序は縛らない）',
+  );
 });
 
 /**
  * 表ごとに「足してよい列」。**ここに無い名前を移行 SQL で足さない。**
  * ⚠️ `request_signal.page` は PO 判断で足された（T-058、2026-09-08）。
  *    それ以前は request_signal に足せる列は無かった。**戻さないこと。**
- * 🔒 `waitlist` 側は今も6列で打ち止めである（T-058 でも足していない）。
+ * ⚠️ `waitlist` の「6列で打ち止め」は **T-071 の PO 判断で失効した**（`id` が足された）。
  */
 const ALLOWED_ADDED_COLUMNS = {
-  waitlist: STORED_COLUMNS,
+  waitlist: SCHEMA_COLUMNS,
   request_signal: ['page'],
 };
 

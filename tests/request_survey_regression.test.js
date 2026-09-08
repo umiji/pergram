@@ -1,5 +1,10 @@
 /**
- * T-070 の回帰・シナリオテスト（テスト担当が実装の報告を受けて足した分）。
+ * T-070 / T-071 の回帰・シナリオテスト（テスト担当が足した分）。
+ *
+ * ⚠️ **T-071 の PO 判断で保存先が変わった。**匿名のアンケート回答は
+ *    `request_survey` という別表ではなく、**`waitlist` の「id を持つ行」**に入る。
+ *    T-058 の 🔒「waitlist は6列で打ち止め」は失効した。
+ *    ただし **1行が `id` と `email` を同時に持たない**線は越えない（CHECK 制約）。
  *
  * 受け入れテスト（tests/request_survey.test.js）は完了条件を1つずつ二値にしたもので、
  * 実装側の単体テスト（tests/request_survey_upsert.test.js）は新しい受け口の中の挙動を見る。
@@ -92,6 +97,10 @@ const post = (path, body) =>
   });
 
 const rowsOf = (db, table) => db.prepare(`SELECT * FROM ${table}`).all();
+/** 匿名の回答の行。**アンケート回答率の分子はこれ** */
+const anonRows = (db) => db.prepare('SELECT * FROM waitlist WHERE id IS NOT NULL').all();
+/** メールアドレスを預かった行 */
+const emailRows = (db) => db.prepare('SELECT * FROM waitlist WHERE email IS NOT NULL').all();
 
 /* ====================================================================== */
 /* ブラウザ側を通しで動かす                                                 */
@@ -170,9 +179,10 @@ test('A-4 メールアドレスまで進めた人は、今までどおり waitli
     assert.ok(res.status < 400, `${path} が ${res.status} を返した`);
   }
 
-  const waitlist = rowsOf(db, 'waitlist');
+  const waitlist = emailRows(db);
   assert.equal(waitlist.length, 1, '待機リストへの登録が壊れている');
   assert.equal(waitlist[0].email, TEST_EMAIL);
+  assert.equal(waitlist[0].id, null, '🔒 メールアドレスの行に匿名の識別子が入っている');
   assert.equal(waitlist[0].nutrients, 'creatine', '🔒 アンケートの相乗りが壊れている');
   assert.equal(waitlist[0].channel, 'rakuten');
   assert.equal(waitlist[0].nutrients_other, NUTRIENTS_OTHER_INPUT);
@@ -195,7 +205,7 @@ test('A-4 待機リストの2段階の追記（空で上書きしない）も壊
   );
   await worker.fetch(post(WAITLIST_PATH, { email: TEST_EMAIL }), env);
 
-  const rows = rowsOf(db, 'waitlist');
+  const rows = emailRows(db);
   assert.equal(rows.length, 1, '同じメールアドレスで行が増えている');
   assert.equal(rows[0].nutrients, 'creatine', '🔒 空のステップ1が集めた回答を消している');
   assert.equal(rows[0].requests, '送料込みで並べたい');
@@ -234,17 +244,20 @@ test('A-4 押下の匿名シグナルも今までどおり3つの値で残る', 
  *    それは設計判断なので PO へ上げること。**
  */
 
-test('同じ人がアンケートとメールアドレスの両方を出すと、2つの表に1行ずつ残る', sqliteOptions, async () => {
+test('同じ人がアンケートとメールアドレスの両方を出すと、同じ表に2行残る', sqliteOptions, async () => {
   const { db, env } = makeRealEnv();
   const dom = await walkThrough({ email: TEST_EMAIL });
 
   await replay(dom, env);
 
-  assert.equal(rowsOf(db, 'request_survey').length, 1);
-  assert.equal(rowsOf(db, 'waitlist').length, 1);
+  // 🔒 **1行にまとめない。**まとめた瞬間に、匿名だった押下がメールアドレスへ紐づく。
+  //    重複して2行残るほうがはるかに安全である（T-071 決定ログ）
+  assert.equal(anonRows(db).length, 1, '匿名の回答の行が無い');
+  assert.equal(emailRows(db).length, 1, 'メールアドレスの行が無い');
+  assert.equal(rowsOf(db, 'waitlist').length, 2, '2行が1行にまとめられている');
 });
 
-test('🔒 分子は request_survey だけで足りる（メールまで進んだ人も必ず入っている）', sqliteOptions, async () => {
+test('🔒 分子は id を持つ行だけで足りる（メールまで進んだ人も必ず入っている）', sqliteOptions, async () => {
   const { db, env } = makeRealEnv();
 
   // メールアドレスを入れない人と、入れる人。回答したのは2人
@@ -258,33 +271,40 @@ test('🔒 分子は request_survey だけで足りる（メールまで進ん�
   );
 
   assert.equal(
-    rowsOf(db, 'request_survey').length,
+    anonRows(db).length,
     2,
-    '🔒 アンケートに答えた人が全員 request_survey に入っていない。' +
+    '🔒 アンケートに答えた人が全員「id を持つ行」に入っていない。' +
       'ここが分子なので、欠けると回答率が実際より低く出て撤退判定を誤らせる',
   );
   assert.equal(
-    rowsOf(db, 'waitlist').length,
+    emailRows(db).length,
     1,
-    '待機リストに入るのはメールアドレスを出した人だけ（部分集合）',
+    'メールアドレスの行に入るのはメールを出した人だけ',
   );
+  // 🔒 **表の行数をそのまま数えない。**同じ表に2種類の行が同居しているので、
+  //    `SELECT COUNT(*) FROM waitlist` は回答数でも登録者数でもない
+  assert.equal(rowsOf(db, 'waitlist').length, 3, '数え方の前提が変わっている');
 });
 
-test('🔒 2つの表は突き合わせられない（匿名性のための設計。名寄せを足さない）', sqliteOptions, async () => {
+test('🔒 同じ表に入っても、匿名の行とメールの行は結びつかない', sqliteOptions, async () => {
   const { db, env } = makeRealEnv();
   await replay(await walkThrough({ email: TEST_EMAIL }), env);
 
-  const survey = Object.keys(rowsOf(db, 'request_survey')[0]);
-  const waitlist = Object.keys(rowsOf(db, 'waitlist')[0]);
+  // 🔒 表が1つになっても、**どの押下がどのメールアドレスの人かは分からないままである。**
+  //    それがこの設計で守っている唯一の線であり、CHECK 制約がそれを強制する
+  for (const row of anonRows(db)) {
+    assert.equal(row.email, null, '🔒 匿名の行にメールアドレスが入っている');
+  }
+  for (const row of emailRows(db)) {
+    assert.equal(row.id, null, '🔒 メールアドレスの行に匿名の識別子が入っている');
+  }
 
-  assert.ok(
-    !survey.some((name) => /mail/i.test(name)),
-    '🔒 request_survey にメールアドレスの列がある。入れた瞬間に匿名でなくなる',
-  );
-  assert.ok(
-    !waitlist.includes('id'),
-    '🔒 waitlist に匿名の識別子が足されている。6列で打ち止め（T-058）。' +
-      '名寄せができる形にするのは設計判断であり、PO の判断を要する',
+  assert.throws(
+    () =>
+      db.prepare('UPDATE waitlist SET email = ? WHERE id IS NOT NULL').run(TEST_EMAIL),
+    /CHECK|constraint/i,
+    '🔒 後から匿名の行へメールアドレスを書き足せてしまう。' +
+      'それまで匿名だった押下が、まとめてメールアドレスへ紐づく',
   );
 });
 
