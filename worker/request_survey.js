@@ -13,6 +13,19 @@
  * 捨てていたのは「次に何を載せるか」を決める情報そのものであり、
  * docs/research/validation-plan.md の「成分アンケート回答率」の分子でもある。
  *
+ * === 保存先は waitlist である（T-071 / PO 判断で T-070 から変わった）🔒 ===
+ * T-070 では `request_survey` という別の表へ入れていた。**PO がそれを却下した**
+ * （「waitlist に挿入されるようにしてくれ。余計なテーブル追加しないでくれ」）。
+ * `waitlist` は `email` の PRIMARY KEY を外して作り直され、匿名の行が入るようになっている。
+ *
+ * 🔒 **この受け口は `email` 列に一切触らない。** 書くのは `id` + 回答4種 + 日時の6値だけで、
+ *    `email` は NULL のまま残る。**空文字 `''` で埋めてはならない** —— 空文字は NULL では
+ *    ないので、表の CHECK 制約（`id IS NULL OR email IS NULL`）をすり抜ける。
+ *    そこを抜けた瞬間、**それまで匿名だった押下がメールアドレスへ紐づく**（T-071 の最重要事項）。
+ * ⚠️ **受け口のパスと本文の形は T-070 から1文字も変えていない。** 変えてはならない ——
+ *    T-070 の出荷箱（`pergram.request_survey_outbox`）により、送れなかった回答が
+ *    利用者のブラウザに控えられている。形を変えると、その控えは永久に送れない。
+ *
  * === この行が持つのは6つだけである 🔒 ===
  * 識別子 / 成分 / 購入先 / その他の成分 / 要望 / 日時。
  * **メールアドレスを入れない。入れた瞬間に匿名でなくなる。**
@@ -138,13 +151,13 @@ export async function handleRequestSurvey(request, env) {
     // 🔒 `created_at` を更新しない。**最初に答えた日時**のまま置く。
     //    回答率の分母（request_survey_view）と突き合わせる時刻がずれる。
     await env.DB.prepare(
-      `INSERT INTO request_survey (id, nutrients, channel, nutrients_other, requests, created_at)
+      `INSERT INTO waitlist (id, nutrients, channel, nutrients_other, requests, created_at)
        VALUES (?1, ?2, ?3, ?4, ?5, ?6)
        ON CONFLICT(id) DO UPDATE SET
-         nutrients       = COALESCE(NULLIF(excluded.nutrients, ''), request_survey.nutrients),
-         channel         = COALESCE(NULLIF(excluded.channel, ''), request_survey.channel),
-         nutrients_other = COALESCE(excluded.nutrients_other, request_survey.nutrients_other),
-         requests        = COALESCE(excluded.requests, request_survey.requests)`,
+         nutrients       = COALESCE(NULLIF(excluded.nutrients, ''), waitlist.nutrients),
+         channel         = COALESCE(NULLIF(excluded.channel, ''), waitlist.channel),
+         nutrients_other = COALESCE(excluded.nutrients_other, waitlist.nutrients_other),
+         requests        = COALESCE(excluded.requests, waitlist.requests)`,
     )
       .bind(
         payload.id,

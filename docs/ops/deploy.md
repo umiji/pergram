@@ -47,7 +47,7 @@ npx wrangler d1 create pergram-preview
 npm run d1:schema     # 本番
 ```
 
-`waitlist` / `price_alert` / `request_signal` / `request_survey` の**4表**ができる。
+`waitlist` / `price_alert` / `request_signal` の**3表**ができる。
 確認は `npx wrangler d1 info pergram` の `num_tables`（このコマンドが数えるのはテーブルなので、
 索引は含まれない）。表が増えたらこの行も直すこと —— 実態と食い違うと、
 `num_tables` を見た人が「足りている」と読み違える。
@@ -64,29 +64,43 @@ npx wrangler d1 execute pergram --remote --file worker/migrations/2026-08-10_wai
 🔒 サーバに置いてよい列は [worker/schema.sql](../../worker/schema.sql) にあるものだけ。
 年齢・性別・体調・服薬情報の列を足さない。
 
-### ⚠️ 移行が先、`main` への merge が後 — 順序を逆にすると書き込みが全部失敗する
+### ⚠️ 移行が先、push が後 — 🔒 **どのブランチへ push しても本番へ出る**
 
-**新しいテーブルを使うコードを先にデプロイすると、テーブルができるまでの間、その受け口への
-書き込みが全部失敗する**（D1 が `no such table` を返し、受け口は 503 を返す）。
+**`main` だけが本番へ出るのではない。** 下の §4 の Deploy command が `npx wrangler deploy`
+なので、**ブランチに関係なく本番の Worker が置き換わる。**
+Production branch = `main` はビルドの扱いを決めるだけで、デプロイ先を絞らない。
+
+> ⚠️ **これは 2026-09-08 に実測で判明した事実である**（作業ブランチ `org/request-survey` の
+> コードが `pergram.site` で配信されていた）。それ以前この文書には
+> 「merge した時点で本番へ出る」と書いてあり、**誤りだった。**
+> 作業ブランチなら安全だと思って push すると、移行前のコードが本番に出る。
+
+**古いスキーマの上に新しいコードが乗ると、その受け口への書き込みが全部失敗する**
+（D1 が `no such column` / `no such table` を返し、受け口は 503 を返す）。
 利用者の画面は何事もなく進むので、**失敗したことが誰にも見えない。**
-T-058 で実際に踏んだ危険であり、そのときは移行を先に流して収めた。
+T-058 で実際に踏んでいる。したがって順序はこうなる。
 
-**デプロイは `main` への push で自動的に走る**（下の §4。Production branch = `main`）。
-つまり **`main` へ merge した時点で本番へ出る**ので、順序はこうなる。
-
-1. 作業ブランチのまま、移行 SQL を本番の D1 へ流す（下のコマンド）
-2. `npx wrangler d1 info pergram` の `num_tables` が増えたことを確認する
-3. そのあとで `main` へ merge する
+1. **push する前に**、移行 SQL を本番の D1 へ流す（下のコマンド）
+2. `npx wrangler d1 info pergram` と `PRAGMA table_info(waitlist)` で、意図した姿になったことを確認する
+3. そのあとで push / merge する
 
 未実施の移行 SQL は次のとおり（流したら「済」と書き足す）。
 
 ```bash
-# 匿名のアンケート回答のテーブル request_survey を作る（T-070、2026-09-08）
-npx wrangler d1 execute pergram --remote --file worker/migrations/2026-09-08_request_survey.sql
+# waitlist を作り直す。email の PRIMARY KEY を外し、匿名の識別子 id を足す（T-071、2026-09-08）
+npx wrangler d1 execute pergram --remote --file worker/migrations/2026-09-08_waitlist_rebuild.sql
 ```
 
-`CREATE TABLE IF NOT EXISTS` なので2度流しても壊れない（`ALTER TABLE ADD COLUMN` の
-移行とはここが違う）。それでも**流したかどうかは `num_tables` で必ず確認する。**
+⚠️ **これは表の作り直し（新表 → 移す → 消す → 改名）であり、`DROP TABLE waitlist` を含む。
+流す前に必ず退避を取ること。**
+
+```bash
+npx wrangler d1 execute pergram --remote --command "SELECT * FROM waitlist" --json > waitlist_backup.json
+```
+
+⚠️ **2度流してはいけない。** 2度目は `waitlist_new` の作成で失敗する（既に改名済みのため）が、
+途中まで走る書き方に直すと既存行を失う。**流したかどうかは、
+`PRAGMA table_info(waitlist)` に `id` 列があるかで判定する。**
 
 ## 4. Worker を GitHub と繋ぐ
 
