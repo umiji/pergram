@@ -14,15 +14,33 @@
 --    **どのブランチへ push しても本番の Worker が置き換わる**（Deploy command が
 --    `npx wrangler deploy`。docs/ops/deploy.md §4 の実測）。**移行が先、push が後。**
 --
--- ⚠️ **本番の4行を運ぶ。流す前に退避を取ること**（`.dump` か SELECT の出力）。
---    移し替えは列を明示した INSERT ... SELECT で行う。`SELECT *` にすると
---    列順の思い込みが崩れたときに黙って別の列へ入る。
+-- ⚠️ **流す前に退避を取ること**（手順は docs/ops/deploy.md §3）。`DROP TABLE` を含む。
 --
 -- 🔒 **1行が id と email を同時に持てないこと（CHECK 制約）を、この表にも必ず付ける。**
 --    schema.sql にだけ書いても、稼働中の本番は守られない。
 -- 🔒 定義は worker/schema.sql と同じに保つこと
 --    （tests/request_survey.test.js の B-1 が、この移行を実際に流した後の姿と突き合わせる）。
--- 🔒 移す既存4行は email だけを持つ。id は NULL のまま入る。
+-- 🔒 移し替えは**列を明示した** INSERT ... SELECT で行う。`SELECT *` にすると
+--    列順の思い込みが崩れたときに黙って別の列へ入る。
+-- 🔒 移す既存の行は email だけを持つ。id は NULL のまま入る。
+
+-- ============================================================================
+-- 番兵 🔒 **この1文を消さないこと。消すと2度目の実行が「成功してしまう」。**
+-- ============================================================================
+-- 2度目に流されたときに、**破壊的な文へ進む前にここで必ず失敗させる**ための1文である。
+-- 移行済みの表には既に `id` があるので `duplicate column name: id` で止まる。
+--
+-- ⚠️ **これが無いと、2度流しても止まらないどころか、静かにデータが壊れる。**
+--    1度目の `ALTER TABLE waitlist_new RENAME TO waitlist` で `waitlist_new` は消えるため、
+--    2度目の `CREATE TABLE waitlist_new` は通ってしまう。続く INSERT ... SELECT は
+--    6列しか運ばないので、**匿名の行の id だけが NULL になって完走する。**
+--    id は request_signal との突き合わせ鍵であり、同じブラウザの上書き鍵でもある。
+--    **消えても画面にもログにも何も出ない。**（T-071 レビュー B-1 が実測した）
+--
+-- 2度目に流したときに出るエラー:
+--    duplicate column name: id            → 既に移行済み。**何もしなくてよい**
+--    no such table: waitlist              → 途中で止まった跡。docs/ops/deploy.md §3 の復旧手順へ
+ALTER TABLE waitlist ADD COLUMN id TEXT;
 
 CREATE TABLE waitlist_new (
   id              TEXT UNIQUE,

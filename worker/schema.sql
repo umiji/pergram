@@ -21,7 +21,12 @@
 --    この線を越えることまでは含んでいない。** 同じ人が2行に分かれて残るのが正しい姿。
 -- 🔒 **各受け口は自分の鍵の列だけを書く。** /api/waitlist は email を、
 --    /api/request-survey は id を書き、もう一方には触らない（NULL のまま残す）。
---    **空文字 '' で埋めない —— 空文字は NULL ではないので CHECK をすり抜ける。**
+--    **もう一方を空文字 '' で埋めない。**
+--    ⚠️ 危ないのは CHECK ではなく **UNIQUE の側**である。`id=''` / `email=NULL` の行は
+--    CHECK を通る（両方が非 NULL ではない）。しかし `id TEXT UNIQUE` により
+--    **そういう行は表に1つしか存在できない。** 2人目以降のブラウザの回答は
+--    ON CONFLICT(id) で1行目を上書きし、**別々の人の回答が1行に混ざる。**
+--    （`INSERT (id, email) VALUES ('…uuid…', '')` のほうは CHECK が拒否する。実測済み）
 -- 🔒 email も id も PRIMARY KEY にしない。UNIQUE にしてあるのは、
 --    (1) 同じ鍵の2度目で行を増やさない（ON CONFLICT の宛先になる）ため、
 --    (2) SQLite の UNIQUE は NULL を互いに違う値として扱うので、

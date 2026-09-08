@@ -95,12 +95,56 @@ npx wrangler d1 execute pergram --remote --file worker/migrations/2026-09-08_wai
 流す前に必ず退避を取ること。**
 
 ```bash
-npx wrangler d1 execute pergram --remote --command "SELECT * FROM waitlist" --json > waitlist_backup.json
+npx wrangler d1 export pergram --remote --table waitlist --output waitlist_backup.sql
 ```
 
-⚠️ **2度流してはいけない。** 2度目は `waitlist_new` の作成で失敗する（既に改名済みのため）が、
-途中まで走る書き方に直すと既存行を失う。**流したかどうかは、
-`PRAGMA table_info(waitlist)` に `id` 列があるかで判定する。**
+`INSERT` 文の入った `.sql` が出るので、**そのまま流し直せば復元できる。**
+（`--command "SELECT ..." --json` でも中身は見られるが、**復元に使えない**ので退避には使わない。）
+
+#### 2度流したときは、データを壊す前に止まる
+
+移行SQL の**先頭に番兵の1文**（`ALTER TABLE waitlist ADD COLUMN id TEXT;`）を置いてある。
+移行済みの表には既に `id` があるので、**破壊的な文へ進む前に失敗する。**
+
+| 出たエラー | 意味 | すること |
+|---|---|---|
+| `duplicate column name: id` | 既に移行済み | **何もしなくてよい**（データは無傷） |
+| `no such table: waitlist` | 途中で止まった跡 | 下の復旧手順へ |
+| エラー無し | 移行できた | `PRAGMA table_info(waitlist)` に `id` があることを確認する |
+
+> ⚠️ **番兵の1文を消さないこと。** 消すと2度目が**失敗せずに完走し、匿名の行の `id` だけが
+> 静かに NULL になる**（1度目の改名で `waitlist_new` が消えているため、2度目の
+> `CREATE TABLE waitlist_new` が通ってしまう。続く `INSERT ... SELECT` は6列しか運ばない）。
+> `id` は `request_signal` との突き合わせ鍵であり、同じブラウザの上書き鍵でもある。
+> **消えても画面にもログにも何も出ない。**
+
+#### 途中で止まったときの復旧
+
+**D1 では明示的なトランザクションを張れない。** そのため
+「`DROP TABLE waitlist` は成功したが `ALTER TABLE waitlist_new RENAME TO waitlist` が失敗した」
+という止まり方がありうる。**この状態では `waitlist` が存在しないので、本番の待機リスト登録が
+全滅する**（受け口は 503 を返し、利用者の画面には何も出ない）。
+
+まず、どの表が残っているかを見る。
+
+```bash
+npx wrangler d1 execute pergram --remote --command \
+  "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
+```
+
+| 残っている表 | 状態 | 復旧 |
+|---|---|---|
+| `waitlist` だけ | 完了しているか、まだ始まっていない | `PRAGMA table_info(waitlist)` に `id` があれば完了。無ければ移行SQL を流す |
+| `waitlist_new` だけ | **改名の直前で止まっている。データは `waitlist_new` の中に在る** | 下の改名を1文だけ流す |
+| 両方ある | 移し替えの途中で止まっている | `waitlist` が原本。`DROP TABLE waitlist_new` してから、移行SQL を流し直す |
+
+```bash
+# 「waitlist_new だけ」の場合。これ1文で復旧する（データは既に移し終わっている）
+npx wrangler d1 execute pergram --remote --command "ALTER TABLE waitlist_new RENAME TO waitlist"
+```
+
+どれにも当てはまらない、または行が失われている場合は、**上で取った `waitlist_backup.sql` を
+流して復元する**（先に `DROP TABLE IF EXISTS waitlist` が要る）。
 
 ## 4. Worker を GitHub と繋ぐ
 
