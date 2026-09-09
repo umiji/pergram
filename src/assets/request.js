@@ -10,8 +10,15 @@
  * 🔒 GA4 に個人識別情報を送らない。**メールアドレスをイベントパラメータに含めない。**
  * 🔒 自由記述の**本文**を GA4 へ送らない。書かれたかどうか（0 / 1）だけを数える。
  * 🔒 待機リスト（/api/waitlist）へ送るのは既存の6列の範囲だけ。列を足さない。
- *    アンケートの回答は、メールアドレスの段を送ったときに相乗りする
- *    （メールアドレスが無ければ保存しない。保存の鍵がそれしかない）。
+ *    アンケートの回答は、メールアドレスの段を送ったときにもここへ相乗りする。
+ * 🔒 **アンケートの回答は、送った時点で /api/request-survey へも匿名で送る**（T-070）。
+ *    ⚠️ 以前は「メールアドレスが無ければ保存しない。保存の鍵がそれしかない」だった。
+ *    `waitlist` は email が主キーで匿名の行が入らないためで、その結果
+ *    **「押した → 成分を答えた → メールは入れない」人の回答を全部捨てていた。**
+ *    匿名の受け口ができたので、その仕様は上書きされている。**戻さないこと。**
+ * 🔒 **送りきれなかったアンケートの回答は localStorage へ控え、次の訪問で送り直す**
+ *    （T-070 / R-1 の裁定）。アンケートの段は送信後に開き直せないので、
+ *    撃ちっぱなしにすると失敗した回答がそのまま失われる。**受領できたら必ず消す。**
  * 🔒 送信後に別ページへ飛ばさない。同じ画面で完了状態に切り替える。
  * 🔒 匿名シグナル（/api/request-signal）が失敗しても**段は必ず開く**。
  *    保存は計測の都合であって、ユーザーの用ではない。
@@ -28,6 +35,37 @@
 
   /** 第1段階の押下を1行だけ残す受け口。持つのは UUID と日時だけ */
   const SIGNAL_ENDPOINT = '/api/request-signal';
+
+  /**
+   * 第2段階のアンケートの回答を**匿名のまま**残す受け口（T-070）。
+   *
+   * 🔒 **メールアドレスを入れなかった人の回答は、以前ここが無くて全部捨てられていた。**
+   *    `waitlist` は `email` が主キーなので、匿名の行は物理的に入らない。
+   *    「押した → 成分を答えた → メールは入れない」人の回答は、次に何を載せるかを
+   *    決める情報そのものである。**この送信を消さないこと。**
+   * 🔒 送る本文は `{ id, nutrients, channel, nutrients_other, requests }` **ちょうど。**
+   *    メールアドレスを混ぜない（混ぜた瞬間に匿名でなくなる）。`page` も送らない
+   *    （どのページかは同じ id の `request_signal` の行が持っている）。
+   *    受け口はキー集合がちょうど一致しなければ 400 で捨てる。
+   */
+  const SURVEY_ENDPOINT = '/api/request-survey';
+
+  /**
+   * **まだ受け口に届いていないアンケートの回答**の置き場（T-070 / R-1 の裁定）。
+   *
+   * 🔒 **受領できたら必ず消す。** ここは送信の待ち行列（出荷箱）であって、
+   *    回答の控えを手元に貯めておく場所ではない。消す条件は
+   *    `postRequestSurvey` の1箇所だけに置いてある。
+   * 🔒 入るのは**受け口へ送る本文そのもの**（`{ id, nutrients, channel,
+   *    nutrients_other, requests }`）だけ。**メールアドレスを入れない**
+   *    （この経路は匿名である）。年齢・性別・体調・服薬は元から扱わない。
+   * ⚠️ 自由記述が入る。**サーバへ送る前提のものを、送るまで手元に置くだけ**である
+   *    （`.claude/rules/pergram-compliance.md`「データ保護」は、これらを
+   *    **サーバへ送らないこと**を守っており、localStorage はむしろ指定された置き場）。
+   *    **中身をコードで解釈しない**（N-01 / N-05）。
+   * ⚠️ 共用端末では次の利用者にも読める。だから受領できた時点で消す。
+   */
+  const SURVEY_OUTBOX_KEY = 'pergram.request_survey_outbox';
 
   /**
    * ブラウザごとの識別子の置き場。
@@ -238,6 +276,14 @@
     }
   }
 
+  function removeStored(key) {
+    try {
+      window.localStorage.removeItem(key);
+    } catch (err) {
+      /* 消せなくても導線は止めない */
+    }
+  }
+
   const writeSignalId = (id) => writeStored(SIGNAL_STORAGE_KEY, id);
   /** 受け口が受け取った id。**応答を見てから**呼ぶ（T-062） */
   const writeSignalAck = (id) => writeStored(SIGNAL_ACK_STORAGE_KEY, id);
@@ -257,6 +303,21 @@
 
   /** 同じページで2回以上送らないための鍵。ボタンは2箇所にある */
   let signalSent = false;
+
+  /**
+   * このブラウザの識別子。押下のときに決まり、**アンケートの回答も同じものを使う**（T-070）。
+   *
+   * 🔒 アンケート専用の識別子を作らない。別の値で送ると同じブラウザが2人に見え、
+   *    受け口の主キーによる上書きも効かなくなる（何度答えても行が増える）。
+   * 🔒 ここが空のときは**送らない**。newSignalId() と同じ理由で、
+   *    疑似乱数を自作して埋めない（衝突すれば行が潰れ、回答が静かに目減りする）。
+   */
+  let signalId = null;
+
+  /** 押下時に決まった識別子。決まっていなければ localStorage の保存分を使う */
+  function currentSignalId() {
+    return signalId || readStored(SIGNAL_STORAGE_KEY);
+  }
 
   /**
    * 第1段階の押下をサーバへ1行残す。
@@ -291,13 +352,20 @@
 
     const stored = readStored(SIGNAL_STORAGE_KEY);
 
-    // このブラウザの押下は既にサーバへ入っている。2回目以降は送らない（段は開く）
-    if (stored && readStored(SIGNAL_ACK_STORAGE_KEY) === stored) return;
-
     // 🔒 保存済みがあればそれを使い回す。ここで作り直すと同じブラウザが2人になる
     const id = stored || newSignalId();
     if (!id) return;
     if (!stored) writeSignalId(id);
+
+    // アンケートの回答は同じ id で送る（T-070）ので、ここで控えておく。
+    // ⚠️ 受領済みで送信を打ち切る回（すぐ下の early return）でも、この行は通る。
+    //    なお currentSignalId() が localStorage を読み直すため、この行が無くても
+    //    今のところ同じ結果になる。**識別子の出所を「押下のときに決まった値」に
+    //    一本化しておくためのもの**であって、冗長さを承知で置いてある
+    signalId = id;
+
+    // このブラウザの押下は既にサーバへ入っている。2回目以降は送らない（段は開く）
+    if (readStored(SIGNAL_ACK_STORAGE_KEY) === id) return;
 
     // `.catch()` が拾うのは**拒否されたときだけ**である。fetch を持たない環境や
     // 引数を受け付けない環境では**その場で投げる**ので、同期の側も包む
@@ -353,6 +421,117 @@
     return value === '' ? null : value;
   }
 
+  /**
+   * 受け口へ実際に投げる。**応答を待たない。**
+   *
+   * 受領できたら控え（出荷箱）を消す。ここが「消す条件」の唯一の場所である。
+   *
+   * 🔒 **消してよいのは 2xx（受領された）と 4xx（本文が受け付けられない）だけ。**
+   *    通信断と 5xx では**消さない** —— サーバ側の一時的な事情なので、次の訪問で
+   *    送り直せば入る。ここを「応答が返ってきたら消す」に緩めると、
+   *    移行前のデプロイで 503 が返る窓（`docs/ops/deploy.md` §3）に当たった回答が
+   *    そのまま消える。
+   * ⚠️ 4xx で消すのは、**同じ本文を何度投げても永久に受け付けられない**ためである。
+   *    残しても毎回の訪問で 400 を貰いに行くだけで、回答は1行も増えない。
+   *
+   * @param {object} payload 受け口へ送る本文（キー集合ちょうど一致）
+   */
+  function postRequestSurvey(payload) {
+    // `.catch()` が拾うのは拒否されたときだけ。fetch を持たない環境では
+    // その場で投げるので、同期の側も包む（sendRequestSignal と同じ）
+    try {
+      fetch(SURVEY_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        keepalive: true,
+      })
+        .then((res) => {
+          if (!res) return;
+          // 🔒 受領された。**控えは必ず消す**（永続的な記録にしない。T-070 の裁定の付帯条件）
+          if (res.ok) removeStored(SURVEY_OUTBOX_KEY);
+          // この本文は何度送っても通らない。残すと毎回 400 を貰いに行くだけになる
+          else if (res.status >= 400 && res.status < 500) removeStored(SURVEY_OUTBOX_KEY);
+          // 5xx は消さない。次の訪問で送り直す
+        })
+        .catch(() => {
+          /* 通信断。控えは残したまま次の訪問へ回す */
+        });
+    } catch (err) {
+      /* 同上。導線は既に次の段へ進んでいる */
+    }
+  }
+
+  /**
+   * アンケートの回答を匿名の1行として残す（T-070）。
+   *
+   * 🔒 **応答を待たない。失敗しても導線は止めない。** 段の開閉はこの結果に依存しない
+   *    （sendRequestSignal と同じ方針）。
+   * 🔒 送るのは押下と同じ識別子。無ければ**送らない**（作り直さない）。
+   * 🔒 本文にメールアドレスを入れない。`page` も入れない。キーを増やすと受け口が
+   *    400 で捨てる（キー集合ちょうど一致）。
+   * 🔒 **投げる前に控える。** 送信中にページを閉じられても、次の訪問で送り直せる。
+   *    ⚠️ 以前ここには「送り直しの仕掛けは持たない」と書いてあった。**その判断は
+   *    覆っている**（T-070 のレビュー R-1 とオーケストレーターの裁定、2026-09-08）。
+   *    アンケートの段は送信後に `settled` になり開き直せないので（T-053 B-5b）、
+   *    撃ちっぱなしだと**そのページ内に再送の機会が一切なく、失敗した回答が
+   *    そのまま失われる。** 「回答が捨てられている」を直すこのタスクが、
+   *    残った経路で同じことを起こしてはならない。**戻さないこと。**
+   *
+   * @param {{nutrients: string[], channel: string[], nutrients_other: string|null,
+   *          requests: string|null}} answer
+   */
+  function sendRequestSurvey(answer) {
+    const id = currentSignalId();
+    if (!id) return;
+
+    const payload = {
+      id,
+      nutrients: answer.nutrients,
+      channel: answer.channel,
+      nutrients_other: answer.nutrients_other,
+      requests: answer.requests,
+    };
+
+    // 🔒 **送る前に控える。** 送信中の離脱・通信断・移行前の 503 を、次の訪問で拾い直す
+    writeStored(SURVEY_OUTBOX_KEY, JSON.stringify(payload));
+    postRequestSurvey(payload);
+  }
+
+  /**
+   * 前回までに送りきれなかった回答を送り直す（T-070 / R-1 の裁定）。
+   *
+   * 🔒 **形だけを整えて送る。中身は一切見ない**（N-01 / N-05。自由記述を
+   *    コードで解釈しない）。整えるのはキー集合を合わせるためであって、
+   *    検閲ではない —— 受け口はキー集合ちょうど一致でしか受け取らないので、
+   *    形の崩れた控えをそのまま投げると永久に 400 を貰い続ける。
+   * 🔒 読めない控えは消す。**読めないものを抱えたままにすると、毎回の訪問で
+   *    無駄な送信が走り続ける。**
+   */
+  function flushRequestSurveyOutbox() {
+    const raw = readStored(SURVEY_OUTBOX_KEY);
+    if (!raw) return;
+
+    let saved = null;
+    try {
+      saved = JSON.parse(raw);
+    } catch (err) {
+      saved = null;
+    }
+    if (!saved || typeof saved !== 'object' || typeof saved.id !== 'string') {
+      removeStored(SURVEY_OUTBOX_KEY);
+      return;
+    }
+
+    postRequestSurvey({
+      id: saved.id,
+      nutrients: Array.isArray(saved.nutrients) ? saved.nutrients : [],
+      channel: Array.isArray(saved.channel) ? saved.channel : [],
+      nutrients_other: typeof saved.nutrients_other === 'string' ? saved.nutrients_other : null,
+      requests: typeof saved.requests === 'string' ? saved.requests : null,
+    });
+  }
+
   function toEmailStep() {
     const opened = openStep('email');
     if (opened) track('request_email_view', {});
@@ -395,8 +574,13 @@
         has_requests: requests ? 1 : 0,
       });
 
+      // 🔒 **段を進めるのが先。** 保存は計測の都合であって利用者の用ではない
+      //    （押下の匿名シグナルと同じ順序で担保する）
       finishStep('survey');
       toEmailStep();
+
+      // 🔒 メールアドレスを入れない人の回答は、以前ここが無くて全部捨てられていた（T-070）
+      sendRequestSurvey(answers);
     });
   }
 
@@ -496,4 +680,15 @@
       else toSupportStep();
     });
   });
+
+  /* ---- 前回送りきれなかった回答を拾い直す（T-070 / R-1） --------------- */
+
+  /*
+   * 🔒 **再送の契機はページの読み込みである。** アンケートの段は送信後に `settled` に
+   *    なり開き直せない（T-053 B-5b）ので、**そのページ内には再送の機会が無い。**
+   *    ここを消すと、通信断や 503 に当たった回答が永久に失われる（R-1 が指摘した欠陥）。
+   * ⚠️ 押下や送信の操作を待たない。控えが無ければ何も起きない（送信も走らない）ので、
+   *    通常の訪問に費用は掛からない。
+   */
+  flushRequestSurveyOutbox();
 })();

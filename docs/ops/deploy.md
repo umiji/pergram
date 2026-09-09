@@ -47,7 +47,10 @@ npx wrangler d1 create pergram-preview
 npm run d1:schema     # 本番
 ```
 
-`waitlist` と `price_alert` ができる。確認は `npx wrangler d1 info pergram` の `num_tables`。
+`waitlist` / `price_alert` / `request_signal` の**3表**ができる。
+確認は `npx wrangler d1 info pergram` の `num_tables`（このコマンドが数えるのはテーブルなので、
+索引は含まれない）。表が増えたらこの行も直すこと —— 実態と食い違うと、
+`num_tables` を見た人が「足りている」と読み違える。
 
 ⚠️ `CREATE TABLE IF NOT EXISTS` は**既存のテーブルに列を足さない**。
 稼働中の DB に列を増やしたときは `worker/migrations/` の SQL を1度だけ流す。
@@ -60,6 +63,112 @@ npx wrangler d1 execute pergram --remote --file worker/migrations/2026-08-10_wai
 
 🔒 サーバに置いてよい列は [worker/schema.sql](../../worker/schema.sql) にあるものだけ。
 年齢・性別・体調・服薬情報の列を足さない。
+
+### ⚠️ 移行が先、push が後 — 🔒 **どのブランチへ push しても本番へ出る**
+
+**`main` だけが本番へ出るのではない。** 下の §4 の Deploy command が `npx wrangler deploy`
+なので、**ブランチに関係なく本番の Worker が置き換わる。**
+Production branch = `main` はビルドの扱いを決めるだけで、デプロイ先を絞らない。
+
+> ⚠️ **これは 2026-09-08 に実測で判明した事実である**（作業ブランチ `org/request-survey` の
+> コードが `pergram.site` で配信されていた）。それ以前この文書には
+> 「merge した時点で本番へ出る」と書いてあり、**誤りだった。**
+> 作業ブランチなら安全だと思って push すると、移行前のコードが本番に出る。
+
+**古いスキーマの上に新しいコードが乗ると、その受け口への書き込みが全部失敗する**
+（D1 が `no such column` / `no such table` を返し、受け口は 503 を返す）。
+利用者の画面は何事もなく進むので、**失敗したことが誰にも見えない。**
+T-058 で実際に踏んでいる。したがって順序はこうなる。
+
+1. **push する前に**、移行 SQL を本番の D1 へ流す（下のコマンド）
+2. **下の「移行できたかの判定」で、意図した姿になったことを確認する**（`id` 列の有無では判定しない）
+3. そのあとで push / merge する
+
+未実施の移行 SQL は次のとおり（流したら「済」と書き足す）。
+
+```bash
+# waitlist を作り直す。email の PRIMARY KEY を外し、匿名の識別子 id を足す（T-071、2026-09-08）
+npx wrangler d1 execute pergram --remote --file worker/migrations/2026-09-08_waitlist_rebuild.sql
+```
+
+⚠️ **これは表の作り直し（新表 → 移す → 消す → 改名）であり、`DROP TABLE waitlist` を含む。
+流す前に必ず退避を取ること。**
+
+```bash
+npx wrangler d1 export pergram --remote --table waitlist --output waitlist_backup.sql
+```
+
+`INSERT` 文の入った `.sql` が出るので、**そのまま流し直せば復元できる。**
+（`--command "SELECT ..." --json` でも中身は見られるが、**復元に使えない**ので退避には使わない。）
+
+#### 2度流したときは、データを壊す前に止まる
+
+移行SQL の**先頭に番兵の1文**（`ALTER TABLE waitlist ADD COLUMN id TEXT;`）を置いてある。
+移行済みの表には既に `id` があるので、**破壊的な文へ進む前に失敗する。**
+
+| 出たエラー | 意味 | すること |
+|---|---|---|
+| `duplicate column name: id` | 移行済み **か、番兵だけが通って止まった跡** | 下の「移行できたかの判定」で見分ける |
+| `no such table: waitlist` | 途中で止まった跡 | 下の復旧手順へ |
+| エラー無し | 移行できた | 下の「移行できたかの判定」で確認する |
+
+#### 移行できたかの判定 🔒 **`id` 列の有無で判定しない**
+
+```bash
+npx wrangler d1 execute pergram --remote --command   "SELECT sql FROM sqlite_master WHERE type='table' AND name='waitlist'"
+```
+
+**出力に `CHECK` が現れれば完了、現れなければ未完了である。**
+
+> ⚠️ **`PRAGMA table_info(waitlist)` に `id` があるかでは判定できない。**
+> 番兵（移行SQL の1文目）が `id` 列を足してから残りの文へ進むので、
+> **1文目だけ成功して止まると「`id` はあるが CHECK も UNIQUE も無い、作り直されていない表」**
+> が残る。この状態を「完了」と読むと、**制約の無い表のまま本番が動き続ける。**
+> 作り直しの成果は CHECK 制約と UNIQUE であって、`id` 列ではない。
+
+> ⚠️ **番兵の1文を消さないこと。** 消すと2度目が**失敗せずに完走し、匿名の行の `id` だけが
+> 静かに NULL になる**（1度目の改名で `waitlist_new` が消えているため、2度目の
+> `CREATE TABLE waitlist_new` が通ってしまう。続く `INSERT ... SELECT` は6列しか運ばない）。
+> `id` は `request_signal` との突き合わせ鍵であり、同じブラウザの上書き鍵でもある。
+> **消えても画面にもログにも何も出ない。**
+
+#### 途中で止まったときの復旧
+
+**D1 では明示的なトランザクションを張れない。** そのため
+「`DROP TABLE waitlist` は成功したが `ALTER TABLE waitlist_new RENAME TO waitlist` が失敗した」
+という止まり方がありうる。**この状態では `waitlist` が存在しないので、本番の待機リスト登録が
+全滅する**（受け口は 503 を返し、利用者の画面には何も出ない）。
+
+まず、どの表が残っているかを見る。
+
+```bash
+npx wrangler d1 execute pergram --remote --command \
+  "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
+```
+
+| 残っている表 | 見分け方 | 状態 | 復旧 |
+|---|---|---|---|
+| `waitlist` だけ | DDL に `CHECK` **あり** | **完了している** | 何もしない |
+| `waitlist` だけ | DDL に `CHECK` **なし**・`id` 列 **なし** | まだ始まっていない | 移行SQL を流す |
+| `waitlist` だけ | DDL に `CHECK` **なし**・`id` 列 **あり** | **番兵だけが通って止まった。作り直されていない** | 下の「番兵だけが通った場合」へ |
+| `waitlist_new` だけ | — | **改名の直前で止まっている。データは `waitlist_new` の中に在る** | 下の改名を1文だけ流す |
+| 両方ある | — | 移し替えの途中で止まっている | `waitlist` が原本。`DROP TABLE waitlist_new` してから、移行SQL を流し直す |
+
+```bash
+# 「番兵だけが通った場合」。足された空の id 列を落として、移行前の姿へ戻してから流し直す。
+# 🔒 この列は必ず全行 NULL である（番兵の直後で止まっており、誰も書き込んでいない）。
+#    落としても失われるデータは無い。落とさずに流し直すと、番兵がまた発火して進めない。
+npx wrangler d1 execute pergram --remote --command "ALTER TABLE waitlist DROP COLUMN id"
+npx wrangler d1 execute pergram --remote --file worker/migrations/2026-09-08_waitlist_rebuild.sql
+```
+
+```bash
+# 「waitlist_new だけ」の場合。これ1文で復旧する（データは既に移し終わっている）
+npx wrangler d1 execute pergram --remote --command "ALTER TABLE waitlist_new RENAME TO waitlist"
+```
+
+どれにも当てはまらない、または行が失われている場合は、**上で取った `waitlist_backup.sql` を
+流して復元する**（先に `DROP TABLE IF EXISTS waitlist` が要る）。
 
 ## 4. Worker を GitHub と繋ぐ
 

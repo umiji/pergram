@@ -732,15 +732,30 @@ test('完了条件9 同じ内容の移行 SQL が worker/migrations/ にある',
   );
 });
 
-test('🔒 完了条件9 既存の waitlist テーブルの定義を変えていない', async () => {
+/**
+ * ⚠️ **T-051 / T-058 の「waitlist の構造を変えない。email が主キー」は失効した。**
+ *    PO 判断（T-071、2026-09-08）で `waitlist` を作り直し、`email` の PRIMARY KEY を外して
+ *    匿名のアンケート回答を `id` を持つ行として相乗りさせることになった。
+ *    **「規約違反だから」と id を削らないこと**（正典は docs/tasks/T-071.md の決定ログ）。
+ * 🔒 失効していない線が1つだけある —— **1行が id と email を同時に持たない。**
+ *    CHECK 制約で強制する。検査は tests/request_survey.test.js の A-4 群が持つ。
+ */
+test('完了条件9 waitlist は id を足した7列で、email の主キーは外れている', async () => {
   const schema = await readFile('worker/schema.sql', 'utf8');
   const block = schema.match(/CREATE TABLE IF NOT EXISTS waitlist\s*\(([\s\S]*?)\n\);/i);
   assert.ok(block, 'worker/schema.sql に waitlist テーブルの定義が見つからない');
 
   assert.deepEqual(
-    parseColumns(block[1]).map((one) => one.name),
-    ['email', 'nutrients', 'channel', 'nutrients_other', 'requests', 'created_at'],
-    '🔒 既存の waitlist テーブルの構造を変えない。email が主キーであり、SQLite では後から変えられない',
+    parseColumns(block[1])
+      .map((one) => one.name)
+      .filter((name) => name !== 'check')
+      .sort(),
+    ['channel', 'created_at', 'email', 'id', 'nutrients', 'nutrients_other', 'requests'],
+    'waitlist の列が T-071 で決めた7つと違う',
+  );
+  assert.ok(
+    !/email\s+TEXT\s+PRIMARY KEY/i.test(block[1]),
+    '🔒 email の PRIMARY KEY が残っている。匿名の行が物理的に入らない',
   );
 });
 

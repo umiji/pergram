@@ -52,10 +52,26 @@ N-09 / N-10 は**成分の除外ではなく文脈の除外**。亜鉛は筋ト�
 ## データ保護
 
 - 年齢・性別・服用中サプリは **localStorage / IndexedDB のみ**。サーバへ送信しない
-- サーバが保持してよいのは次の3つだけ。
-  列を足すときは `worker/schema.sql`・`worker/migrations/`・`tests/worker.test.js` を必ず揃える
-  - 待機リストの6列（`email` / `nutrients` / `channel` / `nutrients_other` / `requests` /
-    `created_at`）。**🔒 ここは6列で打ち止め。**匿名の押下を相乗りさせない（T-058）
+- サーバが保持してよいのは次の**3つの表**だけ。
+  列を足すときは `worker/schema.sql`・`worker/migrations/`・**その表を検査しているテスト**を
+  必ず揃える。表ごとに置き場が違うので、下の一覧の各項目に書いてある正典から辿ること
+  （`waitlist` → `tests/request_survey.test.js` と `tests/waitlist_step2.test.js`、
+  `price_alert` → `tests/worker.test.js`、`request_signal` → `tests/request_unify.test.js`）
+  - 待機リスト `waitlist` の7列（`id` / `email` / `nutrients` / `channel` /
+    `nutrients_other` / `requests` / `created_at`）。**メールアドレスを入れた人の行と、
+    匿名のアンケート回答の行が同居する。**
+    🔒 **1行が `id` と `email` を同時に持ってはならない。DB の CHECK 制約が拒否する。**
+    `id` に入るのは `request_signal.id` と**同じ匿名の識別子**なので、同じ行が両方を持てたら
+    **それまで匿名だった押下がすべてメールアドレスへ紐づく。** 同じ人が2行に分かれて
+    残るのが正しい姿である。**「重複しているから」とまとめないこと。**
+    🔒 各受け口は**自分の鍵の列だけを書く**（`/api/waitlist` は `email`、
+    `/api/request-survey` は `id`。もう一方は NULL のまま残す）。
+    **空文字 `''` で埋めない** —— 空文字は NULL ではないので CHECK をすり抜ける。
+    ⚠️ **T-058 の「6列で打ち止め。匿名の押下を相乗りさせない」と、T-070 の
+    「匿名の回答は `request_survey` という別の表へ入れる」は、どちらも失効している**
+    （PO 判断、T-071 / 2026-09-08:「waitlist に挿入されるようにしてくれ。
+    余計なテーブル追加しないでくれ」）。**`id` 列を「規約違反だから」と削らないこと。**
+    正典は `worker/schema.sql` と `docs/tasks/T-071.md` の決定ログ
   - 価格アラートの**監視製品ID のみ**
   - 要望ボタンの押下の匿名シグナル `request_signal` の3列（`id` = ブラウザが作る UUID v4 /
     `created_at` / `page` = どのページで押されたか）。**個人を識別できるものを何も持たない
@@ -63,7 +79,9 @@ N-09 / N-10 は**成分の除外ではなく文脈の除外**。亜鉛は筋ト�
     **ページ内の位置（上の帯 / 下の帯）も入れない** — 位置は GA4 の `data-cta` が持つ。
     ⚠️ `page` は PO 判断で足された（T-058、2026-09-08）。T-051 の「UUID と日時の2つだけ」は
     その時点で上書きされている。**「規約違反だから」と削らないこと**（正典は
-    `worker/request_signal.js` の冒頭）
+    `worker/request_signal.js` の冒頭）。
+    ⚠️ `waitlist` が匿名の行を持てるようになった後も、**この表は残す。**
+    押下とアンケートの回答は別の出来事であり、こちらは自由記述を一切持たない
 - **自由記述（`nutrients_other` / `requests`）は症状・服薬の書き込み口になりうる（N-01 / N-05）。**
   防波堤はフォーム側の注記（`lp.form.freeTextNote`）とラベルの限定であって、サーバ側の
   検閲ではない。**中身を解釈して弾こうとしない** — 誤検知で正当な要望を捨てるほうが害が大きい。
