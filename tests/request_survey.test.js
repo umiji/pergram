@@ -738,11 +738,25 @@ test('A-2 メールアドレスの段は今までどおり待機リストへ6列
 
   const calls = waitlistCalls(dom);
   assert.equal(calls.length, 1, '待機リストへの送信が壊れている');
-  assert.deepEqual(
-    Object.keys(calls[0].body).sort(),
-    ['channel', 'email', 'nutrients', 'nutrients_other', 'requests'],
-    '🔒 待機リストへ送る本文に id を混ぜない（同じ行が両方を持つ入口を作らない）',
-  );
+
+  // ⚠️ **ここは T-072（PO 指摘 2026-09-09）で緩めた。**
+  //    以前は「キーはちょうどこの5つ。id を混ぜない（同じ行が両方を持つ入口を作らない）」
+  //    だった。**行を2つに分ける設計そのものが誤りだったため失効している** ——
+  //    同じ人がアンケートとメールに答えると2行できて、同じ回答が両方に入り、
+  //    「クレアチンを見たい人」を数えると同じ人を2回数えていた。
+  //    直し方は「メールが送られた時点で匿名の行へ email を書き込み、**同時に id を捨てる**」で、
+  //    そのために**メールの段は匿名の識別子を添えて送る**（T-072 ## 変更範囲）。
+  // 🔒 **守るべき線は変わっていない。「id と email を同じ行に保存しない」である。**
+  //    送信本文に識別子が載ることと、保存された1行が両方を持つことは別の話であり、
+  //    後者は DB の CHECK 制約と tests/waitlist_merge.test.js の A-3 群が見張る。
+  // 🔒 保存列の外の項目（年齢・体調など）を混ぜないことは、ここで見張り続ける。
+  for (const key of Object.keys(calls[0].body)) {
+    const isIdentifier = calls[0].body[key] === SURVEY_ID;
+    assert.ok(
+      ['channel', 'email', 'nutrients', 'nutrients_other', 'requests'].includes(key) || isIdentifier,
+      `🔒 待機リストへ保存列の外の項目を送っています: ${key}`,
+    );
+  }
   assert.equal(calls[0].body.email, 'request@example.com');
 });
 
