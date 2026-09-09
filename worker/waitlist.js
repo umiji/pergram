@@ -142,6 +142,14 @@ export async function handleWaitlist(request, env) {
     return json({ error: 'invalid_json' }, 400);
   }
 
+  // 🔒 `null` や配列は `JSON.parse` を通ってしまう。**ここで弾かないと、
+  //    この下の `payload.email` が例外になって 500 になる**（R-3。
+  //    `worker/request_survey.js` は同じ形で先に弾いている）。
+  //    400 は「送り方が違う」、500 は「サーバが壊れた」であって、意味が別である。
+  if (payload === null || typeof payload !== 'object' || Array.isArray(payload)) {
+    return json({ error: 'invalid_json' }, 400);
+  }
+
   const email = typeof payload.email === 'string' ? payload.email.trim() : '';
   if (!EMAIL_RE.test(email) || email.length > EMAIL_MAX_LENGTH) {
     return json({ error: 'invalid_email' }, 400);
