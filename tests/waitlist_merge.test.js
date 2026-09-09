@@ -139,10 +139,24 @@ function makeRealEnv() {
     env: {
       DB: {
         prepare: (sql) => statement(sql, null),
+        /**
+         * 🔒 **D1 の `batch()` は1トランザクションである。ここも同じにしてある**（m-1）。
+         *    逐次実行にすると、実装が `DELETE` と `INSERT` を別々の `.run()` に
+         *    分けても緑のまま通ってしまい、決定ログが 🔒 とした
+         *    「消したのに書けなかったで回答が消えない」を**誰も見張らなくなる。**
+         *    **戻さないこと。**
+         */
         async batch(statements) {
-          const out = [];
-          for (const one of statements) out.push(await one.run());
-          return out;
+          db.exec('BEGIN');
+          try {
+            const out = [];
+            for (const one of statements) out.push(await one.run());
+            db.exec('COMMIT');
+            return out;
+          } catch (err) {
+            db.exec('ROLLBACK');
+            throw err;
+          }
         },
         async exec(sql) {
           db.exec(sql);
@@ -445,6 +459,20 @@ test('A-3 🔒 どの順番・組み合わせで送っても、両方を持つ�
     '🔒 どこかの経路で id と email が同じ行に載りました：' +
       JSON.stringify(bothRows(db)),
   );
+
+  // ⚠️ **受け口だけを見れば、手順4で匿名の行は作り直される。**
+  //    `/api/request-survey` は「この識別子はもう引き取り済みか」を**設計上知り得ない**
+  //    （引き取りのときに識別子を捨てるのが T-072 の目的そのものである）。
+  //    知らせるにはサーバへ引き取り済みの識別子を保存することになり、
+  //    匿名の押下とメールアドレスの紐づけが復活する。**サーバ側へ移さないこと。**
+  //    作り直させないのは**ブラウザ側**の役目で、下の D-1 群が見張っている。
+  //    ここでは受け口の側の振る舞いを数で固定しておく（変わったら気づけるように）。
+  assert.equal(
+    allRows(db).length,
+    4,
+    'まとめた行 / 他人の匿名の行 / 作り直された匿名の行 / 識別子なしのメールの行 = 4行のはず。' +
+      '受け口の側の振る舞いが変わっています：' + JSON.stringify(allRows(db)),
+  );
   for (const row of allRows(db)) {
     assert.notEqual(row.id, '', '🔒 id を空文字で埋めています（CHECK をすり抜け UNIQUE を潰す）');
     assert.notEqual(row.email, '', '🔒 email を空文字で埋めています');
@@ -637,4 +665,208 @@ test('A-7 識別子を作れないブラウザでも、メールの段の送信�
   assert.equal(allRows(db).length, 1);
   assert.equal(allRows(db)[0].email, EMAIL);
   assert.equal(dom.navigations.length, 0, '🔒 送信後に別ページへ飛んでいます');
+});
+
+/* ====================================================================== */
+/* D-1: まとめた後に匿名の行が作り直され、二重計上が戻る経路（差し戻し1往復目） */
+/*                                                                        */
+/* 受け口の側は「引き取り済みか」を設計上判定できない（上の A-3 の注記）。      */
+/* 止めるのはブラウザ側であり、**ここが唯一の見張りである。**                 */
+/* ⚠️ 実装（src/assets/request.js）は引き取り済みの印を localStorage に置いて   */
+/*    いる。**印のキー名を決め打ちしない** —— 見るのは「匿名の受け口へ送らない」  */
+/*    という振る舞いのほうで、置き場は実装の裁量である。                       */
+/* ====================================================================== */
+
+const OUTBOX_KEY = 'pergram.request_survey_outbox';
+
+const freshStorage = () => ({ [SIGNAL_STORAGE_KEY]: BROWSER_ID, [SIGNAL_ACK_KEY]: BROWSER_ID });
+const inheritStorage = (dom) => Object.fromEntries(dom.storageData.entries());
+const allOk = () => ({ ok: true, status: 200, body: { ok: true } });
+/** アンケートの受け口だけが 5xx を返す（控えが残る条件） */
+const surveyFails = (call) => (String(call.url).includes(SURVEY_PATH) ? { ok: false, status: 503 } : allOk());
+
+/** 1回の訪問（ページの読み込み）。控えの送り直しはここで走る */
+async function visitPage(storage, respond = allOk) {
+  const dom = await runLpScript(page(), { scriptPath: SCRIPT, storage, respond });
+  await dom.flush();
+  return dom;
+}
+
+async function clickCta(dom) {
+  dom.body.querySelectorAll('[data-request-cta]')[0].dispatchEvent(new DomEvent('click'));
+  await dom.flush();
+}
+
+async function answerSurvey(dom, { channel = 'rakuten', requests = ANSWERS.requests } = {}) {
+  const form = dom.body.querySelector('[data-request-survey]');
+  assert.ok(form, 'アンケートのフォームがありません');
+  form.querySelector('input[name="nutrients"][value="creatine"]').checked = true;
+  form.querySelector(`input[name="channel"][value="${channel}"]`).checked = true;
+  form.querySelector('[name="nutrients_other"]').value = ANSWERS.nutrients_other;
+  form.querySelector('[name="requests"]').value = requests;
+  form.dispatchEvent(new DomEvent('submit'));
+  await dom.flush();
+}
+
+async function skipSurvey(dom) {
+  dom.body.querySelector('[data-request-skip="survey"]').dispatchEvent(new DomEvent('click'));
+  await dom.flush();
+}
+
+async function submitEmail(dom, email = EMAIL) {
+  const form = dom.body.querySelector('[data-request-email]');
+  assert.ok(form, 'メールアドレスのフォームがありません');
+  form.querySelector('input[type="email"]').value = email;
+  form.dispatchEvent(new DomEvent('submit'));
+  await dom.flush();
+}
+
+test('D-1 送りきれなかった控えは、まとめた後の訪問で匿名の行を作り直さない', sqliteOptions, async () => {
+  const { db, env } = makeRealEnv();
+
+  // 1回目の訪問: アンケートの送信だけが 5xx（通信断でも同じ）。控えが残る
+  const first = await visitPage(freshStorage(), surveyFails);
+  await clickCta(first);
+  await answerSurvey(first);
+  assert.ok(first.storageData.get(OUTBOX_KEY), '前提: 控えが残っていない');
+  await submitEmail(first);
+  await replay(first.fetchCalls.filter((call) => call.url.includes(WAITLIST_PATH)), env);
+  assert.equal(allRows(db).length, 1, '前提: メールの登録で1行になっていない');
+
+  // 2回目の訪問: 控えの送り直しが走る契機
+  const second = await visitPage(inheritStorage(first), allOk);
+  assert.equal(
+    callsTo(second, SURVEY_PATH).length,
+    0,
+    '🔒 引き取りが済んだ後に匿名の受け口へ送っています。匿名の行が作り直され、' +
+      '同じ人が2行に戻る（PO が指摘した二重計上そのもの）',
+  );
+  await replay(second.fetchCalls, env);
+
+  const rows = allRows(db);
+  assert.equal(rows.length, 1, `2回目の訪問で ${rows.length} 行になっています（1行であるべき）`);
+  assert.equal(rows[0].email, EMAIL);
+  assert.equal(rows[0].id, null);
+  assertAnswersKept(rows[0], '🔒 控えの回答が失われた: ');
+  assert.equal(
+    second.storageData.get(OUTBOX_KEY),
+    undefined,
+    '🔒 控えが残ったままです。毎回の訪問でここへ戻ってきます',
+  );
+});
+
+test('D-1 まとめた後にもう一度アンケートへ答えても、行は1つのまま', sqliteOptions, async () => {
+  const { db, env } = makeRealEnv();
+
+  const first = await visitPage(freshStorage(), allOk);
+  await clickCta(first);
+  await answerSurvey(first);
+  await submitEmail(first);
+  assert.equal(callsTo(first, SURVEY_PATH).length, 1, '前提: 1回目は匿名の受け口へも送る');
+  await replay(first.fetchCalls, env);
+  assert.equal(allRows(db).length, 1, '前提: 1回目でまとまっていない');
+
+  // 2回目の訪問で答え直す（段の状態はページの読み込みごとに開く）
+  const second = await visitPage(inheritStorage(first), allOk);
+  await clickCta(second);
+  await answerSurvey(second, { channel: 'amazon', requests: '2回目の要望' });
+  assert.equal(
+    callsTo(second, SURVEY_PATH).length,
+    0,
+    '🔒 引き取りが済んだ後の答え直しを匿名の受け口へ送っています（行が2つに戻る）',
+  );
+
+  await submitEmail(second);
+  await replay(second.fetchCalls, env);
+
+  const rows = allRows(db);
+  assert.equal(rows.length, 1, `答え直しで ${rows.length} 行になっています（1行であるべき）`);
+  assert.equal(rows[0].id, null);
+  assert.equal(rows[0].channel, 'amazon', '答え直した回答が保存されていません');
+  assert.equal(rows[0].requests, '2回目の要望');
+});
+
+test('D-1 控えが前の訪問のものしか無くても、回答は待機リストの行へ載って失われない', sqliteOptions, async () => {
+  const { db, env } = makeRealEnv();
+
+  // 1回目: 答えたが送信に失敗し、**メールアドレスを登録しないまま離脱**
+  const first = await visitPage(freshStorage(), surveyFails);
+  await clickCta(first);
+  await answerSurvey(first);
+  assert.ok(first.storageData.get(OUTBOX_KEY), '前提: 控えが残っていない');
+
+  // 2回目: 送り直しも失敗する。**このセッションでは回答が手元に無い**
+  const second = await visitPage(inheritStorage(first), surveyFails);
+  await clickCta(second);
+  await skipSurvey(second);
+  await submitEmail(second);
+
+  const [waitlistCall] = callsTo(second, WAITLIST_PATH);
+  assert.ok(waitlistCall, 'メールアドレスが送られていません');
+  assert.deepEqual(
+    waitlistCall.body.nutrients,
+    ANSWERS.nutrients,
+    '🔒 前の訪問の回答が待機リストの送信に載っていません。' +
+      '控えを黙って捨てると、T-070 が直した「回答が捨てられる」に戻る',
+  );
+  for (const key of Object.keys(waitlistCall.body)) {
+    assert.ok(
+      EMAIL_PAYLOAD_KEYS.has(key) || waitlistCall.body[key] === BROWSER_ID,
+      `🔒 保存列の外の項目を送っています: ${key}`,
+    );
+  }
+
+  // 🔒 **アンケートの送信はどちらの訪問も 5xx で、サーバには1行も入っていない。**
+  //    受け口へ流すのは待機リストの送信だけである（失敗した送信まで流すと、
+  //    「控えを載せたから残った」のか「失敗したはずの送信が届いたから残った」のかが
+  //    区別できなくなり、テストが**控えの運搬を見張らなくなる**）。
+  const delivered = [...first.fetchCalls, ...second.fetchCalls].filter((call) =>
+    call.url.includes(WAITLIST_PATH),
+  );
+  await replay(delivered, env);
+  const rows = allRows(db);
+  assert.equal(rows.length, 1, `行が ${rows.length} 行あります（1行であるべき）`);
+  assert.equal(rows[0].email, EMAIL);
+  assertAnswersKept(rows[0], '🔒 前の訪問の回答が保存されていない: ');
+});
+
+/* ====================================================================== */
+/* まとめは1トランザクションで流す（m-1。テスト担当が自分の指摘を是正）        */
+/* ====================================================================== */
+
+test('🔒 まとめは1トランザクション。書けなかった回で匿名の行の回答が消えない', sqliteOptions, async () => {
+  const { db, env } = makeRealEnv();
+
+  await worker.fetch(postSurvey(surveyBody()), env);
+
+  // 2文目（メールアドレスの行への書き込み）だけを失敗させる。
+  // 逐次で流す実装なら「消えたのに書けていない」＝回答が失われる。
+  let batchCalls = 0;
+  const realBatch = env.DB.batch.bind(env.DB);
+  env.DB.batch = async (statements) => {
+    batchCalls += 1;
+    return realBatch([
+      ...statements.slice(0, -1),
+      {
+        run: async () => {
+          throw new Error('書き込みに失敗した');
+        },
+      },
+    ]);
+  };
+
+  const res = await worker.fetch(postWaitlist(emailBody()), env);
+
+  assert.equal(
+    batchCalls,
+    1,
+    '🔒 まとめを `batch()` で流していません。D1 の batch は1トランザクションで、' +
+      '**消せたのに書けなかった回で回答が消えない**ことをこれで担保している' +
+      '（T-072 決定ログ「まとめ方は…」の付帯条件）',
+  );
+  assert.equal(res.status, 503, '書き込みに失敗したのに 200 を返しています');
+
+  const rows = anonRows(db);
+  assert.equal(rows.length, 1, '🔒 匿名の行が消えたまま戻っていません（回答が失われた）');
+  assertAnswersKept(rows[0], '🔒 巻き戻しで回答が失われた: ');
 });
