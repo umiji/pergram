@@ -272,8 +272,19 @@ test('🔒 送信本文は保存してよい列の範囲だけ。アンケート
   const { dom } = await submitEmail();
   const { body } = waitlistCalls(dom)[0];
 
+  // ⚠️ **匿名の識別子だけは、この5つに加えて載ってよい（T-072 / PO 指摘 2026-09-09）。**
+  //    メールが送られた時点で匿名の行へ email を書き込み、**同時に id を捨てて1行に
+  //    まとめる**ために要る。以前は「id を混ぜない」だったが、行を2つに分ける設計が
+  //    同じ人を二重に数えていたため失効した。
+  // 🔒 **保存される1行が id と email を同時に持たない**という線は変わっていない
+  //    （DB の CHECK 制約と tests/waitlist_merge.test.js の A-3 群が見張る）。
+  const signalId = dom.storageData.get('pergram.request_signal_id') ?? null;
   for (const key of Object.keys(body)) {
-    assert.ok(ALLOWED_PAYLOAD_KEYS.has(key), `保存対象外の項目を送っています: ${key}`);
+    const isIdentifier = signalId !== null && body[key] === signalId;
+    assert.ok(
+      ALLOWED_PAYLOAD_KEYS.has(key) || isIdentifier,
+      `保存対象外の項目を送っています: ${key}`,
+    );
   }
   assert.ok(body.nutrients.includes('creatine'), '見たい成分が送られていません');
   assert.ok(body.channel.includes('rakuten'), '購入先が送られていません');

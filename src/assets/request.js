@@ -11,6 +11,9 @@
  * 🔒 自由記述の**本文**を GA4 へ送らない。書かれたかどうか（0 / 1）だけを数える。
  * 🔒 待機リスト（/api/waitlist）へ送るのは既存の6列の範囲だけ。列を足さない。
  *    アンケートの回答は、メールアドレスの段を送ったときにもここへ相乗りする。
+ *    ⚠️ **これに加えて、匿名の識別子（signal_id）だけを添えて送る**（T-072）。
+ *    受け口が匿名のアンケートの行を引き取り、**その識別子を捨てて**1行にまとめるため。
+ *    保存される列は増えていない（識別子は `id` 列へ書かれない）。
  * 🔒 **アンケートの回答は、送った時点で /api/request-survey へも匿名で送る**（T-070）。
  *    ⚠️ 以前は「メールアドレスが無ければ保存しない。保存の鍵がそれしかない」だった。
  *    `waitlist` は email が主キーで匿名の行が入らないためで、その結果
@@ -66,6 +69,24 @@
    * ⚠️ 共用端末では次の利用者にも読める。だから受領できた時点で消す。
    */
   const SURVEY_OUTBOX_KEY = 'pergram.request_survey_outbox';
+
+  /**
+   * **このブラウザの匿名の行が、メールアドレスの行へ引き取られたことの目印**
+   * （T-072 / D-1 の差し戻し、2026-09-09）。
+   *
+   * 🔒 **ここに印がある間、匿名の受け口（/api/request-survey）へは何も送らない。**
+   *    送ると匿名の行が**作り直され**、同じ人が2行に戻る（二重計上が復活する）。
+   *    これが起きるのは2つの経路である。
+   *      1. 送りきれなかった回答の控えが、次の訪問で同じ識別子のまま送り直される
+   *      2. まとめた後に、同じブラウザでもう一度アンケートに答える
+   * 🔒 **この判定はブラウザ側にしか置けない。** 受け口の側は、まとめた時点で
+   *    識別子を捨てている（それが T-072 の目的そのもの）ので、
+   *    「この識別子はもう引き取り済みだ」と知る手段を**設計上持っていない。**
+   *    サーバに持たせるには引き取り済みの識別子を保存することになり、
+   *    匿名の押下とメールアドレスの紐づけが復活する。**サーバ側へ移さないこと。**
+   * 🔒 入るのは引き取られた識別子（UUID）か `1` だけ。**メールアドレスを入れない。**
+   */
+  const MERGED_STORAGE_KEY = 'pergram.request_merged';
 
   /**
    * ブラウザごとの識別子の置き場。
@@ -284,6 +305,9 @@
     }
   }
 
+  /** このブラウザの匿名の行は、もうメールアドレスの行へ引き取られたか（T-072） */
+  const isMerged = () => readStored(MERGED_STORAGE_KEY) !== null;
+
   const writeSignalId = (id) => writeStored(SIGNAL_STORAGE_KEY, id);
   /** 受け口が受け取った id。**応答を見てから**呼ぶ（T-062） */
   const writeSignalAck = (id) => writeStored(SIGNAL_ACK_STORAGE_KEY, id);
@@ -495,7 +519,49 @@
 
     // 🔒 **送る前に控える。** 送信中の離脱・通信断・移行前の 503 を、次の訪問で拾い直す
     writeStored(SURVEY_OUTBOX_KEY, JSON.stringify(payload));
+
+    // 🔒 引き取り済みのブラウザは、**ここで打ち切る**（T-072 / D-1）。匿名の受け口へ送ると
+    //    匿名の行が作り直され、同じ人が2行に戻る。
+    //    ⚠️ **打ち切りは控えを書いた後ろに置くこと。** 手前に置くと、先にメールアドレスだけを
+    //    登録した人が**あとから初めて答えた回答**が、送信も控えも無いまま消える（D-2 / m-5）。
+    //    控えに残しておけば、次に待機リストの登録が成功したときに `/api/waitlist` の
+    //    送信本文へ相乗りする（メールの段の送信を見ること）。**手前へ戻さないこと。**
+    if (isMerged()) return;
+
     postRequestSurvey(payload);
+  }
+
+  /**
+   * 控え（出荷箱）を読んで、**形だけを整えて**返す。読めなければ null。
+   *
+   * 🔒 **中身は一切見ない**（N-01 / N-05。自由記述をコードで解釈しない）。
+   *    整えるのは、受け口がキー集合ちょうど一致でしか受け取らないためであって、
+   *    検閲ではない —— 形の崩れた控えをそのまま投げると永久に 400 を貰い続ける。
+   *
+   * @returns {{id: string, answers: {nutrients: string[], channel: string[],
+   *   nutrients_other: string|null, requests: string|null}} | null}
+   */
+  function readSurveyOutbox() {
+    const raw = readStored(SURVEY_OUTBOX_KEY);
+    if (!raw) return null;
+
+    let saved = null;
+    try {
+      saved = JSON.parse(raw);
+    } catch (err) {
+      saved = null;
+    }
+    if (!saved || typeof saved !== 'object' || typeof saved.id !== 'string') return null;
+
+    return {
+      id: saved.id,
+      answers: {
+        nutrients: Array.isArray(saved.nutrients) ? saved.nutrients : [],
+        channel: Array.isArray(saved.channel) ? saved.channel : [],
+        nutrients_other: typeof saved.nutrients_other === 'string' ? saved.nutrients_other : null,
+        requests: typeof saved.requests === 'string' ? saved.requests : null,
+      },
+    };
   }
 
   /**
@@ -512,24 +578,22 @@
     const raw = readStored(SURVEY_OUTBOX_KEY);
     if (!raw) return;
 
-    let saved = null;
-    try {
-      saved = JSON.parse(raw);
-    } catch (err) {
-      saved = null;
-    }
-    if (!saved || typeof saved !== 'object' || typeof saved.id !== 'string') {
+    // 🔒 引き取り済みなら**送らない**（T-072 / D-1）。送り直すと匿名の行が作り直され、
+    //    同じ人が2行に戻る。
+    // 🔒 **ただし控えは消さない**（D-2 / m-5）。引き取りの後に答えた回答がここに入っている
+    //    ことがあり、消すと**その人の最初の回答が1文字も残らない。**
+    //    次に待機リストの登録が成功したときに `/api/waitlist` の本文へ相乗りし、
+    //    そこで初めて消える（消す条件は `postRequestSurvey` とメールの段の2箇所だけ）。
+    //    ⚠️ 毎回の訪問でここを通るが、**送信は起きない**ので費用は掛からない
+    if (isMerged()) return;
+
+    const saved = readSurveyOutbox();
+    if (!saved) {
       removeStored(SURVEY_OUTBOX_KEY);
       return;
     }
 
-    postRequestSurvey({
-      id: saved.id,
-      nutrients: Array.isArray(saved.nutrients) ? saved.nutrients : [],
-      channel: Array.isArray(saved.channel) ? saved.channel : [],
-      nutrients_other: typeof saved.nutrients_other === 'string' ? saved.nutrients_other : null,
-      requests: typeof saved.requests === 'string' ? saved.requests : null,
-    });
+    postRequestSurvey({ id: saved.id, ...saved.answers });
   }
 
   function toEmailStep() {
@@ -638,18 +702,54 @@
       const button = emailForm.querySelector('button[type="submit"]');
       if (button) button.disabled = true;
 
-      // 🔒 保存に回るのはこの6列の範囲だけ。アンケートに答えていなければ
-      //    メールアドレスだけを送る（Worker は空で既存の回答を上書きしない）
+      // 🔒 保存に回るのはこの6列の範囲だけ。何も答えていなければ
+      //    メールアドレスだけを送る（Worker は空で既存の回答を上書きしない）。
+      //
+      // このセッションで答えていなければ、**前の訪問で送りきれなかった控え**を載せる
+      // （T-072 / D-1）。載せずに控えを残すと、次の訪問で匿名の受け口へ送り直され、
+      // 匿名の行が作り直されて同じ人が2行に戻る。かといって黙って捨てると
+      // **前の訪問の回答が失われる**（T-070 が直した壊れ方そのもの）。
+      // **送り先を匿名の受け口からこちらへ移す**のが、どちらも起こさない唯一の形である。
+      // 🔒 載せるのは控えの回答4項目だけ。控えの `id` は載せない
+      //    （識別子は下で `signal_id` として1つだけ添える）。
+      const carriedAnswers = answers || readSurveyOutbox()?.answers || null;
+
       const payload = { email };
-      if (answers) {
-        payload.nutrients = answers.nutrients;
-        payload.channel = answers.channel;
-        payload.nutrients_other = answers.nutrients_other;
-        payload.requests = answers.requests;
+      if (carriedAnswers) {
+        payload.nutrients = carriedAnswers.nutrients;
+        payload.channel = carriedAnswers.channel;
+        payload.nutrients_other = carriedAnswers.nutrients_other;
+        payload.requests = carriedAnswers.requests;
       }
+
+      // このブラウザの匿名の識別子を添える（T-072 / PO 指摘 2026-09-09）。
+      //
+      // 受け口は、これと同じ識別子で作られた**匿名のアンケートの行を引き取り、
+      // その識別子を捨てて**メールアドレスの1行にまとめる。添えないと、
+      // 同じ人の回答が2行に分かれ、「クレアチンを見たい人」を数えるときに
+      // **同じ人を2回数える**（docs/research/validation-plan.md の判定に効く）。
+      //
+      // 🔒 **保存される1行が識別子とメールアドレスを同時に持つわけではない。**
+      //    受け口は `id` 列へ何も書かない（表の CHECK 制約が最後の砦）。
+      //    「送信本文に混ぜない」へ書き戻さないこと —— 行を2つに分ける設計は
+      //    T-072 の PO 指摘で失効している。
+      // 🔒 無ければ**キーごと送らない。**空文字や自作の疑似乱数で埋めない
+      //    （識別子を作れない環境でも登録は通る。受け口では任意項目）。
+      const carriedSignalId = currentSignalId();
+      if (carriedSignalId) payload.signal_id = carriedSignalId;
 
       postWaitlist(payload)
         .then(() => {
+          // 🔒 **ここで匿名の経路を閉じる**（T-072 / D-1）。受け口は、この登録で
+          //    匿名の行を引き取り、識別子を捨てて1行にまとめた。以後この識別子で
+          //    匿名の受け口へ送ると、**匿名の行が作り直されて同じ人が2行に戻る。**
+          //    控えも消す —— 中身は今の送信本文に載せてサーバへ渡してある。
+          // 🔒 **成功したときだけ。** 失敗した回で閉じると、回答が匿名の受け口へも
+          //    メールの行へも届かないまま、控えだけが消える。
+          // 🔒 印に入れるのは識別子か `1` だけ。**メールアドレスを入れない。**
+          writeStored(MERGED_STORAGE_KEY, carriedSignalId || '1');
+          removeStored(SURVEY_OUTBOX_KEY);
+
           // 🔒 メールアドレスは送らない。登録できたという事実だけを数える
           track('request_email_submit', {});
           // 🔒 **この名前を消さない。** docs/ops/google-ads-first-campaign.md (0-4) で
