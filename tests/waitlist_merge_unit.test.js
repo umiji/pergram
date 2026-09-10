@@ -359,10 +359,14 @@ test(
       0,
       '🔒 まとめた後の回答を匿名の受け口へ送っています（匿名の行が作り直される）',
     );
-    assert.equal(
+    // ⚠️ **ここは D-2 / m-5 で期待を入れ替えた。** 以前は「送らないのだから控えも作らない」
+    //    と書いていたが、それでは**引き取りの後に初めて答えた人の回答が1文字も残らない。**
+    //    控えに残し、次に待機リストの登録が成功したときに相乗りさせるのが正しい
+    //    （すぐ下の D-2 のテストが、その相乗りを最後まで見ている）。
+    // 🔒 **控えがあっても匿名の受け口へは送らない**という線は上の assert が見張っている
+    assert.ok(
       second.storageData.get(OUTBOX_KEY),
-      undefined,
-      '🔒 送らないのに控えを作っています（次の訪問で送り直されてしまう）',
+      '🔒 送りもせず控えもしていません。この回答はどこにも残らない（D-2 / m-5）',
     );
 
     const { db, env } = makeEnv();
@@ -396,11 +400,71 @@ test(
       0,
       '🔒 引き取り済みなのに控えを匿名の受け口へ送っています（匿名の行が復活する）',
     );
-    assert.equal(
+    // ⚠️ **控えは消さない**（D-2 / m-5 で変わった）。引き取りの後に答えた回答が
+    //    ここに入っていることがあり、消すとその人の回答が1文字も残らない。
+    //    消えるのは、次に待機リストの登録が成功したときである
+    assert.ok(
       second.storageData.get(OUTBOX_KEY),
-      undefined,
-      '🔒 送らない控えを抱えたままです。毎回の訪問でここへ戻ってくる',
+      '🔒 送らない控えを捨てています。引き取りの後に答えた回答が失われる（D-2）',
     );
+  },
+);
+
+test(
+  'D-2 引き取り済みのブラウザが後から答えた回答も、次の登録で待機リストへ届く',
+  sqliteOptions,
+  async () => {
+    // 1回目: アンケートを飛ばして**メールアドレスだけ**登録する（引き取りの印が立つ）
+    const first = await visit(freshStorage(), allOk);
+    await clickCta(first);
+    await skipSurvey(first);
+    await submitEmail(first);
+    assert.equal(callsTo(first, SURVEY_PATH).length, 0, '前提: まだ何も答えていない');
+
+    // 2回目: **ここで初めてアンケートに答える。** 答え直しではなく最初の回答である
+    const second = await visit(inherit(first), allOk);
+    await clickCta(second);
+    await answerSurvey(second);
+
+    assert.equal(
+      callsTo(second, SURVEY_PATH).length,
+      0,
+      '🔒 引き取り済みなのに匿名の受け口へ送っています（匿名の行が作り直される）',
+    );
+    assert.ok(
+      second.storageData.get(OUTBOX_KEY),
+      '🔒 送りもせず控えもしていません。この回答はどこにも残らない（D-2 / m-5）',
+    );
+
+    // 3回目: 何も答えずにメールアドレスだけ登録し直す。**2回目の回答が相乗りすること**
+    const third = await visit(inherit(second), allOk);
+    await clickCta(third);
+    await skipSurvey(third);
+    await submitEmail(third);
+
+    const [waitlistCall] = callsTo(third, WAITLIST_PATH);
+    assert.ok(waitlistCall, 'メールアドレスが送られていません');
+    assert.deepEqual(
+      waitlistCall.body.nutrients,
+      ANSWERS.nutrients,
+      '🔒 引き取りの後に答えた回答が、待機リストの送信に載っていません',
+    );
+    assert.equal(waitlistCall.body.requests, ANSWERS.requests, '🔒 自由記述が失われています');
+    assert.equal(
+      third.storageData.get(OUTBOX_KEY),
+      undefined,
+      '🔒 送信本文へ載せたのに控えが残っています',
+    );
+
+    const { db, env } = makeEnv();
+    await replay([...first.fetchCalls, ...second.fetchCalls, ...third.fetchCalls], env);
+
+    const rows = allRows(db);
+    assert.equal(rows.length, 1, `行が ${rows.length} 行あります（1行であるべき）`);
+    assert.equal(rows[0].email, EMAIL);
+    assert.equal(rows[0].id, null);
+    assert.equal(rows[0].nutrients, 'creatine', '🔒 後から答えた回答が保存されていません');
+    assert.equal(rows[0].requests, ANSWERS.requests);
   },
 );
 
