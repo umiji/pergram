@@ -49,7 +49,7 @@
   "products.emptyReset": "Clear all filters",
   "products.notRegistered": "This nutrient is not in the dataset yet.",
   "request.lede": "Right now this is a beta with protein only.",
-  "request.sub": "Whether we build the rest depends on this number.",
+  "request.sub": "Whether we release the full version depends on the support we get.",
   "request.headerCta": "Support the release",
   "request.headerCtaShort": "Support",
   "request.cta": "Support the full release",
