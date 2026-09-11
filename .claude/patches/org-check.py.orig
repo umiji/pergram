@@ -72,10 +72,6 @@ STATES = [
 ]
 TERMINAL = {"完了", "中止"}          # 動かないのが正しい状態
 IN_PROGRESS = {"設計中", "テスト作成中", "実装中", "テスト中", "レビュー中"}
-# 意図して止めている状態。担当が付いていないのが正しい姿なので、
-# 担当の検査から外す。stagnation_exempt() と同じ扱いにする
-# （2026-09-12: 片方だけが担当を要求しており、保留の4件が毎回の誤報になっていた）
-PARKED = {"未着手", "保留", "PO確認待ち"}
 PRIORITIES = {"高", "中", "低"}
 
 # 「担当」がこれらの値なら、オーケストレーター自身が抱えているとみなす。
@@ -96,8 +92,6 @@ REQUIRED_SECTIONS = ["完了条件", "判断してよい範囲", "変更範囲",
 
 # 雛形の案内文（HTMLコメント）と、埋めたつもりの空文字。どちらも「未記入」とみなす。
 HTML_COMMENT = re.compile(r"<!--.*?-->", re.S)
-# 節の区切りになる見出し。`###` 以下の小見出しは節の中身なので、区切りに含めない
-HEADING = re.compile(r"^#{1,2}(?!#)")
 PLACEHOLDERS = {"", "-", "—", "tbd", "todo", "未定", "未記入", "（未記入）", "(未記入)"}
 
 # PO確認待ちキューの状態。見出しの行に識別子と一緒に置く決まり。
@@ -227,24 +221,10 @@ def is_blank(body: str) -> bool:
 
 
 def section(text: str, name: str) -> str:
-    """見出し `## name` から次の同位の見出しまでの本文を返す。
-
-    🔒 節の区切りは `#` と `##` だけである。`###` の小見出しは節の「中身」であって
-    区切りではない。ここを `line.startswith("#")` で切っていたため、
-    小見出しで始まる節（`## 証拠` に `### 完了条件1: …` と書く自然な形）が
-    まるごと捨てられ、**丁寧に書いた節ほど「未記入」と報告されていた**
-    ——完了31件の証拠のうち16件が、この誤判定だった（2026-09-12 に修正）。
-    コードブロックの中の行も見出しとして読まない。証拠の節はシェルの出力を
-    そのまま貼るため、行頭に `#` のコメントが現れるためである。
-    """
-    out, inside, fence = [], False, False
+    """見出し `## name` から次の見出しまでの本文を返す。"""
+    out, inside = [], False
     for line in text.splitlines():
-        if line.lstrip().startswith(("```", "~~~")):
-            fence = not fence
-            if inside:
-                out.append(line)
-            continue
-        if not fence and HEADING.match(line):
+        if line.startswith("#"):
             inside = line.strip().lstrip("#").strip() == name
             continue
         if inside:
@@ -697,7 +677,7 @@ def check(tasks: list[dict], days: int) -> tuple[list, list, list]:
         # --- 担当 ---
         if state not in TERMINAL:
             if not t["owner"] or t["owner"] == UNASSIGNED:
-                if state not in PARKED:
+                if state != "未着手":
                     warn.append(f"{label}: 状態「{state}」なのに担当が未割当。誰も動かしていない")
             elif t["owner"] in ORCHESTRATOR_NAMES and state in IN_PROGRESS:
                 warn.append(
