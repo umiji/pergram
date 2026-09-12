@@ -94,6 +94,16 @@ REWORK_LIMIT = 3
 # 判定基準を持たないまま動く。人間の目視に任せず機械で捕まえる。
 REQUIRED_SECTIONS = ["完了条件", "判断してよい範囲", "変更範囲", "禁止事項"]
 
+# 担当を付ける時点で埋まっていなければならない節 (D-001-1)。上の4つと違い、
+# **完了したタスクには問わない** —— 終わったタスクの入口を今さら書いても
+# 誰も読まないため、警告にすると純粋な雑音になる。担当エージェントは会話履歴を
+# 引き継がないので、入口が無いと毎回ゼロから探すことになる。
+#
+# ⚠️ この節が「書いてある」ことは、探す時間が短いことを意味しない。実測では
+# 73件中63件に実ファイルパスまで書かれており、140往復した T-072 にも
+# 入口が4本あった。**これは下限を守る検査であって、往復数の対策ではない。**
+REQUIRED_ON_ASSIGN = ["参照すべき成果物"]
+
 # 雛形の案内文（HTMLコメント）と、埋めたつもりの空文字。どちらも「未記入」とみなす。
 HTML_COMMENT = re.compile(r"<!--.*?-->", re.S)
 # 節の区切りになる見出し。`###` 以下の小見出しは節の中身なので、区切りに含めない
@@ -676,6 +686,17 @@ def check(tasks: list[dict], days: int) -> tuple[list, list, list]:
                     warn.append(
                         f"{label}: 指示が未記入のまま{trigger} → {' / '.join(empty)}"
                         "。レビューとテストが判定基準を持たないまま動く"
+                    )
+            # 担当を付ける時点で要る節。完了したタスクには問わない (D-001-1)
+            if state not in ("中止", "完了") and (assigned or state in IN_PROGRESS):
+                empty = [n for n in REQUIRED_ON_ASSIGN
+                         if is_blank(section(t["text"], n))]
+                if empty:
+                    trigger = ("担当が付いている" if assigned
+                               else f"状態が「{state}」になっている")
+                    warn.append(
+                        f"{label}: 入口が未記入のまま{trigger} → {' / '.join(empty)}"
+                        "。担当は会話履歴を引き継がないので、ゼロから探すことになる"
                     )
             if state == "完了" and is_blank(section(t["text"], "証拠")):
                 warn.append(
