@@ -1,0 +1,242 @@
+diff --git a/.claude/scripts/org-tokens.py b/.claude/scripts/org-tokens.py
+index c7de4f8..e2f8105 100644
+--- a/.claude/scripts/org-tokens.py
++++ b/.claude/scripts/org-tokens.py
+@@ -41,6 +41,22 @@ Claude Code の定額プランには、1日・1週間で使える量の上限が
+       最初のIDが現れる前の分は `タスク外` に入る。オーケストレーターがタスク
+       に紐付かない運営作業へどれだけ使っているかも、これで見える。
+ 
++1回の応答をどう数えるか (T-074)
++-------------------------------
++**会話記録は、モデルの1回の応答を複数行に分けて書く。** 文・思考・道具の
++呼び出しがそれぞれ別の行になり、どの行も同じ `requestId` を持つ。だから行を
++1行ずつ足すと、**往復の数もトークン量も過大になる**（このリポジトリの実測で
++往復 1.95倍 / トークン 1.87倍）。`requestId` ごとに束ねてから数える。
++
++束ね方は記録の性質で決まっている。同じ `requestId` の行は `input_tokens` /
++`cache_read_input_tokens` / `cache_creation` を**まったく同じ値**で持ち、
++伸びるのは `output_tokens` だけで**最後の行が完全な値**である（2026-09-13 に
++会話記録 5,653 応答で確認し、破れる例は 0件）。したがって出力は最後の行の値を
++採り、残りの費目は最初の行の値をそのまま使う。
++
++**`requestId` を持たない行は束ねない。** 鍵が無い行をひとまとめにすると、
++別々の往復が消えて**今度は過小計上になる**（実データにも 3行あった）。
++
+ Python 3.8 以降。標準ライブラリのみ。追加インストールは要らない。
+ 
+ 使い方:
+@@ -97,23 +113,33 @@ for _stream in (sys.stdout, sys.stderr):
+ COLUMNS = [
+     "タスクID", "担当", "モデル",
+     "入力", "出力", "キャッシュ書込", "キャッシュ読出", "合計",
+-    "返答回数", "セッションID", "記録元", "最終更新",
++    "往復回数", "セッションID", "記録元", "最終更新",
+ ]
+ 
++# 台帳に残っている古い列名。新しい列名 -> 古い列名 (T-074)
++# `返答回数` は**応答の行数**を数えていて、実 API 往復の約1.9倍だった。名前ごと
++# 差し替えたが、既にある台帳をそのまま読めないと `--update` が動かず、集計が
++# 丸ごと止まる。読むときだけ古い名前を受け付け、書き戻しは新しい名前で行う。
++LEGACY_COLUMNS = {"往復回数": "返答回数"}
++
+ # トークンの費目。会話記録の usage 欄のキーと、台帳の列名の対応。
+ # キャッシュ読出が支配的になりやすい——会話が伸びるほど、毎回の返答で
+ # それまでのやりとり全体をもう一度モデルに読ませることになるため。
+ KINDS = ["入力", "出力", "キャッシュ書込", "キャッシュ読出"]
+ 
+ # 数値の列。読み込み時に整数へ直す。
+-NUMERIC = KINDS + ["合計", "返答回数"]
++NUMERIC = KINDS + ["合計", "往復回数"]
+ 
+ ORCHESTRATOR = "オーケストレーター"   # メインセッションの担当名
+ MAIN_SOURCE = "main"                  # メインセッションの記録元名
+ OUTSIDE_TASK = "タスク外"             # どのタスクにも紐付かない分
+ UNKNOWN_TASK = "タスク不明"           # 担当エージェントの指示文にIDが無かった
+ 
+-TASK_ID = re.compile(r"T-\d+")
++# タスクIDは3桁（T-074）と決まっている（.claude/rules/org-task-ledger.md）。
++# `T-\d+` で拾うと、途中で折り返した本文や別の表記から `T-07` のような断片を
++# 拾い、台帳に存在しないタスクの行ができる（実際に8行できていた）。3桁以上だけを
++# 拾う。断片は「そのIDが本文に無かった」のと同じ扱いになる。 (T-074)
++TASK_ID = re.compile(r"T-\d{3,}")
+ 
+ # 会話記録の先頭を何行まで見て作業ディレクトリを探すか。
+ # 全部読むと、対象外のセッションにも数メガバイトの読み込みが発生する。
+@@ -276,7 +302,44 @@ def add(rows: dict, key: tuple, task, owner, model, session, source, counts) ->
+     for kind in KINDS:
+         row[kind] += counts[kind]
+     row["合計"] += sum(counts.values())
+-    row["返答回数"] += 1
++    row["往復回数"] += 1
++
++
++class Responses:
++    """usage を持つ行を `requestId` で束ね、モデルの応答1回ぶんにする。 (T-074)
++
++    1回の応答は複数行に分かれて記録される。同じ `requestId` の行は入力と
++    キャッシュの値が全行同じで、出力だけが伸びて最後の行が完全な値になる。
++    だから最初の行をそのまま採り、出力だけを後から来た行で上書きする。
++
++    `requestId` が無い行は束ねない。鍵が無いものをまとめると、別々の往復が
++    1つに潰れて過小計上になる（過大計上を直すはずが逆向きに外れる）。
++    """
++
++    def __init__(self) -> None:
++        self._items: dict = {}
++        self._loose = 0          # 鍵の無い行に振る通し番号
++
++    def feed(self, entry: dict, model: str, counts: dict, context=None) -> None:
++        request_id = entry.get("requestId")
++        if request_id:
++            key = ("応答", request_id)
++        else:
++            self._loose += 1
++            key = ("行", self._loose)
++
++        item = self._items.get(key)
++        if item is None:
++            # context（メインセッションでのタスクの紐付け）は、その応答が
++            # 始まった時点の値で固定する。応答の途中でタスクIDが変わっても、
++            # 1つの応答を2つに割って入力とキャッシュを二重に数えないため。
++            self._items[key] = {"model": model, "counts": dict(counts),
++                                "context": context}
++            return
++        item["counts"]["出力"] = counts["出力"]
++
++    def __iter__(self):
++        return iter(self._items.values())
+ 
+ 
+ def scan_main(session: dict) -> dict:
+@@ -287,6 +350,7 @@ def scan_main(session: dict) -> dict:
+     比較には十分効く。
+     """
+     rows: dict = {}
++    responses = Responses()
+     current = OUTSIDE_TASK
+     for entry in read_entries(session["main"]):
+         if entry.get("type") == "assistant" or is_human_turn(entry):
+@@ -296,8 +360,12 @@ def scan_main(session: dict) -> dict:
+         got = usage_of(entry)
+         if got:
+             model, counts = got
+-            add(rows, (current, model), current, ORCHESTRATOR, model,
+-                session["id"], MAIN_SOURCE, counts)
++            responses.feed(entry, model, counts, context=current)
++
++    for item in responses:
++        task = item["context"]
++        add(rows, (task, item["model"]), task, ORCHESTRATOR, item["model"],
++            session["id"], MAIN_SOURCE, item["counts"])
+     return rows
+ 
+ 
+@@ -336,12 +404,15 @@ def scan_agents(session: dict) -> dict:
+     rows: dict = {}
+     for source, log_path, owner in agent_sources(session):
+         task = agent_task(log_path)
++        responses = Responses()
+         for entry in read_entries(log_path):
+             got = usage_of(entry)
+             if got:
+                 model, counts = got
+-                add(rows, (source, task, model), task, owner, model,
+-                    session["id"], source, counts)
++                responses.feed(entry, model, counts)
++        for item in responses:
++            add(rows, (source, task, item["model"]), task, owner, item["model"],
++                session["id"], source, item["counts"])
+     return rows
+ 
+ 
+@@ -390,16 +461,23 @@ def read_ledger(path: str) -> list[dict]:
+ 
+     if not raw:
+         return []
+-    missing = [c for c in COLUMNS if c not in raw[0]]
++    missing = [c for c in COLUMNS
++               if c not in raw[0] and LEGACY_COLUMNS.get(c) not in raw[0]]
+     if missing:
+         raise LedgerError(
+             "台帳に必要な列が無い: " + " / ".join(missing)
+             + "\n見出し行はこの%d列にすること: " % len(COLUMNS) + ",".join(COLUMNS)
+         )
+ 
++    def cell(r: dict, column: str) -> str:
++        value = r.get(column)
++        if value is None and column in LEGACY_COLUMNS:
++            value = r.get(LEGACY_COLUMNS[column])
++        return (value or "").strip()
++
+     rows = []
+     for r in raw:
+-        row = {k: (r.get(k) or "").strip() for k in COLUMNS}
++        row = {k: cell(r, k) for k in COLUMNS}
+         for key in NUMERIC:
+             try:
+                 row[key] = int(row[key] or 0)
+@@ -492,14 +570,19 @@ def group(rows: list[dict], key: str) -> list[dict]:
+     """指定した列でまとめる。消費の大きい順に並べて返す。"""
+     out: dict = {}
+     for row in rows:
+-        acc = out.setdefault(row[key], {key: row[key], "担当数": set(), "モデル数": set()})
++        acc = out.setdefault(row[key], {key: row[key], "担当数": set(),
++                                        "モデル数": set(), "記録数": set()})
+         for k in NUMERIC:
+             acc[k] = acc.get(k, 0) + row[k]
+         acc["担当数"].add(row["担当"])
+         acc["モデル数"].add(row["モデル"])
++        # 記録数は会話記録（JSONL）の本数。同じ担当が別セッションで何度も
++        # 起こされるので、担当の種別の数とは一致しない。 (T-074)
++        acc["記録数"].add((row["セッションID"], row["記録元"]))
+     for acc in out.values():
+         acc["担当数"] = len(acc["担当数"])
+         acc["モデル数"] = len(acc["モデル数"])
++        acc["記録数"] = len(acc["記録数"])
+     return sorted(out.values(), key=lambda a: -a["合計"])
+ 
+ 
+@@ -535,19 +618,40 @@ def print_table(title: str, key: str, groups: list[dict], extra: list[str]) -> N
+     print(line(total))
+ 
+ 
++def print_agents_only(subset: list[dict]) -> None:
++    """担当エージェントだけの往復と記録の本数を出す。 (T-074)
++
++    上の表の合計には、記録元が `main`（オーケストレーター）の分が入っている。
++    組織の時短対策（D-001）で突き合わせるのは**担当エージェントの往復**なので、
++    そのまま比べると倍近く大きく見える。取り違えないように分けて出す。
++    """
++    agents = [r for r in subset if r["記録元"] != MAIN_SOURCE]
++    trips = sum(r["往復回数"] for r in agents)
++    logs = len({(r["セッションID"], r["記録元"]) for r in agents})
++    print("  担当エージェントだけ: API 往復 %s 回 / 記録 %d本"
++          % ("{:,}".format(trips), logs))
++    print("  （上の表の合計 %s 回はオーケストレーターを含む。対策の効果を"
++          % "{:,}".format(sum(r["往復回数"] for r in subset)))
++    print("  比べるときは、担当エージェントだけの数字を使うこと）")
++
++
+ def print_report(rows: list[dict], by: str, task: str | None) -> int:
+     if task:
+         subset = [r for r in rows if r["タスクID"] == task]
+         if not subset:
+             print("%s の記録が台帳に無い。`--update` で会話記録を読み込むこと。" % task)
+             return 1
+-        print_table("%s の内訳（担当別）" % task, "担当", group(subset, "担当"), ["返答回数"])
++        print_table("%s の内訳（担当別）" % task, "担当", group(subset, "担当"),
++                    ["記録数", "往復回数"])
++        print()
++        print_table("%s の内訳（モデル別）" % task, "モデル", group(subset, "モデル"),
++                    ["往復回数"])
+         print()
+-        print_table("%s の内訳（モデル別）" % task, "モデル", group(subset, "モデル"), ["返答回数"])
++        print_agents_only(subset)
+         return 0
+ 
+     column = {"task": "タスクID", "agent": "担当", "model": "モデル"}[by]
+-    extra = {"task": ["担当数", "返答回数"], "agent": ["返答回数"], "model": ["返答回数"]}[by]
++    extra = {"task": ["担当数", "往復回数"], "agent": ["往復回数"], "model": ["往復回数"]}[by]
+     print_table("トークン消費（%s別）" % column, column, group(rows, column), extra)
+     print()
+     print("  キャッシュ読出は「毎回の返答のたびに、それまでの会話全体をもう一度")
