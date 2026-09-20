@@ -12,12 +12,6 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(git push:*)",
-      "Bash(python3 .claude/scripts/org-check.py:*)",
-      "Bash(python .claude/scripts/org-check.py:*)",
-      "Bash(python3 .claude/scripts/org-tokens.py:*)",
-      "Bash(python .claude/scripts/org-tokens.py:*)",
-      "Bash(python3 .claude/scripts/org-decisions.py:*)",
-      "Bash(python .claude/scripts/org-decisions.py:*)",
       "Bash(npm test:*)",
       "Bash(node --test:*)",
       "Bash(npm run build:*)",
@@ -48,48 +42,15 @@
       "Bash(npm run prices:refresh:*)"
     ]
   },
-  "hooks": {
-    "SessionStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"${CLAUDE_PROJECT_DIR}/.claude/scripts/org-check.py\" --root \"${CLAUDE_PROJECT_DIR}\" --hook || python \"${CLAUDE_PROJECT_DIR}/.claude/scripts/org-check.py\" --root \"${CLAUDE_PROJECT_DIR}\" --hook",
-            "timeout": 60
-          },
-          {
-            "type": "command",
-            "command": "python3 \"${CLAUDE_PROJECT_DIR}/.claude/scripts/org-tokens.py\" --root \"${CLAUDE_PROJECT_DIR}\" --update --hook || python \"${CLAUDE_PROJECT_DIR}/.claude/scripts/org-tokens.py\" --root \"${CLAUDE_PROJECT_DIR}\" --update --hook",
-            "timeout": 120
-          },
-          {
-            "type": "command",
-            "command": "python3 \"${CLAUDE_PROJECT_DIR}/.claude/scripts/org-decisions.py\" --root \"${CLAUDE_PROJECT_DIR}\" --hook || python \"${CLAUDE_PROJECT_DIR}/.claude/scripts/org-decisions.py\" --root \"${CLAUDE_PROJECT_DIR}\" --hook",
-            "timeout": 60
-          },
-          {
-            "type": "command",
-            "command": "python3 \"${CLAUDE_PROJECT_DIR}/.claude/scripts/org-monitor.py\" --root \"${CLAUDE_PROJECT_DIR}\" --hook || python \"${CLAUDE_PROJECT_DIR}/.claude/scripts/org-monitor.py\" --root \"${CLAUDE_PROJECT_DIR}\" --hook",
-            "timeout": 30
-          }
-        ]
+  "extraKnownMarketplaces": {
+    "claude-kit": {
+      "source": {
+        "source": "directory",
+        "path": "C:/Users/kaiki/Workspace/02_Tools/claude-kit"
       }
-    ],
-    "SubagentStop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"${CLAUDE_PROJECT_DIR}/.claude/scripts/org-tokens.py\" --root \"${CLAUDE_PROJECT_DIR}\" --update --hook || python \"${CLAUDE_PROJECT_DIR}/.claude/scripts/org-tokens.py\" --root \"${CLAUDE_PROJECT_DIR}\" --update --hook",
-            "timeout": 120
-          },
-          {
-            "type": "command",
-            "command": "python3 \"${CLAUDE_PROJECT_DIR}/.claude/scripts/org-decisions.py\" --root \"${CLAUDE_PROJECT_DIR}\" --hook || python \"${CLAUDE_PROJECT_DIR}/.claude/scripts/org-decisions.py\" --root \"${CLAUDE_PROJECT_DIR}\" --hook",
-            "timeout": 60
-          }
-        ]
-      }
-    ]
+    }
+  },
+  "enabledPlugins": {
+    "ai-org@claude-kit": true
   }
 }
