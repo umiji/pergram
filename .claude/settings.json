@@ -51,6 +51,7 @@
     }
   },
   "enabledPlugins": {
-    "ai-org@claude-kit": true
+    "ai-org@claude-kit": true,
+    "media-agent@claude-kit": true
   }
 }
