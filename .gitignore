@@ -27,3 +27,6 @@ docs/design/Product_page_sp_mock/
 
 # --- AI開発組織のスクリプトが作る中間ファイル ---
 .claude/scripts/__pycache__/
+
+# org のフックが毎セッション書き直す測定記録（差分が毎回 200 行前後出るため追跡しない）
+docs/token-usage-pergram.csv
