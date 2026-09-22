@@ -30,3 +30,6 @@ docs/design/Product_page_sp_mock/
 
 # org のフックが毎セッション書き直す測定記録（差分が毎回 200 行前後出るため追跡しない）
 docs/token-usage-pergram.csv
+
+# 作業フォルダ（git worktree）の置き場。リポジトリの内容ではない
+.worktrees/
