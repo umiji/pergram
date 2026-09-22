@@ -45,8 +45,8 @@
   "extraKnownMarketplaces": {
     "claude-kit": {
       "source": {
-        "source": "directory",
-        "path": "C:/Users/kaiki/Workspace/tools/claude-kit"
+        "source": "github",
+        "repo": "umiji/claude-kit"
       }
     }
   },
