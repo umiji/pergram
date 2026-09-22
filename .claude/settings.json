@@ -46,7 +46,7 @@
     "claude-kit": {
       "source": {
         "source": "directory",
-        "path": "C:/Users/kaiki/Workspace/02_Tools/claude-kit"
+        "path": "C:/Users/kaiki/Workspace/tools/claude-kit"
       }
     }
   },
