@@ -1,0 +1,4 @@
+# git blame がここに載せた commit を飛ばす。整形だけで中身を変えていないため。
+# 手元でも有効にする: git config blame.ignoreRevsFile .git-blame-ignore-revs
+# GitHub は自動で読む。
+8fb8e8870303acbc98b29ac412267e294eddf552
