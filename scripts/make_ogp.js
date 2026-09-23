@@ -20,7 +20,8 @@ import { formatCurrency } from '../src/lib/format.js';
 
 const DATA = 'data';
 const OUT = path.join('dist', 'assets', 'ogp.svg');
-const readJson = async (name) => JSON.parse(await readFile(path.join(DATA, name), 'utf8'));
+const readJson = async (name) =>
+  JSON.parse(await readFile(path.join(DATA, name), 'utf8'));
 
 // src/styles/tokens.css と同じ値。片方だけ変えるとカードだけ別サービスに見える
 const INK = '#16181D';
@@ -29,16 +30,22 @@ const MUTED = '#6B6F76';
 const SIGNAL = '#2454E6';
 
 const t = await loadTranslator('ja');
-const markets = JSON.parse(await readFile(path.join('config', 'markets.json'), 'utf8'));
+const markets = JSON.parse(
+  await readFile(path.join('config', 'markets.json'), 'utf8'),
+);
 const market = markets.JP;
 
 const products = await readJson('products.json');
 const contents = await readJson('nutrient_contents.json');
 const snapshots = await readJson('price_snapshots.json');
 const names = new Map(
-  (await readJson('product_i18n.json')).filter((r) => r.locale === 'ja').map((r) => [r.product_id, r.name]),
+  (await readJson('product_i18n.json'))
+    .filter((r) => r.locale === 'ja')
+    .map((r) => [r.product_id, r.name]),
 );
-const nutrient = (await readJson('nutrients.json')).find((n) => n.id === 'protein');
+const nutrient = (await readJson('nutrients.json')).find(
+  (n) => n.id === 'protein',
+);
 
 const byProduct = new Map(products.map((p) => [p.id, p]));
 const rows = sortByUnitCost(
@@ -58,14 +65,20 @@ const rows = sortByUnitCost(
 );
 
 if (rows.length < 3) {
-  console.error(`実データが ${rows.length} 件しかありません。OGP は作りません。`);
+  console.error(
+    `実データが ${rows.length} 件しかありません。OGP は作りません。`,
+  );
   process.exit(1);
 }
 
 const line = (row, i) => {
   const y = 330 + i * 74;
-  const name = escapeHtml((names.get(row.product.id) ?? row.product.id).slice(0, 26));
-  const cost = escapeHtml(formatCurrency(row.costPerNutrientUnit, { locale: 'ja', currency: 'JPY' }));
+  const name = escapeHtml(
+    (names.get(row.product.id) ?? row.product.id).slice(0, 26),
+  );
+  const cost = escapeHtml(
+    formatCurrency(row.costPerNutrientUnit, { locale: 'ja', currency: 'JPY' }),
+  );
   return `
   <line x1="80" y1="${y - 30}" x2="1120" y2="${y - 30}" stroke="${INK}" stroke-width="1"/>
   <text x="80"  y="${y}" font-family="monospace" font-size="30" fill="${MUTED}">${i + 1}</text>

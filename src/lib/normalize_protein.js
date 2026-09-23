@@ -22,7 +22,9 @@ export const SERVING_SIZE_RANGE = { min: 5, max: 120 };
 /** 全角英数字・記号を半角へ */
 function toHalfWidth(s) {
   return s
-    .replace(/[Ａ-Ｚａ-ｚ０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0))
+    .replace(/[Ａ-Ｚａ-ｚ０-９]/g, (c) =>
+      String.fromCharCode(c.charCodeAt(0) - 0xfee0),
+    )
     .replace(/[．]/g, '.')
     .replace(/[，]/g, ',')
     .replace(/[　]/g, ' ');
@@ -52,7 +54,8 @@ export function parseNetWeightFromName(name) {
       matches.push({ raw: m[0], grams, index: m.index });
     }
   }
-  if (matches.length === 0) return { valueG: null, ambiguous: false, matches: [] };
+  if (matches.length === 0)
+    return { valueG: null, ambiguous: false, matches: [] };
 
   // 「×2袋」「2個セット」などの掛け算を検出する
   let multiplier = 1;
@@ -68,7 +71,12 @@ export function parseNetWeightFromName(name) {
   if (distinct.length > 1) {
     return { valueG: null, ambiguous: true, matches };
   }
-  return { valueG: distinct[0] * multiplier, ambiguous: false, matches, multiplier };
+  return {
+    valueG: distinct[0] * multiplier,
+    ambiguous: false,
+    matches,
+    multiplier,
+  };
 }
 
 /* ------------------------------------------------------------------ *
@@ -90,13 +98,18 @@ const CANDIDATE_TOLERANCE = 1;
 /** 「100gあたり」「製品100g当たり」「1食(30g)あたり」がどこに書かれているかを拾う */
 function findBases(text) {
   const bases = [];
-  for (const m of text.matchAll(/(?:製品|標準|粉末)?\s*100\s*g\s*(?:当たり|あたり|中)/g)) {
+  for (const m of text.matchAll(
+    /(?:製品|標準|粉末)?\s*100\s*g\s*(?:当たり|あたり|中)/g,
+  )) {
     bases.push({ type: 'per100g', index: m.index });
   }
-  for (const m of text.matchAll(/[(（]?\s*(\d{1,4}(?:\.\d+)?)\s*g\s*[)）]?\s*(?:当たり|あたり)/g)) {
+  for (const m of text.matchAll(
+    /[(（]?\s*(\d{1,4}(?:\.\d+)?)\s*g\s*[)）]?\s*(?:当たり|あたり)/g,
+  )) {
     const grams = Number(m[1]);
     if (grams === 100) continue; // 上で拾っている
-    if (grams < SERVING_SIZE_RANGE.min || grams > SERVING_SIZE_RANGE.max) continue;
+    if (grams < SERVING_SIZE_RANGE.min || grams > SERVING_SIZE_RANGE.max)
+      continue;
     bases.push({ type: 'serving', grams, index: m.index });
   }
   return bases.sort((a, b) => a.index - b.index);
@@ -223,7 +236,10 @@ export function extractProteinFromCaption(caption) {
     (a, b) => BASIS_PRIORITY[a.basis] - BASIS_PRIORITY[b.basis],
   )[0];
 
-  if (chosen.per100g < PROTEIN_RATIO_RANGE.min || chosen.per100g > PROTEIN_RATIO_RANGE.max) {
+  if (
+    chosen.per100g < PROTEIN_RATIO_RANGE.min ||
+    chosen.per100g > PROTEIN_RATIO_RANGE.max
+  ) {
     return { ...empty, servingSizeG };
   }
 
@@ -261,9 +277,16 @@ export function classifyProteinType(itemName) {
  * どの表記からでも 100gあたりg（中間形式）を求める。
  * 求まらなければ null。推定しない。
  */
-export function toPer100g({ proteinPer100g, contentRatioPercent, proteinPerServingG, servingSizeG }) {
-  if (Number.isFinite(proteinPer100g) && proteinPer100g > 0) return proteinPer100g;
-  if (Number.isFinite(contentRatioPercent) && contentRatioPercent > 0) return contentRatioPercent;
+export function toPer100g({
+  proteinPer100g,
+  contentRatioPercent,
+  proteinPerServingG,
+  servingSizeG,
+}) {
+  if (Number.isFinite(proteinPer100g) && proteinPer100g > 0)
+    return proteinPer100g;
+  if (Number.isFinite(contentRatioPercent) && contentRatioPercent > 0)
+    return contentRatioPercent;
   if (
     Number.isFinite(proteinPerServingG) &&
     proteinPerServingG > 0 &&
@@ -306,7 +329,8 @@ export function normalizeProtein(input) {
 
   // 1食量。ラベルにない場合は 100g を1食とみなす正規形に倒す。
   // こうしても単価は変わらない（amount_elemental × servings_per_unit が保存される）。
-  const serving = Number.isFinite(servingSizeG) && servingSizeG > 0 ? servingSizeG : 100;
+  const serving =
+    Number.isFinite(servingSizeG) && servingSizeG > 0 ? servingSizeG : 100;
 
   let servings = servingsPerUnit;
   if (!(Number.isFinite(servings) && servings > 0)) {

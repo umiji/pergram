@@ -24,8 +24,17 @@ import { parseArgs } from 'node:util';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-import { extractProteinFromCaption, parseNetWeightFromName } from '../src/lib/normalize_protein.js';
-import { apiHeaders, buildApiUrl, pickBuyUrl, pickPostageIncluded, readCredentials } from './rakuten_api.js';
+import {
+  extractProteinFromCaption,
+  parseNetWeightFromName,
+} from '../src/lib/normalize_protein.js';
+import {
+  apiHeaders,
+  buildApiUrl,
+  pickBuyUrl,
+  pickPostageIncluded,
+  readCredentials,
+} from './rakuten_api.js';
 
 const REQUEST_INTERVAL_MS = 1100;
 const HITS_PER_PAGE = 30;
@@ -78,7 +87,14 @@ export function shouldExclude(itemName) {
  *    掲載順は取り込み後に有効成分1単位あたりの価格で決まる。
  * affiliateId を渡すと、返ってくる itemUrl / affiliateUrl がアフィリエイト URL になる。
  */
-export function buildSearchUrl({ appId, accessKey, affiliateId, keyword, page, minPrice = MIN_PRICE_JPY }) {
+export function buildSearchUrl({
+  appId,
+  accessKey,
+  affiliateId,
+  keyword,
+  page,
+  minPrice = MIN_PRICE_JPY,
+}) {
   return buildApiUrl({
     appId,
     accessKey,
@@ -94,12 +110,23 @@ export function buildSearchUrl({ appId, accessKey, affiliateId, keyword, page, m
   });
 }
 
-async function fetchPage({ appId, accessKey, affiliateId, appUrl, keyword, page }) {
+async function fetchPage({
+  appId,
+  accessKey,
+  affiliateId,
+  appUrl,
+  keyword,
+  page,
+}) {
   const url = buildSearchUrl({ appId, accessKey, affiliateId, keyword, page });
 
-  const res = await fetch(url, { headers: apiHeaders({ appUrl, purpose: 'data collection' }) });
+  const res = await fetch(url, {
+    headers: apiHeaders({ appUrl, purpose: 'data collection' }),
+  });
   if (!res.ok) {
-    throw new Error(`楽天 API が ${res.status} を返しました: ${await res.text()}`);
+    throw new Error(
+      `楽天 API が ${res.status} を返しました: ${await res.text()}`,
+    );
   }
   return res.json();
 }
@@ -113,7 +140,9 @@ function pickImageUrl(item) {
   const first = urls[0];
   const url = typeof first === 'string' ? first : first?.imageUrl;
   // 楽天は末尾に `?_ex=128x128` のようなサイズ指定を付けて返す
-  return typeof url === 'string' && url.length > 0 ? url.replace(/\?_ex=\d+x\d+$/, '') : null;
+  return typeof url === 'string' && url.length > 0
+    ? url.replace(/\?_ex=\d+x\d+$/, '')
+    : null;
 }
 
 export function toDraftRow(item, fetchedAt) {
@@ -149,7 +178,10 @@ export function toDraftRow(item, fetchedAt) {
     // 正規表現で拾えるのは説明文の一部だけ。読めなかった行を後から埋め直せるよう、
     // 元の説明文をそのまま持たせる。
     // 🔒 置くのは下書き（data/_drafts、.gitignore 済み）まで。公開データには入れない。
-    item_caption: typeof item.itemCaption === 'string' && item.itemCaption.length > 0 ? item.itemCaption : null,
+    item_caption:
+      typeof item.itemCaption === 'string' && item.itemCaption.length > 0
+        ? item.itemCaption
+        : null,
 
     // --- ここから人間が埋める ---
     brand: null, // API は店舗名しか返さない。商品名から判別して記入する
@@ -207,7 +239,9 @@ async function main() {
     ({ appId, accessKey, appUrl, affiliateId } = readCredentials(process.env));
   } catch (err) {
     console.error(err.message);
-    console.error('https://webservice.rakuten.co.jp/ のアプリ情報から取得してください。');
+    console.error(
+      'https://webservice.rakuten.co.jp/ のアプリ情報から取得してください。',
+    );
     process.exit(1);
   }
 
@@ -215,7 +249,9 @@ async function main() {
   //    広告表示（「アフィリエイトリンクを含みます」）と食い違う。
   //    収集は下書きで止まるので警告に留める（価格更新は公開データを上書きするので止める）。
   if (!affiliateId) {
-    console.error('RAKUTEN_AFFILIATE_ID が未設定です。素の商品 URL で収集します。');
+    console.error(
+      'RAKUTEN_AFFILIATE_ID が未設定です。素の商品 URL で収集します。',
+    );
   }
 
   const { keyword, pages } = options;
@@ -225,7 +261,14 @@ async function main() {
   let excluded = 0;
 
   for (let page = 1; page <= pages; page += 1) {
-    const json = await fetchPage({ appId, accessKey, affiliateId, appUrl, keyword, page });
+    const json = await fetchPage({
+      appId,
+      accessKey,
+      affiliateId,
+      appUrl,
+      keyword,
+      page,
+    });
     const items = (json.Items ?? []).map((wrapper) => wrapper.Item ?? wrapper);
     if (items.length === 0) break;
 
@@ -244,7 +287,8 @@ async function main() {
   }
 
   const outPath =
-    options.out ?? path.join('data', '_drafts', `rakuten_${keyword}_${fetchedAt}.json`);
+    options.out ??
+    path.join('data', '_drafts', `rakuten_${keyword}_${fetchedAt}.json`);
   await mkdir(path.dirname(outPath), { recursive: true });
   await writeFile(outPath, `${JSON.stringify(rows, null, 2)}\n`, 'utf8');
 
@@ -255,13 +299,25 @@ async function main() {
   console.log(`書き出し: ${outPath}`);
   console.log(`  取得        ${rows.length} 件（除外 ${excluded} 件）`);
   console.log(`  内容量 自動  ${count((r) => r.net_weight_g !== null)} 件`);
-  console.log(`  内容量 曖昧  ${count((r) => r.net_weight_ambiguous)} 件 — 商品ページで確認して net_weight_g に記入`);
+  console.log(
+    `  内容量 曖昧  ${count((r) => r.net_weight_ambiguous)} 件 — 商品ページで確認して net_weight_g に記入`,
+  );
   console.log(`  画像 自動    ${count((r) => r.image_url !== null)} 件`);
-  console.log(`  アフィリエイト ${count((r) => r.is_affiliate)} 件 — 残りは素の商品 URL`);
-  console.log(`  送料 判別    ${count((r) => r.postage_included !== null)} 件 — 込み / 別のみ。金額は取れない`);
-  console.log(`  含有量 自動  ${withContent} 件 — 説明文の栄養成分表示から読み取り`);
-  console.log(`  含有量 曖昧  ${count((r) => r.label_ambiguous)} 件 — 食い違う値。必ず商品ページで確認する`);
-  console.log(`  含有量 要入力 ${needContent} 件 — protein_per_100g を商品ページを見て記入`);
+  console.log(
+    `  アフィリエイト ${count((r) => r.is_affiliate)} 件 — 残りは素の商品 URL`,
+  );
+  console.log(
+    `  送料 判別    ${count((r) => r.postage_included !== null)} 件 — 込み / 別のみ。金額は取れない`,
+  );
+  console.log(
+    `  含有量 自動  ${withContent} 件 — 説明文の栄養成分表示から読み取り`,
+  );
+  console.log(
+    `  含有量 曖昧  ${count((r) => r.label_ambiguous)} 件 — 食い違う値。必ず商品ページで確認する`,
+  );
+  console.log(
+    `  含有量 要入力 ${needContent} 件 — protein_per_100g を商品ページを見て記入`,
+  );
   console.log(`  ブランド 要入力 ${rows.length} 件 — API は店舗名しか返さない`);
 
   if (rows.length > 0) {
@@ -271,7 +327,10 @@ async function main() {
 }
 
 // テストから toDraftRow / buildSearchUrl を読むため、直接実行されたときだけ走らせる。
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (
+  process.argv[1] &&
+  import.meta.url === pathToFileURL(process.argv[1]).href
+) {
   main().catch((err) => {
     console.error(err.message);
     process.exit(1);

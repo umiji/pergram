@@ -35,24 +35,32 @@ async function collectFiles(dir, extensions) {
 }
 
 async function readAll(files) {
-  const contents = await Promise.all(files.map((file) => readFile(file, 'utf8')));
+  const contents = await Promise.all(
+    files.map((file) => readFile(file, 'utf8')),
+  );
   return files.map((file, i) => ({ file, text: contents[i] }));
 }
 
 test('🔒 未定義のカスタムプロパティを参照しない', async () => {
   const defined = new Set();
-  for (const { text } of await readAll(await collectFiles(STYLE_DIR, ['.css']))) {
+  for (const { text } of await readAll(
+    await collectFiles(STYLE_DIR, ['.css']),
+  )) {
     for (const [, name] of text.matchAll(/(--[\w-]+)\s*:/g)) defined.add(name);
   }
 
   const sourceFiles = (
-    await Promise.all(SOURCE_DIRS.map((dir) => collectFiles(dir, ['.css', '.js'])))
+    await Promise.all(
+      SOURCE_DIRS.map((dir) => collectFiles(dir, ['.css', '.js'])),
+    )
   ).flat();
 
   const missing = new Set();
   for (const { file, text } of await readAll(sourceFiles)) {
     // 第2引数はフォールバック。var(--x, 1px) は未定義でも壊れないので見逃す
-    for (const [, name, next] of text.matchAll(/var\(\s*(--[\w-]+)\s*([,)])/g)) {
+    for (const [, name, next] of text.matchAll(
+      /var\(\s*(--[\w-]+)\s*([,)])/g,
+    )) {
       if (next === ')' && !defined.has(name)) missing.add(`${file}: ${name}`);
     }
   }
@@ -60,9 +68,9 @@ test('🔒 未定義のカスタムプロパティを参照しない', async () 
   assert.deepEqual(
     [...missing],
     [],
-    `tokens.css に無いカスタムプロパティを参照しています。宣言ごと捨てられます:\n${[...missing].join(
-      '\n',
-    )}`,
+    `tokens.css に無いカスタムプロパティを参照しています。宣言ごと捨てられます:\n${[
+      ...missing,
+    ].join('\n')}`,
   );
 });
 
@@ -76,10 +84,9 @@ test('🔒 未定義のカスタムプロパティを参照しない', async () 
  */
 test('🔒 [hidden] を作者スタイルで打ち消せないようにしてある', async () => {
   // コメント内にも [hidden]{display:none} と書いてあるので、先に落としてから探す
-  const css = (await readFile(path.join(STYLE_DIR, 'products.css'), 'utf8')).replace(
-    /\/\*[\s\S]*?\*\//g,
-    '',
-  );
+  const css = (
+    await readFile(path.join(STYLE_DIR, 'products.css'), 'utf8')
+  ).replace(/\/\*[\s\S]*?\*\//g, '');
   const rule = css.match(/\[hidden\][^{]*\{[^}]*\}/);
 
   assert.ok(rule, 'products.css に [hidden] のルールがありません');
@@ -105,22 +112,30 @@ test('🔒 リスト表示の min-width が列の合計を下回らない', asyn
   ]);
 
   const tokens = new Map(
-    [...tokensCss.matchAll(/(--space-\d+):\s*(\d+)px/g)].map(([, name, px]) => [name, px]),
+    [...tokensCss.matchAll(/(--space-\d+):\s*(\d+)px/g)].map(([, name, px]) => [
+      name,
+      px,
+    ]),
   );
 
   /** 宣言を取り出し、var(--space-n) を実数に置き換えて px の並びにする */
   function pxValues(name) {
     const declaration = productsCss.match(new RegExp(`${name}:\\s*([^;]+);`));
     assert.ok(declaration, `${name} の宣言が見つかりません`);
-    const resolved = declaration[1].replace(/var\(\s*(--[\w-]+)\s*\)/g, (_, token) => {
-      const px = tokens.get(token);
-      assert.ok(px, `${token} が tokens.css にありません`);
-      return `${px}px`;
-    });
-    // minmax(160px, 2fr) は下限の 160px を取る。これ以上は縮まない
-    return [...resolved.replace(/minmax\(\s*(\d+)px[^)]*\)/g, '$1px').matchAll(/(\d+)px/g)].map(
-      ([, px]) => Number(px),
+    const resolved = declaration[1].replace(
+      /var\(\s*(--[\w-]+)\s*\)/g,
+      (_, token) => {
+        const px = tokens.get(token);
+        assert.ok(px, `${token} が tokens.css にありません`);
+        return `${px}px`;
+      },
     );
+    // minmax(160px, 2fr) は下限の 160px を取る。これ以上は縮まない
+    return [
+      ...resolved
+        .replace(/minmax\(\s*(\d+)px[^)]*\)/g, '$1px')
+        .matchAll(/(\d+)px/g),
+    ].map(([, px]) => Number(px));
   }
 
   const columns = pxValues('--list-cols');
@@ -133,7 +148,9 @@ test('🔒 リスト表示の min-width が列の合計を下回らない', asyn
   const paddingX = padding.length === 1 ? padding[0] : padding[1];
 
   const required =
-    columns.reduce((sum, w) => sum + w, 0) + columnGap * (columns.length - 1) + paddingX * 2;
+    columns.reduce((sum, w) => sum + w, 0) +
+    columnGap * (columns.length - 1) +
+    paddingX * 2;
 
   assert.ok(
     min >= required,
@@ -196,11 +213,21 @@ function parseColor(value) {
     const digits = hex[1];
     if (digits.length === 3 || digits.length === 4) {
       const channels = [...digits].map((d) => parseInt(d + d, 16));
-      return [channels[0], channels[1], channels[2], channels.length === 4 ? channels[3] / 255 : 1];
+      return [
+        channels[0],
+        channels[1],
+        channels[2],
+        channels.length === 4 ? channels[3] / 255 : 1,
+      ];
     }
     if (digits.length === 6 || digits.length === 8) {
       const channels = digits.match(/../g).map((pair) => parseInt(pair, 16));
-      return [channels[0], channels[1], channels[2], channels.length === 4 ? channels[3] / 255 : 1];
+      return [
+        channels[0],
+        channels[1],
+        channels[2],
+        channels.length === 4 ? channels[3] / 255 : 1,
+      ];
     }
   }
 
@@ -208,7 +235,9 @@ function parseColor(value) {
   if (fn) {
     const parts = fn[1].split(/[,\s/]+/).filter(Boolean);
     const channel = (part) =>
-      part.endsWith('%') ? (Number.parseFloat(part) / 100) * 255 : Number.parseFloat(part);
+      part.endsWith('%')
+        ? (Number.parseFloat(part) / 100) * 255
+        : Number.parseFloat(part);
     if (parts.length >= 3) {
       const alphaPart = parts[3];
       const alpha =
@@ -250,14 +279,18 @@ function relativeLuminance([r, g, b]) {
 
 /** WCAG 2.x のコントラスト比。1〜21 を返す */
 function contrastRatio(a, b) {
-  const [lighter, darker] = [relativeLuminance(a), relativeLuminance(b)].sort((x, y) => y - x);
+  const [lighter, darker] = [relativeLuminance(a), relativeLuminance(b)].sort(
+    (x, y) => y - x,
+  );
   return (lighter + 0.05) / (darker + 0.05);
 }
 
 /** tokens.css の :root 宣言を name -> value で読む */
 function readTokens(css) {
   const tokens = new Map();
-  for (const [, name, value] of stripComments(css).matchAll(/(--[\w-]+)\s*:\s*([^;}]+)/g)) {
+  for (const [, name, value] of stripComments(css).matchAll(
+    /(--[\w-]+)\s*:\s*([^;}]+)/g,
+  )) {
     tokens.set(name, value.trim());
   }
   return tokens;
@@ -269,7 +302,10 @@ function resolveVars(value, tokens, depth = 0) {
   const reference = /var\(\s*(--[\w-]+)\s*\)/.exec(value);
   if (!reference) return value.trim();
   const resolved = tokens.get(reference[1]);
-  assert.ok(resolved !== undefined, `${reference[1]} が tokens.css にありません`);
+  assert.ok(
+    resolved !== undefined,
+    `${reference[1]} が tokens.css にありません`,
+  );
   return resolveVars(value.replace(reference[0], resolved), tokens, depth + 1);
 }
 
@@ -280,19 +316,26 @@ function resolveVars(value, tokens, depth = 0) {
  */
 function declarationsFor(css, selector) {
   const declarations = new Map();
-  for (const [, selectorText, body] of stripComments(css).matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
-    if (!selectorText.split(',').some((one) => one.trim() === selector)) continue;
+  for (const [, selectorText, body] of stripComments(css).matchAll(
+    /([^{}]+)\{([^{}]*)\}/g,
+  )) {
+    if (!selectorText.split(',').some((one) => one.trim() === selector))
+      continue;
     for (const declaration of body.split(';')) {
       const colon = declaration.indexOf(':');
       if (colon > 0) {
-        declarations.set(declaration.slice(0, colon).trim(), declaration.slice(colon + 1).trim());
+        declarations.set(
+          declaration.slice(0, colon).trim(),
+          declaration.slice(colon + 1).trim(),
+        );
       }
     }
   }
   return declarations;
 }
 
-const pickColor = (value) => (value ? (COLOR_PATTERN.exec(value) || [null])[0] : null);
+const pickColor = (value) =>
+  value ? (COLOR_PATTERN.exec(value) || [null])[0] : null;
 
 /**
  * ボタンの実効色を出す。selectors はカスケード順（`.btn` → `.btn--signal` → `:hover`）。
@@ -303,23 +346,31 @@ const pickColor = (value) => (value ? (COLOR_PATTERN.exec(value) || [null])[0] :
 function buttonColors(css, tokens, selectors, page) {
   const declarations = new Map();
   for (const selector of selectors) {
-    for (const [property, value] of declarationsFor(css, selector)) declarations.set(property, value);
+    for (const [property, value] of declarationsFor(css, selector))
+      declarations.set(property, value);
   }
   if (declarations.size === 0) return null;
 
   const resolve = (raw) => parseColor(resolveVars(raw, tokens));
 
-  const rawFill = pickColor(declarations.get('background') ?? declarations.get('background-color'));
+  const rawFill = pickColor(
+    declarations.get('background') ?? declarations.get('background-color'),
+  );
   const fill = rawFill ? composite(resolve(rawFill), page) : page;
 
   const rawText = pickColor(declarations.get('color'));
   const text = rawText ? composite(resolve(rawText), fill) : null;
 
-  const rawBorder = pickColor(declarations.get('border-color') ?? declarations.get('border'));
+  const rawBorder = pickColor(
+    declarations.get('border-color') ?? declarations.get('border'),
+  );
   const borderColor = rawBorder ? resolve(rawBorder) : null;
   // border: none / 幅 0 は境界が無いのと同じ
-  const hasBorderWidth = !/^\s*(none|0)\b/.test(declarations.get('border') ?? '1px');
-  const border = borderColor && hasBorderWidth ? composite(borderColor, page) : null;
+  const hasBorderWidth = !/^\s*(none|0)\b/.test(
+    declarations.get('border') ?? '1px',
+  );
+  const border =
+    borderColor && hasBorderWidth ? composite(borderColor, page) : null;
 
   return { fill, text, border, declarations };
 }
@@ -333,7 +384,10 @@ async function loadStyle(file) {
 async function loadContext() {
   const tokens = readTokens(await loadStyle('tokens.css'));
   const page = parseColor(resolveVars(`var(${PAGE_BACKGROUND_TOKEN})`, tokens));
-  const [lp, products] = await Promise.all([loadStyle('lp.css'), loadStyle('products.css')]);
+  const [lp, products] = await Promise.all([
+    loadStyle('lp.css'),
+    loadStyle('products.css'),
+  ]);
   return { tokens, page, sheets: { 'lp.css': lp, 'products.css': products } };
 }
 
@@ -377,11 +431,19 @@ test('🔒 完了条件1b: 従CTA の面か境界がページ背景に対して 
   //    テンプレートに現れて初めて検査対象にする。
   const templates = await readAll(await collectFiles('src/templates', ['.js']));
   const markup = templates.map(({ text }) => text).join('\n');
-  const targets = ['.btn--quiet', ...(markup.includes('btn--subtle') ? ['.btn--subtle'] : [])];
+  const targets = [
+    '.btn--quiet',
+    ...(markup.includes('btn--subtle') ? ['.btn--subtle'] : []),
+  ];
 
   const failures = [];
   for (const target of targets) {
-    const colors = buttonColors(sheets['lp.css'], tokens, ['.btn', target], page);
+    const colors = buttonColors(
+      sheets['lp.css'],
+      tokens,
+      ['.btn', target],
+      page,
+    );
     assert.ok(colors, `lp.css に ${target} のルールがありません`);
 
     const fillRatio = contrastRatio(colors.fill, page);
@@ -408,7 +470,12 @@ test('🔒 完了条件1b: 従CTA の面か境界がページ背景に対して 
 
 test('完了条件1b: 従CTA (.btn--quiet) の文字が自分の面に対して 4.5:1 以上', async () => {
   const { tokens, page, sheets } = await loadContext();
-  const colors = buttonColors(sheets['lp.css'], tokens, ['.btn', '.btn--quiet'], page);
+  const colors = buttonColors(
+    sheets['lp.css'],
+    tokens,
+    ['.btn', '.btn--quiet'],
+    page,
+  );
 
   assert.ok(colors?.text, 'lp.css の .btn--quiet に color の宣言がありません');
   const ratio = contrastRatio(colors.text, colors.fill);
@@ -424,12 +491,24 @@ test('完了条件1b: 従CTA (.btn--quiet) の文字が自分の面に対して 
 
 test('完了条件3: コントラスト比の計算が、変更前の色を実際に落とせる', () => {
   // 式そのものの自己検査。WCAG の既知の値と一致しなければ、上の判定は信用できない
-  assert.equal(round2(contrastRatio(parseColor('#000'), parseColor('#fff'))), 21);
-  assert.equal(round2(contrastRatio(parseColor('#fff'), parseColor('#fff'))), 1);
-  assert.equal(round2(contrastRatio(parseColor('#777'), parseColor('#fff'))), 4.48);
+  assert.equal(
+    round2(contrastRatio(parseColor('#000'), parseColor('#fff'))),
+    21,
+  );
+  assert.equal(
+    round2(contrastRatio(parseColor('#fff'), parseColor('#fff'))),
+    1,
+  );
+  assert.equal(
+    round2(contrastRatio(parseColor('#777'), parseColor('#fff'))),
+    4.48,
+  );
 
   // 半透明の合成も同じ経路で効いていること
-  const opaque = composite(parseColor('rgba(0, 0, 0, 0.5)'), parseColor('#fff'));
+  const opaque = composite(
+    parseColor('rgba(0, 0, 0, 0.5)'),
+    parseColor('#fff'),
+  );
   assert.deepEqual(opaque.map(Math.round), [128, 128, 128, 1]);
 
   // T-010 のレビュー R-010-1 が測った変更前の値。ここが 4.5 / 3 を超えたら
@@ -442,11 +521,25 @@ test('完了条件3: コントラスト比の計算が、変更前の色を実�
     ),
   };
 
-  assert.equal(round2(before.signal), 3.56, '変更前の主CTA は 3.56:1（T-017 §目的の「約 3.6」）');
-  assert.equal(round2(before.quietBorder), 1.23, '変更前の従CTA の境界は 1.23:1（同「約 1.25」）');
+  assert.equal(
+    round2(before.signal),
+    3.56,
+    '変更前の主CTA は 3.56:1（T-017 §目的の「約 3.6」）',
+  );
+  assert.equal(
+    round2(before.quietBorder),
+    1.23,
+    '変更前の従CTA の境界は 1.23:1（同「約 1.25」）',
+  );
 
-  assert.ok(before.signal < TEXT_CONTRAST_MIN, '変更前の主CTA は 4.5:1 を下回るはず');
-  assert.ok(before.quietBorder < NON_TEXT_CONTRAST_MIN, '変更前の従CTA の境界は 3:1 を下回るはず');
+  assert.ok(
+    before.signal < TEXT_CONTRAST_MIN,
+    '変更前の主CTA は 4.5:1 を下回るはず',
+  );
+  assert.ok(
+    before.quietBorder < NON_TEXT_CONTRAST_MIN,
+    '変更前の従CTA の境界は 3:1 を下回るはず',
+  );
 });
 
 /* ---- 完了条件6: 他のボタンが悪化していないこと -------------------------- */
@@ -467,7 +560,12 @@ const CONTRAST_BASELINE = [
   { file: 'lp.css', selector: '.btn--signal', measure: 'fill', min: 3.4 },
   { file: 'products.css', selector: '.btn--dark', measure: 'text', min: 17.85 },
   { file: 'products.css', selector: '.btn--dark', measure: 'fill', min: 17.09 },
-  { file: 'products.css', selector: '.btn--ghost', measure: 'text', min: 17.09 },
+  {
+    file: 'products.css',
+    selector: '.btn--ghost',
+    measure: 'text',
+    min: 17.09,
+  },
   { file: 'products.css', selector: '.btn--signal', measure: 'fill', min: 3.4 },
 ];
 
@@ -485,8 +583,10 @@ test('完了条件6: 他の .btn--* のコントラスト比が変更前より�
         : contrastRatio(colors.fill, page);
 
     if (round2(ratio) < min) {
-      regressions.push(`${file} ${selector} の${measure === 'text' ? '文字' : '面'}: ` +
-        `${round2(ratio)}:1（変更前は ${min}:1）`);
+      regressions.push(
+        `${file} ${selector} の${measure === 'text' ? '文字' : '面'}: ` +
+          `${round2(ratio)}:1（変更前は ${min}:1）`,
+      );
     }
   }
 
@@ -514,7 +614,10 @@ test('回帰: 従CTA のホバー時の文字がページ背景に対して 4.5:
     page,
   );
 
-  assert.ok(colors?.text, 'lp.css の .btn--quiet:hover に color の宣言がありません');
+  assert.ok(
+    colors?.text,
+    'lp.css の .btn--quiet:hover に color の宣言がありません',
+  );
   const ratio = contrastRatio(colors.text, colors.fill);
 
   assert.ok(

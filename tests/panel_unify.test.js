@@ -87,9 +87,19 @@ const PANEL_TOKENS = [
 ];
 
 /** 設計書 §2.4。この4つの面は角丸・背景・枠線・余白を直書きしない */
-const PANEL_SELECTORS = ['.explainer', '.request-band__inner', '.request-flow__step'];
+const PANEL_SELECTORS = [
+  '.explainer',
+  '.request-band__inner',
+  '.request-flow__step',
+];
 /** 面の幾何を決めるプロパティ。ここに literal が残っていたら統一されていない */
-const PANEL_PROPERTIES = ['padding', 'background', 'background-color', 'border', 'border-radius'];
+const PANEL_PROPERTIES = [
+  'padding',
+  'background',
+  'background-color',
+  'border',
+  'border-radius',
+];
 
 const nutrients = [
   { id: 'protein', count: rows.length },
@@ -175,7 +185,9 @@ async function collectCss(dir = STYLE_DIR) {
       const full = path.join(dir, entry.name);
       if (entry.isDirectory()) return collectCss(full);
       if (!full.endsWith('.css')) return [];
-      return [{ file: full, text: stripComments(await readFile(full, 'utf8')) }];
+      return [
+        { file: full, text: stripComments(await readFile(full, 'utf8')) },
+      ];
     }),
   );
   return nested.flat();
@@ -202,7 +214,10 @@ function resolveVars(value, depth = 0) {
   const reference = /var\(\s*(--[\w-]+)\s*\)/.exec(value);
   if (!reference) return value.replace(/\s+/g, ' ').trim();
   const resolved = TOKENS.get(reference[1]);
-  assert.ok(resolved !== undefined, `${reference[1]} が tokens.css にありません`);
+  assert.ok(
+    resolved !== undefined,
+    `${reference[1]} が tokens.css にありません`,
+  );
   return resolveVars(value.replace(reference[0], resolved), depth + 1);
 }
 
@@ -217,8 +232,11 @@ function resolveVars(value, depth = 0) {
 function declarationsOf(selector) {
   const found = [];
   for (const { file, text } of CSS_FILES) {
-    for (const [, selectorText, body] of text.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
-      if (!selectorText.split(',').some((one) => one.trim() === selector)) continue;
+    for (const [, selectorText, body] of text.matchAll(
+      /([^{}]+)\{([^{}]*)\}/g,
+    )) {
+      if (!selectorText.split(',').some((one) => one.trim() === selector))
+        continue;
       for (const declaration of body.split(';')) {
         const colon = declaration.indexOf(':');
         if (colon <= 0) continue;
@@ -235,7 +253,9 @@ function declarationsOf(selector) {
 
 /** そのセレクタで最後に効く値。無ければ null */
 function effectiveValue(selector, property) {
-  const hits = declarationsOf(selector).filter((one) => one.property === property);
+  const hits = declarationsOf(selector).filter(
+    (one) => one.property === property,
+  );
   return hits.length ? hits[hits.length - 1].value : null;
 }
 
@@ -251,8 +271,14 @@ test('A-1 ja に礼の文言のキーがあり、礼と依頼の2文を含む', 
     `locales/ja.json に ${THANKS_KEY} がありません（キー名は design.md §7 が決めている）`,
   );
   const value = ja[THANKS_KEY];
-  assert.ok(value.includes(THANKS_1), `${THANKS_KEY} に「${THANKS_1}」が含まれていません`);
-  assert.ok(value.includes(THANKS_2), `${THANKS_KEY} に「${THANKS_2}」が含まれていません`);
+  assert.ok(
+    value.includes(THANKS_1),
+    `${THANKS_KEY} に「${THANKS_1}」が含まれていません`,
+  );
+  assert.ok(
+    value.includes(THANKS_2),
+    `${THANKS_KEY} に「${THANKS_2}」が含まれていません`,
+  );
   assert.ok(
     value.indexOf(THANKS_1) < value.indexOf(THANKS_2),
     '礼より先に依頼が来ています。PO の指示は「礼と依頼の順」',
@@ -262,11 +288,17 @@ test('A-1 ja に礼の文言のキーがあり、礼と依頼の2文を含む', 
 test('A-4 en にも同じキーがある（キー集合の一致は render.test.js が見ている）', async () => {
   const en = JSON.parse(await readFile('locales/en.json', 'utf8'));
   assert.ok(THANKS_KEY in en, `locales/en.json に ${THANKS_KEY} がありません`);
-  assert.ok(String(en[THANKS_KEY]).trim().length > 0, `${THANKS_KEY}(en) が空です`);
+  assert.ok(
+    String(en[THANKS_KEY]).trim().length > 0,
+    `${THANKS_KEY}(en) が空です`,
+  );
 });
 
 test('A-2 製品一覧で、礼の文がアンケートの見出しより前に出る', async () => {
-  for (const { name, html } of await htmlSources('dist/ja/protein/index.html', renderProducts())) {
+  for (const { name, html } of await htmlSources(
+    'dist/ja/protein/index.html',
+    renderProducts(),
+  )) {
     const thanks = html.indexOf(THANKS_1);
     const heading = html.indexOf(SURVEY_HEADING);
     assert.ok(thanks >= 0, `${name}: 礼の文「${THANKS_1}」がありません`);
@@ -279,7 +311,10 @@ test('A-2 製品一覧で、礼の文がアンケートの見出しより前に�
 });
 
 test('A-2 LP でも、礼の文がアンケートの見出しより前に出る', async () => {
-  for (const { name, html } of await htmlSources('dist/ja/index.html', renderLp())) {
+  for (const { name, html } of await htmlSources(
+    'dist/ja/index.html',
+    renderLp(),
+  )) {
     const thanks = html.indexOf(THANKS_1);
     const heading = html.indexOf(SURVEY_HEADING);
     assert.ok(thanks >= 0, `${name}: 礼の文「${THANKS_1}」がありません`);
@@ -302,7 +337,11 @@ test('A-3 免責の一文が、描画結果にも dist にも1回も出ない', 
 
   for (const { name, html } of sources) {
     const count = html.split(RETIRED_LEDE).length - 1;
-    assert.equal(count, 0, `${name}: 「${RETIRED_LEDE}」が ${count} 回残っています`);
+    assert.equal(
+      count,
+      0,
+      `${name}: 「${RETIRED_LEDE}」が ${count} 回残っています`,
+    );
   }
 });
 
@@ -349,7 +388,8 @@ test('B-2 面のコンポーネントが角丸・背景・枠線・余白を直�
       if (!PANEL_PROPERTIES.includes(property)) continue;
       // 値が --panel-* の参照だけで出来ていること。literal も他トークンも許さない
       const rest = value.replace(/var\(\s*--panel-[\w-]*\s*\)/g, '').trim();
-      if (rest !== '') offenders.push(`${file}: ${selector} { ${property}: ${value} }`);
+      if (rest !== '')
+        offenders.push(`${file}: ${selector} { ${property}: ${value} }`);
     }
   }
   assert.deepEqual(
@@ -363,7 +403,12 @@ test('B-2 面のコンポーネントが角丸・背景・枠線・余白を直�
 
 test('B-2 面の幾何がトークン経由で実際に指定されている（消しただけにしない）', () => {
   for (const selector of PANEL_SELECTORS) {
-    for (const property of ['padding', 'background', 'border', 'border-radius']) {
+    for (const property of [
+      'padding',
+      'background',
+      'border',
+      'border-radius',
+    ]) {
       const value = effectiveValue(selector, property);
       assert.ok(
         value && /var\(\s*--panel-[\w-]*\s*\)/.test(value),
@@ -395,7 +440,10 @@ test('B-4 T1: 段の見出しは常に --size-md（画面幅で変えない）',
   const sizes = declarationsOf('.request-flow__heading').filter(
     (one) => one.property === 'font-size',
   );
-  assert.ok(sizes.length > 0, '.request-flow__heading に font-size がありません');
+  assert.ok(
+    sizes.length > 0,
+    '.request-flow__heading に font-size がありません',
+  );
   for (const { file, value } of sizes) {
     assert.equal(
       resolveVars(value),
@@ -416,7 +464,10 @@ test('B-4 T2: 完了表示が面のラベルと同じ字送りになっている
   for (const selector of ['.explainer__label', '.request-flow__done']) {
     for (const [property, want] of Object.entries(expected)) {
       const value = effectiveValue(selector, property);
-      assert.ok(value !== null, `${selector} に ${property} がありません（T2）`);
+      assert.ok(
+        value !== null,
+        `${selector} に ${property} がありません（T2）`,
+      );
       assert.equal(
         resolveVars(value),
         want,
@@ -444,13 +495,25 @@ test('B-4 T3: 本文・リードの字送りが揃っている', () => {
     const color = effectiveValue(selector, 'color');
     assert.ok(size !== null, `${selector} に font-size がありません（T3）`);
     assert.ok(color !== null, `${selector} に color がありません（T3）`);
-    assert.equal(resolveVars(size), wantSize, `${selector} の font-size が T3 と違います（${size}）`);
-    assert.equal(resolveVars(color), wantColor, `${selector} の color が T3 と違います（${color}）`);
+    assert.equal(
+      resolveVars(size),
+      wantSize,
+      `${selector} の font-size が T3 と違います（${size}）`,
+    );
+    assert.equal(
+      resolveVars(color),
+      wantColor,
+      `${selector} の color が T3 と違います（${color}）`,
+    );
 
     // 行送りは宣言されているものだけ見る（design.md §3 の変更点表に載るのは .notice）
     const lineHeight = effectiveValue(selector, 'line-height');
     if (lineHeight !== null) {
-      assert.equal(lineHeight, '1.8', `${selector} の line-height が T3（1.8）と違います`);
+      assert.equal(
+        lineHeight,
+        '1.8',
+        `${selector} の line-height が T3（1.8）と違います`,
+      );
     }
   }
 });
@@ -465,8 +528,11 @@ ${requestFlow(t, { support: market.support })}`;
 
 async function clickRequest() {
   const dom = await runLpScript(page(), { scriptPath: SCRIPT });
-  const step = (kind) => dom.body.querySelector(`[data-request-step="${kind}"]`);
-  dom.body.querySelectorAll('[data-request-cta]')[0].dispatchEvent(new DomEvent('click'));
+  const step = (kind) =>
+    dom.body.querySelector(`[data-request-step="${kind}"]`);
+  dom.body
+    .querySelectorAll('[data-request-cta]')[0]
+    .dispatchEvent(new DomEvent('click'));
   await dom.flush();
   return { dom, step };
 }
@@ -474,7 +540,9 @@ async function clickRequest() {
 test('B-5 アンケートを飛ばすと、段そのものが畳まれる（空の器が残らない）', async () => {
   const { dom, step } = await clickRequest();
 
-  dom.body.querySelector('[data-request-skip="survey"]').dispatchEvent(new DomEvent('click'));
+  dom.body
+    .querySelector('[data-request-skip="survey"]')
+    .dispatchEvent(new DomEvent('click'));
   await dom.flush();
 
   assert.equal(
@@ -495,7 +563,8 @@ test('B-5 回答を送った段は器が残り、完了文言が読める', asyn
   const { dom, step } = await clickRequest();
 
   const form = dom.body.querySelector('[data-request-survey]');
-  form.querySelector('input[name="nutrients"][value="creatine"]').checked = true;
+  form.querySelector('input[name="nutrients"][value="creatine"]').checked =
+    true;
   form.dispatchEvent(new DomEvent('submit'));
   await dom.flush();
 

@@ -10,7 +10,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-import { contentSecurityPolicy, headersFile, supportOriginOf } from '../src/build/headers.js';
+import {
+  contentSecurityPolicy,
+  headersFile,
+  supportOriginOf,
+} from '../src/build/headers.js';
 
 const markets = JSON.parse(await readFile('config/markets.json', 'utf8'));
 
@@ -37,11 +41,20 @@ test('🔒 支援ウィジェットを出す市場では CSP がその3経路を
   const csp = contentSecurityPolicy({ supportOrigin: origin });
 
   // script: cms.js が cms-core.js を追加で読む
-  assert.ok(directive(csp, 'script-src').includes(origin), 'script-src に許可がありません');
+  assert.ok(
+    directive(csp, 'script-src').includes(origin),
+    'script-src に許可がありません',
+  );
   // style: paywall.css とテーマ CSS を <link> で差し込む
-  assert.ok(directive(csp, 'style-src').includes(origin), 'style-src に許可がありません');
+  assert.ok(
+    directive(csp, 'style-src').includes(origin),
+    'style-src に許可がありません',
+  );
   // connect: 記事本文などを API から取得する
-  assert.ok(directive(csp, 'connect-src').includes(origin), 'connect-src に許可がありません');
+  assert.ok(
+    directive(csp, 'connect-src').includes(origin),
+    'connect-src に許可がありません',
+  );
 });
 
 // 🔒 これが無いと支援ウィジェットは「読み込みも通信も成功したのに画面が空」になる。
@@ -64,7 +77,9 @@ test("🔒 支援ウィジェットを出す市場では script-src に 'unsafe-
 test('支援ウィジェットを出さない市場では外部オリジンが増えない', () => {
   assert.equal(markets.US.support, null);
 
-  const withSupport = contentSecurityPolicy({ supportOrigin: 'https://example.test' });
+  const withSupport = contentSecurityPolicy({
+    supportOrigin: 'https://example.test',
+  });
   const without = contentSecurityPolicy({ supportOrigin: null });
 
   assert.ok(!without.includes('example.test'));
@@ -74,7 +89,10 @@ test('支援ウィジェットを出さない市場では外部オリジンが�
 // 🔒 緩めるのは支援ウィジェットを出す市場だけ。理由が無い市場まで道連れにしない
 test("🔒 支援ウィジェットを出さない市場では 'unsafe-eval' を許可しない", () => {
   const csp = contentSecurityPolicy({ supportOrigin: null });
-  assert.ok(!csp.includes("'unsafe-eval'"), "'unsafe-eval' が無条件に付いています");
+  assert.ok(
+    !csp.includes("'unsafe-eval'"),
+    "'unsafe-eval' が無条件に付いています",
+  );
 });
 
 // 🔒 既定の締め方を緩めない。ここが緩むと XSS の被害が一段深くなる
@@ -98,7 +116,10 @@ test('_headers に主要なセキュリティヘッダが揃っている', () =>
   ]) {
     assert.ok(text.includes(header), `${header} がありません`);
   }
-  assert.ok(text.startsWith('/*\n'), 'すべてのパスに当たる指定になっていません');
+  assert.ok(
+    text.startsWith('/*\n'),
+    'すべてのパスに当たる指定になっていません',
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -139,7 +160,10 @@ const MEASUREMENT_CONNECT_SRC = [
 
 test('🔒 connect-src が GA4 と広告タグの送信先をすべて許可する', () => {
   for (const supportOrigin of [null, supportOriginOf(markets.JP.support)]) {
-    const allowed = sources(contentSecurityPolicy({ supportOrigin }), 'connect-src');
+    const allowed = sources(
+      contentSecurityPolicy({ supportOrigin }),
+      'connect-src',
+    );
     for (const host of MEASUREMENT_CONNECT_SRC) {
       assert.ok(
         allowed.includes(host),
@@ -152,10 +176,19 @@ test('🔒 connect-src が GA4 と広告タグの送信先をすべて許可す�
 // 🔒 全許可で塞ぐのは禁止。必要なホストだけを列挙する
 test('🔒 connect-src をスキーム全許可・ワイルドカード単独で塞がない', () => {
   for (const supportOrigin of [null, supportOriginOf(markets.JP.support)]) {
-    const allowed = sources(contentSecurityPolicy({ supportOrigin }), 'connect-src');
+    const allowed = sources(
+      contentSecurityPolicy({ supportOrigin }),
+      'connect-src',
+    );
     // `https://*.doubleclick.net` は `ad.doubleclick.net` と `*.g.doubleclick.net` を
     // 1本にまとめたくなる書き方だが、必要のないサブドメインまで開く。個別に列挙する
-    for (const wildcard of ['https:', '*', 'https://*', 'http:', 'https://*.doubleclick.net']) {
+    for (const wildcard of [
+      'https:',
+      '*',
+      'https://*',
+      'http:',
+      'https://*.doubleclick.net',
+    ]) {
       assert.ok(
         !allowed.includes(wildcard),
         `connect-src に ${wildcard} があります（必要なホストだけを列挙する）`,
@@ -183,7 +216,10 @@ const MEASUREMENT_SCRIPT_SRC = [
 
 test('🔒 script-src が計測スクリプトの配信元をすべて許可する', () => {
   for (const supportOrigin of [null, supportOriginOf(markets.JP.support)]) {
-    const allowed = sources(contentSecurityPolicy({ supportOrigin }), 'script-src');
+    const allowed = sources(
+      contentSecurityPolicy({ supportOrigin }),
+      'script-src',
+    );
     for (const host of MEASUREMENT_SCRIPT_SRC) {
       assert.ok(
         allowed.includes(host),
@@ -196,7 +232,10 @@ test('🔒 script-src が計測スクリプトの配信元をすべて許可す�
 // 🔒 script-src も全許可で塞がない。ここが緩むと XSS の被害が一段深くなる
 test('🔒 script-src をスキーム全許可・広いワイルドカードで塞がない', () => {
   for (const supportOrigin of [null, supportOriginOf(markets.JP.support)]) {
-    const allowed = sources(contentSecurityPolicy({ supportOrigin }), 'script-src');
+    const allowed = sources(
+      contentSecurityPolicy({ supportOrigin }),
+      'script-src',
+    );
     for (const wildcard of [
       'https:',
       '*',
@@ -232,7 +271,10 @@ test('🔒 回帰: 支援ウィジェットのオリジンは3経路に付き、
       `supportOrigin が null なのに ${name} に ${origin} が付いています`,
     );
   }
-  assert.ok(!without.includes(origin), `supportOrigin が null なのに ${origin} が CSP に出ています`);
+  assert.ok(
+    !without.includes(origin),
+    `supportOrigin が null なのに ${origin} が CSP に出ています`,
+  );
 });
 
 // dist/_headers に載る値は contentSecurityPolicy() の結果そのものであること。
@@ -244,7 +286,10 @@ test('🔒 _headers の Content-Security-Policy が CSP 本体と一致する', 
       .map((row) => row.trim())
       .find((row) => row.startsWith('Content-Security-Policy:'));
     assert.ok(line, 'Content-Security-Policy の行がありません');
-    assert.equal(line, `Content-Security-Policy: ${contentSecurityPolicy({ supportOrigin })}`);
+    assert.equal(
+      line,
+      `Content-Security-Policy: ${contentSecurityPolicy({ supportOrigin })}`,
+    );
   }
 });
 
@@ -263,7 +308,10 @@ const COUNTRY_CONVERSION_CONNECT_SRC = ['https://www.google.co.jp'];
 
 test('🔒 connect-src が広告コンバージョンの国別ドメインを許可する', () => {
   for (const supportOrigin of [null, supportOriginOf(markets.JP.support)]) {
-    const allowed = sources(contentSecurityPolicy({ supportOrigin }), 'connect-src');
+    const allowed = sources(
+      contentSecurityPolicy({ supportOrigin }),
+      'connect-src',
+    );
     for (const host of COUNTRY_CONVERSION_CONNECT_SRC) {
       assert.ok(
         allowed.includes(host),
@@ -276,8 +324,15 @@ test('🔒 connect-src が広告コンバージョンの国別ドメインを許
 // 🔒 国別ドメインをまとめて開かない。実測で必要と分かったホストだけを列挙する
 test('🔒 connect-src の国別ドメインをワイルドカードでまとめない', () => {
   for (const supportOrigin of [null, supportOriginOf(markets.JP.support)]) {
-    const allowed = sources(contentSecurityPolicy({ supportOrigin }), 'connect-src');
-    for (const wildcard of ['https://*.google.co.jp', 'https://*.google.com', 'https://*.google']) {
+    const allowed = sources(
+      contentSecurityPolicy({ supportOrigin }),
+      'connect-src',
+    );
+    for (const wildcard of [
+      'https://*.google.co.jp',
+      'https://*.google.com',
+      'https://*.google',
+    ]) {
       assert.ok(
         !allowed.includes(wildcard),
         `connect-src に ${wildcard} があります（必要なホストだけを列挙する）`,

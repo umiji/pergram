@@ -13,7 +13,12 @@
 
 import { escapeHtml } from '../../lib/i18n.js';
 import { costPerNutrientUnit } from '../../lib/cost.js';
-import { formatCurrency, formatDate, formatPercent, formatWeight } from '../../lib/format.js';
+import {
+  formatCurrency,
+  formatDate,
+  formatPercent,
+  formatWeight,
+} from '../../lib/format.js';
 import { packageThumb } from '../lp/parts.js';
 
 /**
@@ -28,7 +33,8 @@ const PLACEHOLDER_PRICE = '¥XXXX';
 
 /** 最安との差。事実の提示であり優劣の判断ではない */
 function deltaLabel(row, baseline, { t, locale }) {
-  if (baseline === null || row.costPerNutrientUnit <= baseline) return t('products.deltaBase');
+  if (baseline === null || row.costPerNutrientUnit <= baseline)
+    return t('products.deltaBase');
   const percent = ((row.costPerNutrientUnit - baseline) / baseline) * 100;
   return t('products.delta', { percent: formatPercent(percent, { locale }) });
 }
@@ -61,7 +67,10 @@ function contentRatio(row, { t, locale }) {
  * ⚠️ β版につき呼び出し元（下の productItem）から呼んでいない。表示を戻すときは
  *    `<p class="p-item__facts">` の行と head.js の toolbar__metric セレクトを戻すこと。
  */
-function secondaryFacts(row, { t, locale, currency, displayUnit, secondaryMetrics }) {
+function secondaryFacts(
+  row,
+  { t, locale, currency, displayUnit, secondaryMetrics },
+) {
   const value = {
     content_ratio: () => {
       const ratio = formatPercent(row.contentRatioPercent, { locale });
@@ -72,7 +81,10 @@ function secondaryFacts(row, { t, locale, currency, displayUnit, secondaryMetric
       return cost === null ? null : `${t('metric.cost_per_serving')} ${cost}`;
     },
     cost_per_day: () => {
-      const cost = formatCurrency(row.costPerTargetIntake, { locale, currency });
+      const cost = formatCurrency(row.costPerTargetIntake, {
+        locale,
+        currency,
+      });
       return cost === null ? null : `${t('metric.cost_per_day')} ${cost}`;
     },
     ul_percentage: () => {
@@ -108,7 +120,9 @@ function offersTable(row, { t, locale, currency, displayUnit, market, id }) {
         merchant,
         snapshot,
         unitCost:
-          snapshot === null ? null : costPerNutrientUnit(snapshot.price, row.product, row.content),
+          snapshot === null
+            ? null
+            : costPerNutrientUnit(snapshot.price, row.product, row.content),
       };
     })
     // 実データのある行が先。プレースホルダは単価が無いので自然に後ろへ落ちる
@@ -193,15 +207,28 @@ export function productItem(row, index, ctx) {
     row.postageIncluded === null || row.postageIncluded === undefined
       ? ''
       : `<span class="p-item__postage">${escapeHtml(
-          t(row.postageIncluded ? 'products.postage.included' : 'products.postage.excluded'),
+          t(
+            row.postageIncluded
+              ? 'products.postage.included'
+              : 'products.postage.excluded',
+          ),
         )}</span>`;
 
   const badges = [];
   if (!row.inStock) {
-    badges.push(`<span class="badge badge--warn">▲ ${escapeHtml(t('merchant.outOfStock'))}</span>`);
+    badges.push(
+      `<span class="badge badge--warn">▲ ${escapeHtml(t('merchant.outOfStock'))}</span>`,
+    );
   }
 
-  const offers = offersTable(row, { t, locale, currency, displayUnit, market, id: offersId });
+  const offers = offersTable(row, {
+    t,
+    locale,
+    currency,
+    displayUnit,
+    market,
+    id: offersId,
+  });
 
   const toggle =
     offers.count <= 1
@@ -211,7 +238,9 @@ export function productItem(row, index, ctx) {
       <span class="p-item__chevron" aria-hidden="true"></span>
     </button>`;
 
-  const noticeText = escapeHtml(t('merchant.accessNotice', { merchant: merchantName }));
+  const noticeText = escapeHtml(
+    t('merchant.accessNotice', { merchant: merchantName }),
+  );
 
   const bestLink = `<a class="merchant-button" href="${escapeHtml(row.url)}"
       rel="nofollow sponsored noopener" target="_blank"
@@ -235,7 +264,8 @@ export function productItem(row, index, ctx) {
     `data-name="${escapeHtml(`${row.name} ${row.product.brand ?? ''}`.toLowerCase())}"`,
   ].join(' ');
 
-  const tagsHtml = badges.length > 0 ? `<p class="p-item__tags">${badges.join('')}</p>` : '';
+  const tagsHtml =
+    badges.length > 0 ? `<p class="p-item__tags">${badges.join('')}</p>` : '';
 
   return `<li class="p-item${isBest ? ' p-item--best' : ''}" ${data}>
   <div class="p-item__media">
@@ -262,7 +292,10 @@ export function productItem(row, index, ctx) {
 
   <div class="p-item__cost">
     <p class="p-item__cost-label">${escapeHtml(
-      t('metric.cost_per_nutrient_unit', { nutrient: ctx.nutrientName, unit: displayUnit }),
+      t('metric.cost_per_nutrient_unit', {
+        nutrient: ctx.nutrientName,
+        unit: displayUnit,
+      }),
     )}</p>
     <p class="cost">
       <span class="cost__value">${escapeHtml(primary)}</span><span class="cost__unit">${escapeHtml(unitSuffix)}</span>

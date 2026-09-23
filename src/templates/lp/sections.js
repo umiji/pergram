@@ -6,7 +6,11 @@
  */
 
 import { escapeHtml } from '../../lib/i18n.js';
-import { formatCurrency, formatPercent, formatWeight } from '../../lib/format.js';
+import {
+  formatCurrency,
+  formatPercent,
+  formatWeight,
+} from '../../lib/format.js';
 import {
   eyebrow,
   iconArrowDown,
@@ -66,12 +70,22 @@ function exampleFigures({ locale, currency }) {
     netWeight: weight(EXAMPLE.netWeightG),
     priceDiff: money(b.price - a.price),
     // 単価の下げ幅。A を基準にした割合
-    savingPercent: percent(Math.round(((a.unitCost - b.unitCost) / a.unitCost) * 100)),
+    savingPercent: percent(
+      Math.round(((a.unitCost - b.unitCost) / a.unitCost) * 100),
+    ),
   };
 }
 
 /** 比較バー。長さは金額の比そのもので、装飾ではない */
-function compareBar({ label, value, widthPercent, isLead, noImageLabel, initial, imageUrl }) {
+function compareBar({
+  label,
+  value,
+  widthPercent,
+  isLead,
+  noImageLabel,
+  initial,
+  imageUrl,
+}) {
   return `<div class="cmp-row">
   ${packageThumb({ imageUrl: imageUrl ?? null, initial, noImageLabel })}
   <div class="cmp-row__body">
@@ -132,9 +146,11 @@ export function howItWorks(t, { locale, currency, displayUnit }) {
   const imageB = '/assets/images/protein_b.jpg';
 
   // 袋の値段: 高いほうを 100% とし、比をそのまま幅にする
-  const packWidth = (price) => Math.round((price / Math.max(f.a.price, f.b.price)) * 1000) / 10;
+  const packWidth = (price) =>
+    Math.round((price / Math.max(f.a.price, f.b.price)) * 1000) / 10;
   // 1単位あたり: 高いほうを 100% とする。短い棒が安い
-  const unitWidth = (cost) => Math.round((cost / Math.max(f.a.unitCost, f.b.unitCost)) * 1000) / 10;
+  const unitWidth = (cost) =>
+    Math.round((cost / Math.max(f.a.unitCost, f.b.unitCost)) * 1000) / 10;
 
   return `<section class="section" id="howitworks">
   ${eyebrow(t('lp.how.eyebrow'))}
@@ -190,7 +206,10 @@ export function howItWorks(t, { locale, currency, displayUnit }) {
       <p class="flip__sub">${escapeHtml(t('lp.how.afterSub'))}</p>
 
       ${compareBar({
-        label: t('lp.how.effective', { label: labelA, amount: f.weight(f.a.nutrientG) }),
+        label: t('lp.how.effective', {
+          label: labelA,
+          amount: f.weight(f.a.nutrientG),
+        }),
         value: unitCostValue(f.money(f.a.unitCost), displayUnit),
         widthPercent: unitWidth(f.a.unitCost),
         isLead: false,
@@ -199,7 +218,10 @@ export function howItWorks(t, { locale, currency, displayUnit }) {
         noImageLabel,
       })}
       ${compareBar({
-        label: t('lp.how.effective', { label: labelB, amount: f.weight(f.b.nutrientG) }),
+        label: t('lp.how.effective', {
+          label: labelB,
+          amount: f.weight(f.b.nutrientG),
+        }),
         value: unitCostValue(f.money(f.b.unitCost), displayUnit),
         widthPercent: unitWidth(f.b.unitCost),
         isLead: true,

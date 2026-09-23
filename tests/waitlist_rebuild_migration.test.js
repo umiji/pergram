@@ -30,7 +30,9 @@ try {
 
 const MIGRATION = 'worker/migrations/2026-09-08_waitlist_rebuild.sql';
 const migrationSql = await readFile(MIGRATION, 'utf8');
-const sqliteOptions = DatabaseSync ? {} : { skip: 'node:sqlite が無い Node で実行された' };
+const sqliteOptions = DatabaseSync
+  ? {}
+  : { skip: 'node:sqlite が無い Node で実行された' };
 
 /** 移行前の本番の姿（email が主キーの6列）。実際の退避ファイルは読まない */
 const PRODUCTION_SCHEMA = `
@@ -52,11 +54,19 @@ function production() {
   db.prepare(
     `INSERT INTO waitlist (email, nutrients, channel, nutrients_other, requests, created_at)
      VALUES (?, ?, ?, ?, ?, ?)`,
-  ).run('one@example.com', 'creatine', 'rakuten', null, null, '2026-08-01T01:00:00.000Z');
+  ).run(
+    'one@example.com',
+    'creatine',
+    'rakuten',
+    null,
+    null,
+    '2026-08-01T01:00:00.000Z',
+  );
   return db;
 }
 
-const rows = (db) => db.prepare('SELECT id, email, nutrients FROM waitlist ORDER BY email').all();
+const rows = (db) =>
+  db.prepare('SELECT id, email, nutrients FROM waitlist ORDER BY email').all();
 const tables = (db) =>
   db
     .prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
@@ -87,22 +97,34 @@ test('🔒 2度流すと、データを壊す前に止まる', sqliteOptions, ()
   );
 
   assert.deepEqual(rows(db), before, '🔒 2度目の実行で行が変わっている');
-  assert.equal(rows(db).find((row) => row.email === null).id, ANON_ID, '🔒 匿名の識別子が消えた');
-  assert.deepEqual(tables(db), tablesBefore, '2度目の実行で表の構成が変わっている');
+  assert.equal(
+    rows(db).find((row) => row.email === null).id,
+    ANON_ID,
+    '🔒 匿名の識別子が消えた',
+  );
+  assert.deepEqual(
+    tables(db),
+    tablesBefore,
+    '2度目の実行で表の構成が変わっている',
+  );
 });
 
-test('1度流せば移行できる（番兵が正常な経路を邪魔しない）', sqliteOptions, () => {
-  const db = production();
-  db.exec(migrationSql);
+test(
+  '1度流せば移行できる（番兵が正常な経路を邪魔しない）',
+  sqliteOptions,
+  () => {
+    const db = production();
+    db.exec(migrationSql);
 
-  assert.deepEqual(tables(db), ['waitlist'], '作業用の表が残っている');
-  const [row] = rows(db);
-  assert.equal(row.email, 'one@example.com', '既存の登録者が失われている');
-  assert.equal(row.id, null, '既存の行に匿名の識別子が入っている');
+    assert.deepEqual(tables(db), ['waitlist'], '作業用の表が残っている');
+    const [row] = rows(db);
+    assert.equal(row.email, 'one@example.com', '既存の登録者が失われている');
+    assert.equal(row.id, null, '既存の行に匿名の識別子が入っている');
 
-  addAnonRow(db);
-  assert.equal(rows(db).length, 2, '移行後の表に匿名の行が入らない');
-});
+    addAnonRow(db);
+    assert.equal(rows(db).length, 2, '移行後の表に匿名の行が入らない');
+  },
+);
 
 /*
  * 番兵には副作用がある —— 1文目が成功すると、旧 `waitlist` に空の `id` 列が足される。
@@ -115,7 +137,11 @@ test('1度流せば移行できる（番兵が正常な経路を邪魔しない�
 
 /** 表の DDL。完了の判定はここに CHECK が現れるかで行う */
 const ddl = (db) =>
-  db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='waitlist'").get().sql;
+  db
+    .prepare(
+      "SELECT sql FROM sqlite_master WHERE type='table' AND name='waitlist'",
+    )
+    .get().sql;
 const columns = (db) =>
   db
     .prepare("SELECT name FROM pragma_table_info('waitlist')")
@@ -123,7 +149,8 @@ const columns = (db) =>
     .map((row) => row.name);
 
 /** 番兵の1文目だけが通って止まった状態を作る */
-const sentinelOnly = (db) => db.exec('ALTER TABLE waitlist ADD COLUMN id TEXT;');
+const sentinelOnly = (db) =>
+  db.exec('ALTER TABLE waitlist ADD COLUMN id TEXT;');
 
 test('🔒 番兵だけが通った状態は「完了」と見分けが付く', sqliteOptions, () => {
   const done = production();
@@ -148,43 +175,65 @@ test('🔒 番兵だけが通った状態は「完了」と見分けが付く', 
   );
 });
 
-test('番兵だけが通った状態は、deploy.md の手順で復旧できる', sqliteOptions, () => {
-  const db = production();
-  sentinelOnly(db);
+test(
+  '番兵だけが通った状態は、deploy.md の手順で復旧できる',
+  sqliteOptions,
+  () => {
+    const db = production();
+    sentinelOnly(db);
 
-  // そのまま流し直しても番兵が発火して進めない
-  assert.throws(() => db.exec(migrationSql), /duplicate column name: id/i);
+    // そのまま流し直しても番兵が発火して進めない
+    assert.throws(() => db.exec(migrationSql), /duplicate column name: id/i);
 
-  // 🔒 足された列は必ず全行 NULL である（誰も書き込む前に止まっている）
-  assert.equal(
-    db.prepare('SELECT COUNT(*) AS n FROM waitlist WHERE id IS NOT NULL').get().n,
-    0,
-    '番兵が足した列に値が入っている。落とす前に中身を確認すること',
-  );
+    // 🔒 足された列は必ず全行 NULL である（誰も書き込む前に止まっている）
+    assert.equal(
+      db
+        .prepare('SELECT COUNT(*) AS n FROM waitlist WHERE id IS NOT NULL')
+        .get().n,
+      0,
+      '番兵が足した列に値が入っている。落とす前に中身を確認すること',
+    );
 
-  // deploy.md の復旧: 足された列を落として、移行前の姿へ戻してから流し直す
-  db.exec('ALTER TABLE waitlist DROP COLUMN id;');
-  db.exec(migrationSql);
+    // deploy.md の復旧: 足された列を落として、移行前の姿へ戻してから流し直す
+    db.exec('ALTER TABLE waitlist DROP COLUMN id;');
+    db.exec(migrationSql);
 
-  assert.match(ddl(db), /CHECK/i, '復旧手順を踏んでも移行できていない');
-  assert.equal(rows(db)[0].email, 'one@example.com', '復旧の過程で登録者が失われている');
-  assert.equal(rows(db)[0].id, null);
-});
+    assert.match(ddl(db), /CHECK/i, '復旧手順を踏んでも移行できていない');
+    assert.equal(
+      rows(db)[0].email,
+      'one@example.com',
+      '復旧の過程で登録者が失われている',
+    );
+    assert.equal(rows(db)[0].id, null);
+  },
+);
 
-test('改名の直前で止まった状態は、deploy.md の1文で復旧できる', sqliteOptions, () => {
-  const db = production();
-  // D1 は明示トランザクションを張れないので、DROP は成功して改名で失敗しうる
-  const rename = 'ALTER TABLE waitlist_new RENAME TO waitlist;';
-  db.exec(migrationSql.slice(0, migrationSql.lastIndexOf(rename)));
+test(
+  '改名の直前で止まった状態は、deploy.md の1文で復旧できる',
+  sqliteOptions,
+  () => {
+    const db = production();
+    // D1 は明示トランザクションを張れないので、DROP は成功して改名で失敗しうる
+    const rename = 'ALTER TABLE waitlist_new RENAME TO waitlist;';
+    db.exec(migrationSql.slice(0, migrationSql.lastIndexOf(rename)));
 
-  assert.deepEqual(tables(db), ['waitlist_new'], '止まった状態の見分け方が変わっている');
-  assert.throws(
-    () => db.exec(migrationSql),
-    /no such table: waitlist/i,
-    'この状態で流し直したときのエラーが docs/ops/deploy.md の表と食い違っている',
-  );
+    assert.deepEqual(
+      tables(db),
+      ['waitlist_new'],
+      '止まった状態の見分け方が変わっている',
+    );
+    assert.throws(
+      () => db.exec(migrationSql),
+      /no such table: waitlist/i,
+      'この状態で流し直したときのエラーが docs/ops/deploy.md の表と食い違っている',
+    );
 
-  db.exec(rename);
-  assert.deepEqual(tables(db), ['waitlist']);
-  assert.equal(rows(db)[0].email, 'one@example.com', '復旧後に登録者が失われている');
-});
+    db.exec(rename);
+    assert.deepEqual(tables(db), ['waitlist']);
+    assert.equal(
+      rows(db)[0].email,
+      'one@example.com',
+      '復旧後に登録者が失われている',
+    );
+  },
+);

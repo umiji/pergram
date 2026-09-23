@@ -116,7 +116,14 @@ export function pickBestPrice(snapshots, marketMerchants) {
  * 表示用の1行を組み立てる。指標はすべてここで導出する。
  * 価格が取れない製品は null を返し、呼び出し側で除外する。
  */
-export function buildRow({ product, content, nutrient, snapshots, market, targetIntake }) {
+export function buildRow({
+  product,
+  content,
+  nutrient,
+  snapshots,
+  market,
+  targetIntake,
+}) {
   const best = pickBestPrice(snapshots, market?.merchants);
   if (best === null) return null;
 
@@ -157,7 +164,11 @@ export function sortByUnitCost(rows) {
     if (a.costPerNutrientUnit !== b.costPerNutrientUnit) {
       return a.costPerNutrientUnit - b.costPerNutrientUnit;
     }
-    return a.product.id < b.product.id ? -1 : a.product.id > b.product.id ? 1 : 0;
+    return a.product.id < b.product.id
+      ? -1
+      : a.product.id > b.product.id
+        ? 1
+        : 0;
   });
 }
 

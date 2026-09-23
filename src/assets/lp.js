@@ -66,7 +66,10 @@
       function (entries) {
         entries.forEach(function (entry) {
           if (!entry.isIntersecting) return;
-          track('demo_interact', { nutrient_id: 'protein', action: 'flip_view' });
+          track('demo_interact', {
+            nutrient_id: 'protein',
+            action: 'flip_view',
+          });
           observer.disconnect();
         });
       },
@@ -90,5 +93,4 @@
       track('cta_click', { location: el.getAttribute('data-cta') });
     });
   });
-
 })();

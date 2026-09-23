@@ -40,7 +40,8 @@ async function resolveFile(root, urlPath) {
   const candidate = path.resolve(root, '.' + path.posix.normalize(decoded));
 
   const rootAbs = path.resolve(root);
-  if (candidate !== rootAbs && !candidate.startsWith(rootAbs + path.sep)) return null;
+  if (candidate !== rootAbs && !candidate.startsWith(rootAbs + path.sep))
+    return null;
 
   try {
     const info = await stat(candidate);
@@ -62,8 +63,15 @@ async function resolveFile(root, urlPath) {
  */
 export function serve(root, port = 4173) {
   const server = createServer(async (req, res) => {
-    if (req.method === 'POST' && req.url && req.url.startsWith('/api/waitlist')) {
-      res.writeHead(200, { 'Content-Type': MIME['.json'], 'Cache-Control': 'no-store' });
+    if (
+      req.method === 'POST' &&
+      req.url &&
+      req.url.startsWith('/api/waitlist')
+    ) {
+      res.writeHead(200, {
+        'Content-Type': MIME['.json'],
+        'Cache-Control': 'no-store',
+      });
       res.end(JSON.stringify({ ok: true }));
       return;
     }
@@ -78,7 +86,8 @@ export function serve(root, port = 4173) {
     try {
       const body = await readFile(file);
       res.writeHead(200, {
-        'Content-Type': MIME[path.extname(file).toLowerCase()] ?? 'application/octet-stream',
+        'Content-Type':
+          MIME[path.extname(file).toLowerCase()] ?? 'application/octet-stream',
         // 編集しながら見るのでキャッシュさせない
         'Cache-Control': 'no-store',
       });

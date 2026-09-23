@@ -19,7 +19,8 @@ import { SITE_ORIGIN } from '../src/lib/site.js';
  *    「キーが失効した」ように見えるが、実際は版が消えている。版だけを差し替えれば直る。
  *    2026-08-17 に 20220601 が廃止され、日次の価格更新が7日間止まった。
  */
-export const ENDPOINT = 'https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20260401';
+export const ENDPOINT =
+  'https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20260401';
 
 /**
  * 問い合わせ URL を組む。
@@ -122,7 +123,8 @@ function refererOriginNote(appUrl) {
  * 🔒 報酬率（affiliateRate）は読まない。持たなければ「報酬の高い順」を作れない。
  */
 export function pickBuyUrl(item) {
-  const affiliate = typeof item.affiliateUrl === 'string' ? item.affiliateUrl.trim() : '';
+  const affiliate =
+    typeof item.affiliateUrl === 'string' ? item.affiliateUrl.trim() : '';
   return affiliate.length > 0
     ? { url: affiliate, isAffiliate: true }
     : { url: item.itemUrl, isAffiliate: false };

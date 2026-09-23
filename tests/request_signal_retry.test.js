@@ -39,7 +39,8 @@ const SIGNAL_STORAGE_KEY = 'pergram.request_signal_id';
 /** 受領の確認の置き場（T-062 で足した） */
 const SIGNAL_ACK_KEY = 'pergram.request_signal_ack';
 
-const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_V4 =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /** 「PO の手元のブラウザ」— 既に識別子だけを持っている状態を作るための値 */
 const EXISTING_UUID = '3f2504e0-4f89-41d3-9a0c-0305e82c3301';
@@ -52,7 +53,8 @@ ${requestCta(t, { location: 'products_request_bottom' })}
 ${requestFlow(t, { support: market.support, page: PAGE_ID })}`;
 }
 
-const signalCalls = (dom) => dom.fetchCalls.filter((call) => call.url.includes(SIGNAL_ENDPOINT));
+const signalCalls = (dom) =>
+  dom.fetchCalls.filter((call) => call.url.includes(SIGNAL_ENDPOINT));
 
 /**
  * 要望ボタンを1つ押したところまで進める。
@@ -135,7 +137,10 @@ test('A-1 通信が切れた回も受領の確認を残さない', async () => {
 
 test('A-2 受領の確認があるブラウザは押しても送らない', async () => {
   const { signals } = await click({
-    storage: { [SIGNAL_STORAGE_KEY]: EXISTING_UUID, [SIGNAL_ACK_KEY]: EXISTING_UUID },
+    storage: {
+      [SIGNAL_STORAGE_KEY]: EXISTING_UUID,
+      [SIGNAL_ACK_KEY]: EXISTING_UUID,
+    },
     ...accepts204,
   });
 
@@ -163,7 +168,11 @@ test('A-2 成功した押下の後は受領の確認が残り、次の閲覧で�
     storage: Object.fromEntries(first.dom.storageData),
     ...accepts204,
   });
-  assert.equal(second.signals.length, 0, '確認が取れているのに次の閲覧でも送っている');
+  assert.equal(
+    second.signals.length,
+    0,
+    '確認が取れているのに次の閲覧でも送っている',
+  );
 });
 
 /* ====================================================================== */
@@ -235,7 +244,10 @@ function breakStorage(dom) {
 }
 
 test('A-4 localStorage が例外を投げてもアンケートの段は開く', async () => {
-  const { survey, dom } = await click({ beforeClick: breakStorage, ...accepts204 });
+  const { survey, dom } = await click({
+    beforeClick: breakStorage,
+    ...accepts204,
+  });
 
   assert.equal(survey.hidden, false, 'localStorage が使えないと段が開かない');
   assert.equal(dom.navigations.length, 0, '🔒 別ページへ飛んでいる');
@@ -244,7 +256,11 @@ test('A-4 localStorage が例外を投げてもアンケートの段は開く', 
 test('A-4 localStorage が例外を投げても押下は送られる', async () => {
   const { signals } = await click({ beforeClick: breakStorage, ...accepts204 });
 
-  assert.equal(signals.length, 1, 'localStorage が使えないと押下を1行も残せない');
+  assert.equal(
+    signals.length,
+    1,
+    'localStorage が使えないと押下を1行も残せない',
+  );
 });
 
 /* ====================================================================== */
@@ -278,7 +294,11 @@ test('A-5 randomUUID が無くても、保存済みの識別子があれば送�
   });
 
   assert.equal(signals.length, 1, '保存済みの識別子があるのに送り直していない');
-  assert.equal(signals[0].body.id, EXISTING_UUID, '保存済みと違う識別子を送っている');
+  assert.equal(
+    signals[0].body.id,
+    EXISTING_UUID,
+    '保存済みと違う識別子を送っている',
+  );
 });
 
 /* ====================================================================== */

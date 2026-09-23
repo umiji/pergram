@@ -28,7 +28,8 @@
     link.addEventListener('click', () => {
       const item = link.closest('.p-item');
       track('affiliate_click', {
-        nutrient_id: document.querySelector('.p-list')?.dataset.nutrient ?? '(none)',
+        nutrient_id:
+          document.querySelector('.p-list')?.dataset.nutrient ?? '(none)',
         product_id: item?.dataset.productId ?? '(none)',
         merchant: link.dataset.merchant ?? '(none)',
         rank_position: Number(item?.dataset.rank ?? 0),
@@ -76,7 +77,9 @@
       maximumFractionDigits: digits,
     }).formatToParts(value);
     const symbol = CURRENCY_SYMBOL[currency];
-    return parts.map((p) => (p.type === 'currency' && symbol ? symbol : p.value)).join('');
+    return parts
+      .map((p) => (p.type === 'currency' && symbol ? symbol : p.value))
+      .join('');
   }
 
   /** 内容量。src/lib/format.js の formatWeight と同じ規則（1000g以上は kg） */
@@ -110,7 +113,9 @@
 
   function readState() {
     const checked = (name) =>
-      Array.from(form.querySelectorAll(`input[name="${name}"]:checked`)).map((el) => el.value);
+      Array.from(form.querySelectorAll(`input[name="${name}"]:checked`)).map(
+        (el) => el.value,
+      );
     const range = (id) => {
       const el = form.querySelector(`#${id}`);
       return el ? { value: Number(el.value), max: Number(el.max) } : null;
@@ -140,7 +145,8 @@
   }
 
   function matches(item, state) {
-    if (state.query && !(item.dataset.name || '').includes(state.query)) return false;
+    if (state.query && !(item.dataset.name || '').includes(state.query))
+      return false;
 
     if (state.attrGroups.size > 0) {
       const own = (item.dataset.attrs || '').split(' ').filter(Boolean);
@@ -150,12 +156,23 @@
       }
     }
 
-    if (state.merchants.length > 0 && !state.merchants.includes(item.dataset.merchant)) return false;
-    if (state.brands.length > 0 && !state.brands.includes(item.dataset.brand)) return false;
+    if (
+      state.merchants.length > 0 &&
+      !state.merchants.includes(item.dataset.merchant)
+    )
+      return false;
+    if (state.brands.length > 0 && !state.brands.includes(item.dataset.brand))
+      return false;
 
-    if (state.netWeight && Number(item.dataset.netWeight) > state.netWeight.value) return false;
-    if (state.unitCost && Number(item.dataset.unitCost) > state.unitCost.value) return false;
-    if (state.price && Number(item.dataset.price) > state.price.value) return false;
+    if (
+      state.netWeight &&
+      Number(item.dataset.netWeight) > state.netWeight.value
+    )
+      return false;
+    if (state.unitCost && Number(item.dataset.unitCost) > state.unitCost.value)
+      return false;
+    if (state.price && Number(item.dataset.price) > state.price.value)
+      return false;
 
     return true;
   }
@@ -191,7 +208,8 @@
 
     if (applyBtn) {
       const template = form.dataset.countTemplate;
-      if (template) applyBtn.textContent = template.replace('{count}', String(shown));
+      if (template)
+        applyBtn.textContent = template.replace('{count}', String(shown));
     }
 
     const n = activeCount(state);
@@ -230,10 +248,15 @@
       params.set('p', String(state.price.value));
     }
     if (state.view !== 'card') params.set('view', state.view);
-    if (state.metric && state.metric !== defaultMetric) params.set('m', state.metric);
+    if (state.metric && state.metric !== defaultMetric)
+      params.set('m', state.metric);
 
     const query = params.toString();
-    history.replaceState(null, '', query ? `?${query}${location.hash}` : location.pathname + location.hash);
+    history.replaceState(
+      null,
+      '',
+      query ? `?${query}${location.hash}` : location.pathname + location.hash,
+    );
   }
 
   const defaultMetric = list.dataset.metric;
@@ -255,7 +278,9 @@
         if (sep < 0) continue;
         const facetId = pair.slice(0, sep);
         const value = pair.slice(sep + 1);
-        const el = form.querySelector(`input[name="attr:${facetId}"][value="${CSS.escape(value)}"]`);
+        const el = form.querySelector(
+          `input[name="attr:${facetId}"][value="${CSS.escape(value)}"]`,
+        );
         if (el && !el.disabled) el.checked = true;
       }
     }
@@ -301,8 +326,13 @@
       if (!input) return;
       const digits = Number(out.dataset.digits) || 0;
       const formatted =
-        out.dataset.unit === 'weight' ? weight(Number(input.value)) : money(Number(input.value), digits);
-      out.textContent = (out.dataset.template || '{max}').replace('{max}', formatted);
+        out.dataset.unit === 'weight'
+          ? weight(Number(input.value))
+          : money(Number(input.value), digits);
+      out.textContent = (out.dataset.template || '{max}').replace(
+        '{max}',
+        formatted,
+      );
     });
   }
 
@@ -336,7 +366,8 @@
    */
   const FILTER_TRACK_NAMES = new Set(['attr', 'merchant', 'brand']);
   function trackFilterChange(target) {
-    if (!(target instanceof HTMLInputElement) || target.type !== 'checkbox') return;
+    if (!(target instanceof HTMLInputElement) || target.type !== 'checkbox')
+      return;
     if (!FILTER_TRACK_NAMES.has(target.name)) return;
     track('filter_click', {
       nutrient_id: list.dataset.nutrient ?? '(none)',
@@ -386,19 +417,23 @@
     });
   });
 
-  document.querySelector('[data-metric-select]')?.addEventListener('change', (e) => {
-    list.dataset.metric = e.target.value;
-    apply();
-  });
-
-  document.querySelector('[data-filter-reset]')?.addEventListener('click', () => {
-    form.reset();
-    if (searchInput) searchInput.value = '';
-    requestAnimationFrame(() => {
-      updateRangeOutputs();
+  document
+    .querySelector('[data-metric-select]')
+    ?.addEventListener('change', (e) => {
+      list.dataset.metric = e.target.value;
       apply();
     });
-  });
+
+  document
+    .querySelector('[data-filter-reset]')
+    ?.addEventListener('click', () => {
+      form.reset();
+      if (searchInput) searchInput.value = '';
+      requestAnimationFrame(() => {
+        updateRangeOutputs();
+        apply();
+      });
+    });
 
   moreBtn?.addEventListener('click', () => {
     track('list_show_more', {
@@ -420,7 +455,9 @@
   list.addEventListener('click', (e) => {
     const toggle = e.target.closest('.p-item__toggle');
     if (!toggle) return;
-    const target = document.getElementById(toggle.getAttribute('aria-controls'));
+    const target = document.getElementById(
+      toggle.getAttribute('aria-controls'),
+    );
     if (!target) return;
     const open = toggle.getAttribute('aria-expanded') === 'true';
     toggle.setAttribute('aria-expanded', String(!open));

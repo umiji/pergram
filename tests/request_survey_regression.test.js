@@ -29,7 +29,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-import { NUTRIENTS_OTHER_MAX, REQUESTS_MAX } from '../src/lib/waitlist_fields.js';
+import {
+  NUTRIENTS_OTHER_MAX,
+  REQUESTS_MAX,
+} from '../src/lib/waitlist_fields.js';
 import { loadTranslator } from '../src/lib/i18n.js';
 import { requestCta, requestFlow } from '../src/templates/request.js';
 import { market } from './fixtures.js';
@@ -59,7 +62,9 @@ try {
 }
 
 const schemaSql = await readFile('worker/schema.sql', 'utf8');
-const sqliteOptions = DatabaseSync ? {} : { skip: 'node:sqlite が無い Node で実行された' };
+const sqliteOptions = DatabaseSync
+  ? {}
+  : { skip: 'node:sqlite が無い Node で実行された' };
 
 function makeRealEnv() {
   const db = new DatabaseSync(':memory:');
@@ -73,7 +78,9 @@ function makeRealEnv() {
           const statement = db.prepare(sql);
           return {
             bind(...args) {
-              const params = Object.fromEntries(args.map((value, index) => [index + 1, value]));
+              const params = Object.fromEntries(
+                args.map((value, index) => [index + 1, value]),
+              );
               return {
                 async run() {
                   statement.run(params);
@@ -98,9 +105,11 @@ const post = (path, body) =>
 
 const rowsOf = (db, table) => db.prepare(`SELECT * FROM ${table}`).all();
 /** 匿名の回答の行。**アンケート回答率の分子はこれ** */
-const anonRows = (db) => db.prepare('SELECT * FROM waitlist WHERE id IS NOT NULL').all();
+const anonRows = (db) =>
+  db.prepare('SELECT * FROM waitlist WHERE id IS NOT NULL').all();
 /** メールアドレスを預かった行 */
-const emailRows = (db) => db.prepare('SELECT * FROM waitlist WHERE email IS NOT NULL').all();
+const emailRows = (db) =>
+  db.prepare('SELECT * FROM waitlist WHERE email IS NOT NULL').all();
 
 /* ====================================================================== */
 /* ブラウザ側を通しで動かす                                                 */
@@ -119,7 +128,8 @@ ${requestCta(t, { location: 'products_request_bottom' })}
 ${requestFlow(t, { support: market.support, page: PAGE_ID })}`;
 }
 
-const callsTo = (dom, path) => dom.fetchCalls.filter((call) => call.url.includes(path));
+const callsTo = (dom, path) =>
+  dom.fetchCalls.filter((call) => call.url.includes(path));
 
 /**
  * 要望ボタン → アンケート → （任意で）メールアドレス、と実際の順で操作する。
@@ -128,20 +138,29 @@ const callsTo = (dom, path) => dom.fetchCalls.filter((call) => call.url.includes
  * @param {Record<string, string>} [options.storage] localStorage の初期値
  * @param {string|null} [options.email] メールアドレスまで進めるなら文字列
  */
-async function walkThrough({ storage = { [SIGNAL_STORAGE_KEY]: BROWSER_ID }, email = null } = {}) {
+async function walkThrough({
+  storage = { [SIGNAL_STORAGE_KEY]: BROWSER_ID },
+  email = null,
+} = {}) {
   const dom = await runLpScript(page(), {
     scriptPath: SCRIPT,
     storage,
     respond: () => ({ ok: true, status: 204 }),
   });
 
-  dom.body.querySelectorAll('[data-request-cta]')[0].dispatchEvent(new DomEvent('click'));
+  dom.body
+    .querySelectorAll('[data-request-cta]')[0]
+    .dispatchEvent(new DomEvent('click'));
   await dom.flush();
 
   const surveyForm = dom.body.querySelector('[data-request-survey]');
-  surveyForm.querySelector('input[name="nutrients"][value="creatine"]').checked = true;
-  surveyForm.querySelector('input[name="channel"][value="rakuten"]').checked = true;
-  surveyForm.querySelector('[name="nutrients_other"]').value = NUTRIENTS_OTHER_INPUT;
+  surveyForm.querySelector(
+    'input[name="nutrients"][value="creatine"]',
+  ).checked = true;
+  surveyForm.querySelector('input[name="channel"][value="rakuten"]').checked =
+    true;
+  surveyForm.querySelector('[name="nutrients_other"]').value =
+    NUTRIENTS_OTHER_INPUT;
   surveyForm.querySelector('[name="requests"]').value = REQUESTS_INPUT;
   surveyForm.dispatchEvent(new DomEvent('submit'));
   await dom.flush();
@@ -161,7 +180,10 @@ async function replay(dom, env) {
   const responses = [];
   for (const call of dom.fetchCalls) {
     const path = new URL(call.url, 'https://pergram.example').pathname;
-    responses.push({ path, res: await worker.fetch(post(path, call.body), env) });
+    responses.push({
+      path,
+      res: await worker.fetch(post(path, call.body), env),
+    });
   }
   return responses;
 }
@@ -170,62 +192,90 @@ async function replay(dom, env) {
 /* 1. 既存の待機リストの経路が壊れていない（A-4）                            */
 /* ====================================================================== */
 
-test('A-4 メールアドレスまで進めた人は、今までどおり waitlist に回答ごと残る', sqliteOptions, async () => {
-  const { db, env } = makeRealEnv();
-  const dom = await walkThrough({ email: TEST_EMAIL });
+test(
+  'A-4 メールアドレスまで進めた人は、今までどおり waitlist に回答ごと残る',
+  sqliteOptions,
+  async () => {
+    const { db, env } = makeRealEnv();
+    const dom = await walkThrough({ email: TEST_EMAIL });
 
-  const responses = await replay(dom, env);
-  for (const { path, res } of responses) {
-    assert.ok(res.status < 400, `${path} が ${res.status} を返した`);
-  }
+    const responses = await replay(dom, env);
+    for (const { path, res } of responses) {
+      assert.ok(res.status < 400, `${path} が ${res.status} を返した`);
+    }
 
-  const waitlist = emailRows(db);
-  assert.equal(waitlist.length, 1, '待機リストへの登録が壊れている');
-  assert.equal(waitlist[0].email, TEST_EMAIL);
-  assert.equal(waitlist[0].id, null, '🔒 メールアドレスの行に匿名の識別子が入っている');
-  assert.equal(waitlist[0].nutrients, 'creatine', '🔒 アンケートの相乗りが壊れている');
-  assert.equal(waitlist[0].channel, 'rakuten');
-  assert.equal(waitlist[0].nutrients_other, NUTRIENTS_OTHER_INPUT);
-  assert.equal(waitlist[0].requests, REQUESTS_INPUT);
-});
+    const waitlist = emailRows(db);
+    assert.equal(waitlist.length, 1, '待機リストへの登録が壊れている');
+    assert.equal(waitlist[0].email, TEST_EMAIL);
+    assert.equal(
+      waitlist[0].id,
+      null,
+      '🔒 メールアドレスの行に匿名の識別子が入っている',
+    );
+    assert.equal(
+      waitlist[0].nutrients,
+      'creatine',
+      '🔒 アンケートの相乗りが壊れている',
+    );
+    assert.equal(waitlist[0].channel, 'rakuten');
+    assert.equal(waitlist[0].nutrients_other, NUTRIENTS_OTHER_INPUT);
+    assert.equal(waitlist[0].requests, REQUESTS_INPUT);
+  },
+);
 
-test('A-4 待機リストの2段階の追記（空で上書きしない）も壊れていない', sqliteOptions, async () => {
-  const { db, env } = makeRealEnv();
+test(
+  'A-4 待機リストの2段階の追記（空で上書きしない）も壊れていない',
+  sqliteOptions,
+  async () => {
+    const { db, env } = makeRealEnv();
 
-  // ステップ2まで答えたあとに、同じ人がステップ1だけをもう一度送る（T-011 の 🔒）
-  await worker.fetch(
-    post(WAITLIST_PATH, {
-      email: TEST_EMAIL,
-      nutrients: ['creatine'],
-      channel: ['rakuten'],
-      nutrients_other: 'グルタミン',
-      requests: '送料込みで並べたい',
-    }),
-    env,
-  );
-  await worker.fetch(post(WAITLIST_PATH, { email: TEST_EMAIL }), env);
+    // ステップ2まで答えたあとに、同じ人がステップ1だけをもう一度送る（T-011 の 🔒）
+    await worker.fetch(
+      post(WAITLIST_PATH, {
+        email: TEST_EMAIL,
+        nutrients: ['creatine'],
+        channel: ['rakuten'],
+        nutrients_other: 'グルタミン',
+        requests: '送料込みで並べたい',
+      }),
+      env,
+    );
+    await worker.fetch(post(WAITLIST_PATH, { email: TEST_EMAIL }), env);
 
-  const rows = emailRows(db);
-  assert.equal(rows.length, 1, '同じメールアドレスで行が増えている');
-  assert.equal(rows[0].nutrients, 'creatine', '🔒 空のステップ1が集めた回答を消している');
-  assert.equal(rows[0].requests, '送料込みで並べたい');
-});
+    const rows = emailRows(db);
+    assert.equal(rows.length, 1, '同じメールアドレスで行が増えている');
+    assert.equal(
+      rows[0].nutrients,
+      'creatine',
+      '🔒 空のステップ1が集めた回答を消している',
+    );
+    assert.equal(rows[0].requests, '送料込みで並べたい');
+  },
+);
 
-test('A-4 押下の匿名シグナルも今までどおり3つの値で残る', sqliteOptions, async () => {
-  const { db, env } = makeRealEnv();
-  const dom = await walkThrough({ storage: {} });
+test(
+  'A-4 押下の匿名シグナルも今までどおり3つの値で残る',
+  sqliteOptions,
+  async () => {
+    const { db, env } = makeRealEnv();
+    const dom = await walkThrough({ storage: {} });
 
-  await replay(dom, env);
+    await replay(dom, env);
 
-  const signals = rowsOf(db, 'request_signal');
-  assert.equal(signals.length, 1, '押下の匿名シグナルが残っていない');
-  assert.equal(signals[0].page, PAGE_ID, '🔒 どのページで押されたかが失われている');
-  assert.deepEqual(
-    Object.keys(signals[0]).sort(),
-    ['created_at', 'id', 'page'],
-    '🔒 request_signal は3列で打ち止め',
-  );
-});
+    const signals = rowsOf(db, 'request_signal');
+    assert.equal(signals.length, 1, '押下の匿名シグナルが残っていない');
+    assert.equal(
+      signals[0].page,
+      PAGE_ID,
+      '🔒 どのページで押されたかが失われている',
+    );
+    assert.deepEqual(
+      Object.keys(signals[0]).sort(),
+      ['created_at', 'id', 'page'],
+      '🔒 request_signal は3列で打ち止め',
+    );
+  },
+);
 
 /* ====================================================================== */
 /* 2. 同じ人が2つの表に残る — 数え方を固定する                              */
@@ -244,69 +294,100 @@ test('A-4 押下の匿名シグナルも今までどおり3つの値で残る', 
  *    それは設計判断なので PO へ上げること。**
  */
 
-test('同じ人がアンケートとメールアドレスの両方を出すと、同じ表に2行残る', sqliteOptions, async () => {
-  const { db, env } = makeRealEnv();
-  const dom = await walkThrough({ email: TEST_EMAIL });
+test(
+  '同じ人がアンケートとメールアドレスの両方を出すと、同じ表に2行残る',
+  sqliteOptions,
+  async () => {
+    const { db, env } = makeRealEnv();
+    const dom = await walkThrough({ email: TEST_EMAIL });
 
-  await replay(dom, env);
+    await replay(dom, env);
 
-  // 🔒 **1行にまとめない。**まとめた瞬間に、匿名だった押下がメールアドレスへ紐づく。
-  //    重複して2行残るほうがはるかに安全である（T-071 決定ログ）
-  assert.equal(anonRows(db).length, 1, '匿名の回答の行が無い');
-  assert.equal(emailRows(db).length, 1, 'メールアドレスの行が無い');
-  assert.equal(rowsOf(db, 'waitlist').length, 2, '2行が1行にまとめられている');
-});
+    // 🔒 **1行にまとめない。**まとめた瞬間に、匿名だった押下がメールアドレスへ紐づく。
+    //    重複して2行残るほうがはるかに安全である（T-071 決定ログ）
+    assert.equal(anonRows(db).length, 1, '匿名の回答の行が無い');
+    assert.equal(emailRows(db).length, 1, 'メールアドレスの行が無い');
+    assert.equal(
+      rowsOf(db, 'waitlist').length,
+      2,
+      '2行が1行にまとめられている',
+    );
+  },
+);
 
-test('🔒 分子は id を持つ行だけで足りる（メールまで進んだ人も必ず入っている）', sqliteOptions, async () => {
-  const { db, env } = makeRealEnv();
+test(
+  '🔒 分子は id を持つ行だけで足りる（メールまで進んだ人も必ず入っている）',
+  sqliteOptions,
+  async () => {
+    const { db, env } = makeRealEnv();
 
-  // メールアドレスを入れない人と、入れる人。回答したのは2人
-  await replay(await walkThrough({ storage: { [SIGNAL_STORAGE_KEY]: BROWSER_ID } }), env);
-  await replay(
-    await walkThrough({
-      storage: { [SIGNAL_STORAGE_KEY]: '9f8b6c22-1d4e-4a77-b3f0-51c9a7e2d604' },
-      email: TEST_EMAIL,
-    }),
-    env,
-  );
+    // メールアドレスを入れない人と、入れる人。回答したのは2人
+    await replay(
+      await walkThrough({ storage: { [SIGNAL_STORAGE_KEY]: BROWSER_ID } }),
+      env,
+    );
+    await replay(
+      await walkThrough({
+        storage: {
+          [SIGNAL_STORAGE_KEY]: '9f8b6c22-1d4e-4a77-b3f0-51c9a7e2d604',
+        },
+        email: TEST_EMAIL,
+      }),
+      env,
+    );
 
-  assert.equal(
-    anonRows(db).length,
-    2,
-    '🔒 アンケートに答えた人が全員「id を持つ行」に入っていない。' +
-      'ここが分子なので、欠けると回答率が実際より低く出て撤退判定を誤らせる',
-  );
-  assert.equal(
-    emailRows(db).length,
-    1,
-    'メールアドレスの行に入るのはメールを出した人だけ',
-  );
-  // 🔒 **表の行数をそのまま数えない。**同じ表に2種類の行が同居しているので、
-  //    `SELECT COUNT(*) FROM waitlist` は回答数でも登録者数でもない
-  assert.equal(rowsOf(db, 'waitlist').length, 3, '数え方の前提が変わっている');
-});
+    assert.equal(
+      anonRows(db).length,
+      2,
+      '🔒 アンケートに答えた人が全員「id を持つ行」に入っていない。' +
+        'ここが分子なので、欠けると回答率が実際より低く出て撤退判定を誤らせる',
+    );
+    assert.equal(
+      emailRows(db).length,
+      1,
+      'メールアドレスの行に入るのはメールを出した人だけ',
+    );
+    // 🔒 **表の行数をそのまま数えない。**同じ表に2種類の行が同居しているので、
+    //    `SELECT COUNT(*) FROM waitlist` は回答数でも登録者数でもない
+    assert.equal(
+      rowsOf(db, 'waitlist').length,
+      3,
+      '数え方の前提が変わっている',
+    );
+  },
+);
 
-test('🔒 同じ表に入っても、匿名の行とメールの行は結びつかない', sqliteOptions, async () => {
-  const { db, env } = makeRealEnv();
-  await replay(await walkThrough({ email: TEST_EMAIL }), env);
+test(
+  '🔒 同じ表に入っても、匿名の行とメールの行は結びつかない',
+  sqliteOptions,
+  async () => {
+    const { db, env } = makeRealEnv();
+    await replay(await walkThrough({ email: TEST_EMAIL }), env);
 
-  // 🔒 表が1つになっても、**どの押下がどのメールアドレスの人かは分からないままである。**
-  //    それがこの設計で守っている唯一の線であり、CHECK 制約がそれを強制する
-  for (const row of anonRows(db)) {
-    assert.equal(row.email, null, '🔒 匿名の行にメールアドレスが入っている');
-  }
-  for (const row of emailRows(db)) {
-    assert.equal(row.id, null, '🔒 メールアドレスの行に匿名の識別子が入っている');
-  }
+    // 🔒 表が1つになっても、**どの押下がどのメールアドレスの人かは分からないままである。**
+    //    それがこの設計で守っている唯一の線であり、CHECK 制約がそれを強制する
+    for (const row of anonRows(db)) {
+      assert.equal(row.email, null, '🔒 匿名の行にメールアドレスが入っている');
+    }
+    for (const row of emailRows(db)) {
+      assert.equal(
+        row.id,
+        null,
+        '🔒 メールアドレスの行に匿名の識別子が入っている',
+      );
+    }
 
-  assert.throws(
-    () =>
-      db.prepare('UPDATE waitlist SET email = ? WHERE id IS NOT NULL').run(TEST_EMAIL),
-    /CHECK|constraint/i,
-    '🔒 後から匿名の行へメールアドレスを書き足せてしまう。' +
-      'それまで匿名だった押下が、まとめてメールアドレスへ紐づく',
-  );
-});
+    assert.throws(
+      () =>
+        db
+          .prepare('UPDATE waitlist SET email = ? WHERE id IS NOT NULL')
+          .run(TEST_EMAIL),
+      /CHECK|constraint/i,
+      '🔒 後から匿名の行へメールアドレスを書き足せてしまう。' +
+        'それまで匿名だった押下が、まとめてメールアドレスへ紐づく',
+    );
+  },
+);
 
 /* ====================================================================== */
 /* 3. 押下の匿名シグナルの再送（T-062）を壊していない                        */
@@ -361,13 +442,18 @@ test('押下の送信が失敗しても、アンケートの回答は送られ�
     storage: { [SIGNAL_STORAGE_KEY]: BROWSER_ID },
     // 押下だけ 503。アンケートは通す
     respond: (call) =>
-      call.url.includes(SIGNAL_PATH) ? { ok: false, status: 503 } : { ok: true, status: 204 },
+      call.url.includes(SIGNAL_PATH)
+        ? { ok: false, status: 503 }
+        : { ok: true, status: 204 },
   });
 
-  dom.body.querySelectorAll('[data-request-cta]')[0].dispatchEvent(new DomEvent('click'));
+  dom.body
+    .querySelectorAll('[data-request-cta]')[0]
+    .dispatchEvent(new DomEvent('click'));
   await dom.flush();
   const form = dom.body.querySelector('[data-request-survey]');
-  form.querySelector('input[name="nutrients"][value="creatine"]').checked = true;
+  form.querySelector('input[name="nutrients"][value="creatine"]').checked =
+    true;
   form.dispatchEvent(new DomEvent('submit'));
   await dom.flush();
 

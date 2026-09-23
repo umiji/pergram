@@ -27,8 +27,14 @@ const item = (over = {}) => ({
   shopName: 'テスト店',
   itemPrice: 3980,
   itemUrl: 'https://item.rakuten.co.jp/shop/item1/',
-  itemCaption: '【栄養成分表示】1食(30g)あたり エネルギー 117kcal、たんぱく質 24.0g、脂質 1.5g',
-  mediumImageUrls: [{ imageUrl: 'https://thumbnail.image.rakuten.co.jp/@0_mall/shop/i.jpg?_ex=128x128' }],
+  itemCaption:
+    '【栄養成分表示】1食(30g)あたり エネルギー 117kcal、たんぱく質 24.0g、脂質 1.5g',
+  mediumImageUrls: [
+    {
+      imageUrl:
+        'https://thumbnail.image.rakuten.co.jp/@0_mall/shop/i.jpg?_ex=128x128',
+    },
+  ],
   ...over,
 });
 
@@ -53,8 +59,14 @@ test('名前付きの引数が本則', () => {
 
 // 🔒 余った位置引数を黙って捨てると、指定したつもりの条件で収集していないことに気付けない。
 test('🔒 名前付きと位置引数が食い違ったら止める', () => {
-  assert.throws(() => resolveOptions(['--keyword', 'ソイプロテイン', 'ホエイプロテイン']), /ページ数/);
-  assert.throws(() => resolveOptions(['プロテイン', '4', '余分']), /引数が多すぎます/);
+  assert.throws(
+    () => resolveOptions(['--keyword', 'ソイプロテイン', 'ホエイプロテイン']),
+    /ページ数/,
+  );
+  assert.throws(
+    () => resolveOptions(['プロテイン', '4', '余分']),
+    /引数が多すぎます/,
+  );
 });
 
 test('引数が無ければ既定値', () => {
@@ -74,22 +86,42 @@ test('🔒 ページ数が数値として読めなければ止める', () => {
 // 2026-02-10 の認証基盤刷新で、ドメイン・ID 形式・必須パラメータがすべて変わった。
 // 旧 app.rakuten.co.jp / 19桁の applicationId 単独では 400 になる。
 test('🔒 新しい認証基盤のエンドポイントに applicationId と accessKey を載せる', () => {
-  const url = buildSearchUrl({ appId: APP_ID, accessKey: ACCESS_KEY, keyword: 'プロテイン', page: 1 });
+  const url = buildSearchUrl({
+    appId: APP_ID,
+    accessKey: ACCESS_KEY,
+    keyword: 'プロテイン',
+    page: 1,
+  });
 
   assert.equal(url.origin, 'https://openapi.rakuten.co.jp');
-  assert.ok(url.pathname.startsWith('/ichibams/api/IchibaItem/Search/'), url.pathname);
+  assert.ok(
+    url.pathname.startsWith('/ichibams/api/IchibaItem/Search/'),
+    url.pathname,
+  );
   assert.equal(url.searchParams.get('applicationId'), APP_ID);
   assert.equal(url.searchParams.get('accessKey'), ACCESS_KEY);
 });
 
 test('アフィリエイト ID を渡すと検索 URL に載る', () => {
-  const url = buildSearchUrl({ appId: APP_ID, accessKey: ACCESS_KEY, affiliateId: AFFILIATE_ID, keyword: 'プロテイン', page: 1 });
+  const url = buildSearchUrl({
+    appId: APP_ID,
+    accessKey: ACCESS_KEY,
+    affiliateId: AFFILIATE_ID,
+    keyword: 'プロテイン',
+    page: 1,
+  });
 
   assert.equal(url.searchParams.get('affiliateId'), AFFILIATE_ID);
 });
 
 test('アフィリエイト ID が無いときは affiliateId を付けない', () => {
-  const url = buildSearchUrl({ appId: APP_ID, accessKey: ACCESS_KEY, affiliateId: null, keyword: 'プロテイン', page: 1 });
+  const url = buildSearchUrl({
+    appId: APP_ID,
+    accessKey: ACCESS_KEY,
+    affiliateId: null,
+    keyword: 'プロテイン',
+    page: 1,
+  });
 
   assert.ok(!url.searchParams.has('affiliateId'));
 });
@@ -98,7 +130,12 @@ test('アフィリエイト ID が無いときは affiliateId を付けない', 
 // minPrice 1500 で取り直したとき、41件すべてが 1,510〜1,600円 の小容量品だった。
 // 比較したい 1kg・3kg 帯には、ページを何枚めくっても到達しない。
 test('🔒 売れ筋順で取る。価格の安い順では主力商品帯に届かない', () => {
-  const url = buildSearchUrl({ appId: APP_ID, accessKey: ACCESS_KEY, keyword: 'プロテイン', page: 1 });
+  const url = buildSearchUrl({
+    appId: APP_ID,
+    accessKey: ACCESS_KEY,
+    keyword: 'プロテイン',
+    page: 1,
+  });
 
   assert.equal(url.searchParams.get('sort'), 'standard');
 });
@@ -106,19 +143,38 @@ test('🔒 売れ筋順で取る。価格の安い順では主力商品帯に届
 // 🔒 sort は「API から何を取ってくるか」であって掲載順ではない。
 //    それでも報酬率で取ると、母集団そのものが報酬の高い商品に偏る。
 test('🔒 報酬率で並べて取らない', () => {
-  const url = buildSearchUrl({ appId: APP_ID, accessKey: ACCESS_KEY, keyword: 'プロテイン', page: 1 });
+  const url = buildSearchUrl({
+    appId: APP_ID,
+    accessKey: ACCESS_KEY,
+    keyword: 'プロテイン',
+    page: 1,
+  });
 
-  assert.ok(!/affiliateRate/i.test(url.href), `報酬率が検索条件に入っています: ${url.href}`);
+  assert.ok(
+    !/affiliateRate/i.test(url.href),
+    `報酬率が検索条件に入っています: ${url.href}`,
+  );
 });
 
 test('🔒 下限価格で小容量品の帯を検索から外す', () => {
-  const url = buildSearchUrl({ appId: APP_ID, accessKey: ACCESS_KEY, keyword: 'プロテイン', page: 1 });
+  const url = buildSearchUrl({
+    appId: APP_ID,
+    accessKey: ACCESS_KEY,
+    keyword: 'プロテイン',
+    page: 1,
+  });
 
   assert.equal(url.searchParams.get('minPrice'), '3000');
 });
 
 test('下限価格はカテゴリごとに変えられる', () => {
-  const url = buildSearchUrl({ appId: APP_ID, accessKey: ACCESS_KEY, keyword: 'クレアチン', page: 1, minPrice: 800 });
+  const url = buildSearchUrl({
+    appId: APP_ID,
+    accessKey: ACCESS_KEY,
+    keyword: 'クレアチン',
+    page: 1,
+    minPrice: 800,
+  });
 
   assert.equal(url.searchParams.get('minPrice'), '800');
 });
@@ -144,11 +200,17 @@ test('通常の製品は除外しない', () => {
 
 test('購入リンクにはアフィリエイト URL を使う', () => {
   const row = toDraftRow(
-    item({ affiliateUrl: 'https://hb.afl.rakuten.co.jp/hgc/xxxx/?pc=https%3A%2F%2Fitem.rakuten.co.jp%2Fshop%2Fitem1%2F' }),
+    item({
+      affiliateUrl:
+        'https://hb.afl.rakuten.co.jp/hgc/xxxx/?pc=https%3A%2F%2Fitem.rakuten.co.jp%2Fshop%2Fitem1%2F',
+    }),
     '2026-08-09',
   );
 
-  assert.equal(row.url, 'https://hb.afl.rakuten.co.jp/hgc/xxxx/?pc=https%3A%2F%2Fitem.rakuten.co.jp%2Fshop%2Fitem1%2F');
+  assert.equal(
+    row.url,
+    'https://hb.afl.rakuten.co.jp/hgc/xxxx/?pc=https%3A%2F%2Fitem.rakuten.co.jp%2Fshop%2Fitem1%2F',
+  );
   assert.equal(row.is_affiliate, true);
 });
 
@@ -162,10 +224,19 @@ test('アフィリエイト URL が返らない店舗は素の商品 URL にす�
 });
 
 test('🔒 報酬率を下書きに残さない。報酬順という並びを作れないようにする', () => {
-  const row = toDraftRow(item({ affiliateRate: 8.0, affiliateUrl: 'https://hb.afl.rakuten.co.jp/hgc/xxxx/' }), '2026-08-09');
+  const row = toDraftRow(
+    item({
+      affiliateRate: 8.0,
+      affiliateUrl: 'https://hb.afl.rakuten.co.jp/hgc/xxxx/',
+    }),
+    '2026-08-09',
+  );
 
   for (const key of Object.keys(row)) {
-    assert.ok(!/rate|reward|commission|報酬/i.test(key), `報酬に関する項目「${key}」が下書きに残っています`);
+    assert.ok(
+      !/rate|reward|commission|報酬/i.test(key),
+      `報酬に関する項目「${key}」が下書きに残っています`,
+    );
   }
 });
 
@@ -177,7 +248,10 @@ test('自動取得と自動抽出が下書きに入る', () => {
   assert.equal(row.shop_name, 'テスト店');
   assert.equal(row.fetched_at, '2026-08-09');
   // サイズ指定は落として保存する
-  assert.equal(row.image_url, 'https://thumbnail.image.rakuten.co.jp/@0_mall/shop/i.jpg');
+  assert.equal(
+    row.image_url,
+    'https://thumbnail.image.rakuten.co.jp/@0_mall/shop/i.jpg',
+  );
   // 商品名から内容量、説明文から含有量
   assert.equal(row.net_weight_g, 1000);
   assert.equal(row.serving_size_g, 30);
@@ -189,8 +263,14 @@ test('自動取得と自動抽出が下書きに入る', () => {
 // 送料の金額は API から取れない。取れるのは「価格に含むか否か」の2値だけ。
 // postageFlag: 0 = 送料込み / 1 = 送料別（楽天商品検索 API のドキュメント）
 test('送料が価格に含まれるかどうかを下書きに残す', () => {
-  assert.equal(toDraftRow(item({ postageFlag: 0 }), '2026-08-09').postage_included, true);
-  assert.equal(toDraftRow(item({ postageFlag: 1 }), '2026-08-09').postage_included, false);
+  assert.equal(
+    toDraftRow(item({ postageFlag: 0 }), '2026-08-09').postage_included,
+    true,
+  );
+  assert.equal(
+    toDraftRow(item({ postageFlag: 1 }), '2026-08-09').postage_included,
+    false,
+  );
 });
 
 test('🔒 送料区分が返らなければ null。送料無料と決めつけない', () => {
@@ -211,13 +291,20 @@ test('商品説明文をそのまま下書きに残す', () => {
 });
 
 test('説明文が無い商品では null にする', () => {
-  for (const over of [{ itemCaption: undefined }, { itemCaption: null }, { itemCaption: '' }]) {
+  for (const over of [
+    { itemCaption: undefined },
+    { itemCaption: null },
+    { itemCaption: '' },
+  ]) {
     assert.equal(toDraftRow(item(over), '2026-08-09').item_caption, null);
   }
 });
 
 test('🔒 説明文から読めなければ含有量は null のまま人間に回る', () => {
-  const row = toDraftRow(item({ itemCaption: '大人気のプロテインです。送料無料。' }), '2026-08-09');
+  const row = toDraftRow(
+    item({ itemCaption: '大人気のプロテインです。送料無料。' }),
+    '2026-08-09',
+  );
 
   assert.equal(row.protein_per_100g, null);
   assert.equal(row.label_basis, null);

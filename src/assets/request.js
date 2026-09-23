@@ -163,7 +163,10 @@
 
   function bringIntoView(el) {
     if (!el || typeof el.scrollIntoView !== 'function') return;
-    el.scrollIntoView({ behavior: reducedMotion() ? 'auto' : 'smooth', block: 'start' });
+    el.scrollIntoView({
+      behavior: reducedMotion() ? 'auto' : 'smooth',
+      block: 'start',
+    });
   }
 
   /**
@@ -193,7 +196,8 @@
 
     const heading = step.querySelector('.request-flow__heading');
     bringIntoView(step);
-    if (heading && typeof heading.focus === 'function') heading.focus({ preventScroll: true });
+    if (heading && typeof heading.focus === 'function')
+      heading.focus({ preventScroll: true });
     return firstView;
   }
 
@@ -432,9 +436,9 @@
   /* ---- 第2段階: アンケート（任意） ------------------------------------ */
 
   function checkedValues(form, name) {
-    return Array.from(form.querySelectorAll(`input[name="${name}"]:checked`)).map(
-      (input) => input.value,
-    );
+    return Array.from(
+      form.querySelectorAll(`input[name="${name}"]:checked`),
+    ).map((input) => input.value);
   }
 
   /** 自由記述。空欄は null にして、送信本文に空文字を混ぜない */
@@ -475,7 +479,8 @@
           // 🔒 受領された。**控えは必ず消す**（永続的な記録にしない。T-070 の裁定の付帯条件）
           if (res.ok) removeStored(SURVEY_OUTBOX_KEY);
           // この本文は何度送っても通らない。残すと毎回 400 を貰いに行くだけになる
-          else if (res.status >= 400 && res.status < 500) removeStored(SURVEY_OUTBOX_KEY);
+          else if (res.status >= 400 && res.status < 500)
+            removeStored(SURVEY_OUTBOX_KEY);
           // 5xx は消さない。次の訪問で送り直す
         })
         .catch(() => {
@@ -551,14 +556,18 @@
     } catch (err) {
       saved = null;
     }
-    if (!saved || typeof saved !== 'object' || typeof saved.id !== 'string') return null;
+    if (!saved || typeof saved !== 'object' || typeof saved.id !== 'string')
+      return null;
 
     return {
       id: saved.id,
       answers: {
         nutrients: Array.isArray(saved.nutrients) ? saved.nutrients : [],
         channel: Array.isArray(saved.channel) ? saved.channel : [],
-        nutrients_other: typeof saved.nutrients_other === 'string' ? saved.nutrients_other : null,
+        nutrients_other:
+          typeof saved.nutrients_other === 'string'
+            ? saved.nutrients_other
+            : null,
         requests: typeof saved.requests === 'string' ? saved.requests : null,
       },
     };
@@ -610,7 +619,9 @@
     // 「その他」に書いたのにチップを選び忘れる、を防ぐ（LP のフォームと同じ）。
     // 逆（チップを外したら本文を消す）はやらない — 書いたものを勝手に捨てない
     const otherText = surveyForm.querySelector('[name="nutrients_other"]');
-    const otherCheck = surveyForm.querySelector('input[name="nutrients"][value="other"]');
+    const otherCheck = surveyForm.querySelector(
+      'input[name="nutrients"][value="other"]',
+    );
     if (otherText && otherCheck) {
       otherText.addEventListener('input', () => {
         if (otherText.value.trim() !== '') otherCheck.checked = true;
@@ -627,7 +638,12 @@
       const channel = checkedValues(surveyForm, 'channel');
       const nutrientsOther = fieldValue(surveyForm, 'nutrients_other');
       const requests = fieldValue(surveyForm, 'requests');
-      answers = { nutrients, channel, nutrients_other: nutrientsOther, requests };
+      answers = {
+        nutrients,
+        channel,
+        nutrients_other: nutrientsOther,
+        requests,
+      };
 
       // 🔒 自由記述は**本文を送らない**。書かれたかどうかだけを数える
       //    （症状や固有名詞が GA4 に流れる経路を作らない）
@@ -664,7 +680,8 @@
 
   /** 待機リストへの送信。応答が返らないまま押せない状態が続くのを時間で打ち切る */
   function postWaitlist(payload) {
-    const controller = typeof AbortController === 'function' ? new AbortController() : null;
+    const controller =
+      typeof AbortController === 'function' ? new AbortController() : null;
     const timer = controller
       ? window.setTimeout(() => {
           controller.abort();
@@ -773,7 +790,10 @@
   document.querySelectorAll('[data-request-skip]').forEach((button) => {
     button.addEventListener('click', () => {
       const kind = button.dataset.requestSkip;
-      track(kind === 'survey' ? 'request_survey_skip' : 'request_email_skip', {});
+      track(
+        kind === 'survey' ? 'request_survey_skip' : 'request_email_skip',
+        {},
+      );
       // 🔒 完了文言を出さない。飛ばした段では**何も起きていない**
       collapseStep(kind);
       if (kind === 'survey') toEmailStep();

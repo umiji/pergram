@@ -23,7 +23,10 @@ const referrerNotAllowed = JSON.stringify({
   errors: { errorCode: 403, errorMessage: 'HTTP_REFERRER_NOT_ALLOWED' },
 });
 const referrerMissing = JSON.stringify({
-  errors: { errorCode: 403, errorMessage: 'REQUEST_CONTEXT_BODY_HTTP_REFERRER_MISSING' },
+  errors: {
+    errorCode: 403,
+    errorMessage: 'REQUEST_CONTEXT_BODY_HTTP_REFERRER_MISSING',
+  },
 });
 const configurationNotFound = JSON.stringify({
   error_description: 'API Configuration not found',
@@ -77,7 +80,11 @@ test('403 REQUEST_CONTEXT_BODY_HTTP_REFERRER_MISSING は不一致と区別する
 // 2026-08-24 のドメイン移転で、GitHub 側の RAKUTEN_APP_URL だけが旧ドメインのまま残った。
 // 「送った値が正規ドメインかどうか」が分かれば、直す先が GitHub 側か楽天側かが決まる。
 test('送った Referer が旧ドメインなら、正規ドメインと違うことを言う', () => {
-  const hint = describeApiFailure({ status: 403, body: referrerNotAllowed, appUrl: STALE_APP_URL });
+  const hint = describeApiFailure({
+    status: 403,
+    body: referrerNotAllowed,
+    appUrl: STALE_APP_URL,
+  });
 
   assert.match(hint, /正規ドメイン（[^）]*）と一致していない/);
   assert.match(hint, new RegExp(new URL(SITE_ORIGIN).hostname));
@@ -96,7 +103,11 @@ test('送った Referer が正規ドメインなら、楽天側の登録を疑�
 
 test('appUrl が読めない値でも落ちない', () => {
   for (const appUrl of [undefined, '', 'not a url']) {
-    const hint = describeApiFailure({ status: 403, body: referrerNotAllowed, appUrl });
+    const hint = describeApiFailure({
+      status: 403,
+      body: referrerNotAllowed,
+      appUrl,
+    });
     assert.match(hint, /HTTP_REFERRER_NOT_ALLOWED/);
   }
 });
@@ -107,9 +118,16 @@ test('appUrl が読めない値でも落ちない', () => {
 //    書き戻すと、マスクの当てが外れた瞬間に平文で残る。
 test('🔒 手がかりに App URL の値そのものを含めない', () => {
   for (const appUrl of [CANONICAL_APP_URL, STALE_APP_URL]) {
-    const hint = describeApiFailure({ status: 403, body: referrerNotAllowed, appUrl });
+    const hint = describeApiFailure({
+      status: 403,
+      body: referrerNotAllowed,
+      appUrl,
+    });
 
-    assert.ok(!hint.includes(appUrl), '送信した App URL の値が手がかりに混ざっています');
+    assert.ok(
+      !hint.includes(appUrl),
+      '送信した App URL の値が手がかりに混ざっています',
+    );
     assert.ok(
       !hint.includes(new URL(appUrl).hostname),
       '送信した App URL のホストが手がかりに混ざっています',
@@ -121,6 +139,13 @@ test('🔒 手がかりに App URL の値そのものを含めない', () => {
 
 // 🔒 手がかりはあくまで補助。心当たりが無い応答に説明を作らない。
 test('見覚えのない応答には手がかりを作らない', () => {
-  assert.equal(describeApiFailure({ status: 500, body: 'Internal Server Error', appUrl: '' }), '');
+  assert.equal(
+    describeApiFailure({
+      status: 500,
+      body: 'Internal Server Error',
+      appUrl: '',
+    }),
+    '',
+  );
   assert.equal(describeApiFailure({ status: 429, body: '{}', appUrl: '' }), '');
 });

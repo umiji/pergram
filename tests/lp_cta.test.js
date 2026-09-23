@@ -132,9 +132,14 @@ function ctaElements(html) {
       tag,
       name,
       attrs,
-      classes: (attrs.match(/\bclass="([^"]*)"/)?.[1] ?? '').split(/\s+/).filter(Boolean),
+      classes: (attrs.match(/\bclass="([^"]*)"/)?.[1] ?? '')
+        .split(/\s+/)
+        .filter(Boolean),
       href: attrs.match(/\bhref="([^"]*)"/)?.[1] ?? null,
-      text: inner.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim(),
+      text: inner
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim(),
     };
   });
 }
@@ -147,7 +152,11 @@ function ctaNamesOf(html) {
 
 function ctaByName(html, name) {
   const found = ctaElements(html).filter((el) => el.name === name);
-  assert.equal(found.length, 1, `data-cta="${name}" の要素が ${found.length} 件です（1件であるべき）`);
+  assert.equal(
+    found.length,
+    1,
+    `data-cta="${name}" の要素が ${found.length} 件です（1件であるべき）`,
+  );
   return found[0];
 }
 
@@ -166,8 +175,13 @@ test('🔒 data-cta の値が変更前と同一である（GA4 の cta_click の
 test('🔒 LP 全体でファーストビューの3値がそれぞれ1度だけ出力される', () => {
   const html = renderLp();
   for (const name of FIRST_VIEW_CTAS) {
-    const hits = [...html.matchAll(new RegExp(`data-cta="${name}"`, 'g'))].length;
-    assert.equal(hits, 1, `data-cta="${name}" が ${hits} 件です（1件であるべき）`);
+    const hits = [...html.matchAll(new RegExp(`data-cta="${name}"`, 'g'))]
+      .length;
+    assert.equal(
+      hits,
+      1,
+      `data-cta="${name}" が ${hits} 件です（1件であるべき）`,
+    );
   }
 });
 
@@ -194,7 +208,10 @@ test('🔒 ヒーローに hero_waitlist の要素が出力されない（CSS �
 // ヒーローから消えても、ヘッダの導線とページ下部の受け皿は残っている。
 // 属性の順序に依存する完全一致の正規表現だけを緩める（受け皿の有無は緩めない）。
 test('🔒 ヒーローから消えても意思表示の受け皿は残っている（ヘッダとページ下部フォーム）', () => {
-  assert.equal(ctaByName(renderHeader(), 'header_waitlist').href, WAITLIST_HREF);
+  assert.equal(
+    ctaByName(renderHeader(), 'header_waitlist').href,
+    WAITLIST_HREF,
+  );
   const html = renderLp();
   // ページ下部のフォームの送信ボタン。ここが意思表示の受け皿である
   assert.ok(
@@ -218,8 +235,12 @@ test('ヘッダで btn--signal が付くのは待機リスト側だけ', () => {
 });
 
 test('ベータ版の導線に btn--signal が付いていない（signal は待機リストの色である）', () => {
-  assert.ok(!ctaByName(renderHeader(), 'header_beta').classes.includes('btn--signal'));
-  assert.ok(!ctaByName(renderHero(), 'hero_beta').classes.includes('btn--signal'));
+  assert.ok(
+    !ctaByName(renderHeader(), 'header_beta').classes.includes('btn--signal'),
+  );
+  assert.ok(
+    !ctaByName(renderHero(), 'hero_beta').classes.includes('btn--signal'),
+  );
 });
 
 /* ---- T-020: ヒーローの唯一のCTAはβ版であり、面が強い ------------------ */
@@ -227,7 +248,11 @@ test('ベータ版の導線に btn--signal が付いていない（signal は待
 test('ヒーローのCTAはβ版の1つだけである', () => {
   const html = renderHero();
   const names = ctaNamesOf(html);
-  assert.deepEqual(names, ['hero_beta'], `ヒーローの CTA が ${names.join(' / ')} です`);
+  assert.deepEqual(
+    names,
+    ['hero_beta'],
+    `ヒーローの CTA が ${names.join(' / ')} です`,
+  );
 });
 
 test('ヒーローのβ版ボタンが、ヘッダのβ版ボタンとは異なる面（クラス）である', () => {
@@ -235,7 +260,8 @@ test('ヒーローのβ版ボタンが、ヘッダのβ版ボタンとは異な�
   // ここで固定するのは「ヒーローとヘッダで面の指定が違うこと」までとする。
   const heroBeta = ctaByName(renderHero(), 'hero_beta');
   const headerBeta = ctaByName(renderHeader(), 'header_beta');
-  const modifiers = (el) => el.classes.filter((c) => c.startsWith('btn--')).sort();
+  const modifiers = (el) =>
+    el.classes.filter((c) => c.startsWith('btn--')).sort();
   assert.notDeepEqual(
     modifiers(heroBeta),
     modifiers(headerBeta),
@@ -262,7 +288,10 @@ test('ヘッダの主CTAがベータ版より弱くない（待機リストが b
   const beta = ctaByName(html, 'header_beta');
   const waitlist = ctaByName(html, 'header_waitlist');
   assert.ok(
-    !(beta.classes.includes('btn--signal') && waitlist.classes.includes('btn--subtle')),
+    !(
+      beta.classes.includes('btn--signal') &&
+      waitlist.classes.includes('btn--subtle')
+    ),
     'ヘッダでベータ版が主CTAになっています',
   );
 });
@@ -284,10 +313,21 @@ test('🔒 ベータ版の導線が残っており、押せる', () => {
     ['ヒーロー', renderHero(), 'hero_beta'],
   ]) {
     const el = ctaByName(html, name);
-    assert.equal(el.tag, 'a', `${region}: ベータ版の導線がリンクではありません`);
-    assert.equal(el.href, BETA_PATH, `${region}: ベータ版のリンク先が ${el.href} です`);
+    assert.equal(
+      el.tag,
+      'a',
+      `${region}: ベータ版の導線がリンクではありません`,
+    );
+    assert.equal(
+      el.href,
+      BETA_PATH,
+      `${region}: ベータ版のリンク先が ${el.href} です`,
+    );
     assert.ok(el.text.length > 0, `${region}: ベータ版のラベルが空です`);
-    assert.ok(!/\bhidden\b/.test(el.attrs), `${region}: ベータ版の導線が hidden です`);
+    assert.ok(
+      !/\bhidden\b/.test(el.attrs),
+      `${region}: ベータ版の導線が hidden です`,
+    );
     assert.ok(
       !/aria-disabled="true"/.test(el.attrs),
       `${region}: ベータ版の導線が aria-disabled です`,
@@ -313,17 +353,24 @@ test('🔒 ベータ版の導線は en でも残っている', () => {
 test('🔒 禁止語が LP の出力に含まれていない', () => {
   const html = renderLp();
   for (const banned of BANNED_WORDS) {
-    assert.ok(!html.includes(banned), `禁止語「${banned}」が LP の出力に含まれています`);
+    assert.ok(
+      !html.includes(banned),
+      `禁止語「${banned}」が LP の出力に含まれています`,
+    );
   }
 });
 
 test('🔒 禁止語が CTA のラベルに含まれていない', () => {
-  const labels = [...ctaElements(renderHeader()), ...ctaElements(renderHero())].map(
-    (el) => `${el.name}: ${el.text}`,
-  );
+  const labels = [
+    ...ctaElements(renderHeader()),
+    ...ctaElements(renderHero()),
+  ].map((el) => `${el.name}: ${el.text}`);
   for (const label of labels) {
     for (const banned of BANNED_WORDS) {
-      assert.ok(!label.includes(banned), `禁止語「${banned}」が CTA のラベルにあります（${label}）`);
+      assert.ok(
+        !label.includes(banned),
+        `禁止語「${banned}」が CTA のラベルにあります（${label}）`,
+      );
     }
   }
 });
@@ -339,7 +386,10 @@ test('🔒 ja / en の両方で LP が未定義キーなしに描画できる', 
   ]) {
     const html = renderLp(t, locale);
     for (const name of FIRST_VIEW_CTAS) {
-      assert.ok(html.includes(`data-cta="${name}"`), `${locale}: ${name} が出力にありません`);
+      assert.ok(
+        html.includes(`data-cta="${name}"`),
+        `${locale}: ${name} が出力にありません`,
+      );
     }
   }
 });

@@ -57,8 +57,14 @@ const HERO_EXPECTED = [
  * 完了後にこれらが LP・`HERO_PRODUCT_IDS`・design.md の例外の表に残っていてはならない。
  */
 const OLD_HERO = [
-  { id: 'rakuten:kanedestore:10013364', nameFragment: 'アクアホエイプロテイン' },
-  { id: 'rakuten:grong:10000788', nameFragment: 'ホエイプロテイン アイソレート WPI プレーン' },
+  {
+    id: 'rakuten:kanedestore:10013364',
+    nameFragment: 'アクアホエイプロテイン',
+  },
+  {
+    id: 'rakuten:grong:10000788',
+    nameFragment: 'ホエイプロテイン アイソレート WPI プレーン',
+  },
   { id: 'rakuten:kyomo:10000507', nameFragment: 'マックスロード' },
 ];
 
@@ -102,7 +108,10 @@ function heroRowOf(id) {
 function productsRowOf(id) {
   const at = productsHtml.indexOf(`data-product-id="${id}"`);
   if (at === -1) return null;
-  const li = productsHtml.slice(productsHtml.lastIndexOf('<li ', at), productsHtml.indexOf('>', at));
+  const li = productsHtml.slice(
+    productsHtml.lastIndexOf('<li ', at),
+    productsHtml.indexOf('>', at),
+  );
   return {
     rank: Number(li.match(/data-rank="(\d+)"/)?.[1]),
     unitCost: Number(li.match(/data-unit-cost="([\d.]+)"/)?.[1]),
@@ -131,17 +140,28 @@ function heroExceptionSection() {
 async function bannedWords() {
   const src = await readFile('tests/render.test.js', 'utf8');
   const body = src.match(/const BANNED_WORDS = \[([\s\S]*?)\];/)?.[1];
-  assert.ok(body, 'tests/render.test.js から BANNED_WORDS を読み取れませんでした');
+  assert.ok(
+    body,
+    'tests/render.test.js から BANNED_WORDS を読み取れませんでした',
+  );
   const words = [...body.matchAll(/'([^']+)'/g)].map((m) => m[1]);
-  assert.ok(words.length >= 10, `BANNED_WORDS の読み取り結果が少なすぎます: ${words.length} 件`);
+  assert.ok(
+    words.length >= 10,
+    `BANNED_WORDS の読み取り結果が少なすぎます: ${words.length} 件`,
+  );
   return words;
 }
 
 /* ---- 完了条件1: HERO_PRODUCT_IDS と、ビルドの警告出力 ------------------ */
 
 test('完了条件1: HERO_PRODUCT_IDS が PO の確定した3件をこの順で持つ', () => {
-  const body = buildSource.match(/const HERO_PRODUCT_IDS = \[([\s\S]*?)\];/)?.[1];
-  assert.ok(body, 'src/build/build.js の HERO_PRODUCT_IDS の定義が読み取れません');
+  const body = buildSource.match(
+    /const HERO_PRODUCT_IDS = \[([\s\S]*?)\];/,
+  )?.[1];
+  assert.ok(
+    body,
+    'src/build/build.js の HERO_PRODUCT_IDS の定義が読み取れません',
+  );
 
   const declared = [...body.matchAll(/'([^']+)'/g)].map((m) => m[1]);
   assert.deepEqual(
@@ -153,7 +173,9 @@ test('完了条件1: HERO_PRODUCT_IDS が PO の確定した3件をこの順で�
 
 test('完了条件1: 手動指定は維持され、ビルドが警告を出力する', () => {
   assert.ok(
-    buildLog.includes('⚠️ヒーローHERO_PRODUCT_IDSで手動指定した3件を出しています'),
+    buildLog.includes(
+      '⚠️ヒーローHERO_PRODUCT_IDSで手動指定した3件を出しています',
+    ),
     `ビルド出力に手動指定の警告がありません:\n${buildStdout}`,
   );
   // 🔒 ID が1つでも実データに無いと単価順へ落ちる。落ちた状態を「合格」にしない
@@ -166,7 +188,9 @@ test('完了条件1: 手動指定は維持され、ビルドが警告を出力�
 /* ---- 完了条件2: ビルド後の /ja/ のヒーローの中身 ----------------------- */
 
 test('完了条件2: /ja/ のヒーローに確定した3件が確定した順で出る', () => {
-  const ids = [...heroSection().matchAll(/data-product-id="([^"]+)"/g)].map((m) => m[1]);
+  const ids = [...heroSection().matchAll(/data-product-id="([^"]+)"/g)].map(
+    (m) => m[1],
+  );
   assert.deepEqual(
     ids,
     HERO_EXPECTED.map((p) => p.id),
@@ -195,7 +219,10 @@ test('完了条件2: ヒーローの各行が、その製品の実データの�
 
 test('完了条件2: 差し替え前の3件が LP に残っていない', () => {
   for (const old of OLD_HERO) {
-    assert.ok(!lpHtml.includes(old.id), `LP に差し替え前の製品 ${old.id} が残っています`);
+    assert.ok(
+      !lpHtml.includes(old.id),
+      `LP に差し替え前の製品 ${old.id} が残っています`,
+    );
   }
 });
 
@@ -204,7 +231,10 @@ test('完了条件2: 差し替え前の3件が LP に残っていない', () => 
  *    ItemList で「この順が順位である」と機械に断言してはならない。
  */
 test('🔒 LP のヒーローに ItemList の構造化データを付けない', () => {
-  assert.ok(!lpHtml.includes('ItemList'), 'LP に ItemList の構造化データが入っています');
+  assert.ok(
+    !lpHtml.includes('ItemList'),
+    'LP に ItemList の構造化データが入っています',
+  );
 });
 
 /* ---- 実データ側の裏取り ------------------------------------------------ */
@@ -241,7 +271,9 @@ test('完了条件3: design.md の例外の表が新しい3件の実際の単価
   for (const expected of HERO_EXPECTED) {
     const line = section
       .split('\n')
-      .find((l) => l.includes(expected.nameFragment) || l.includes(expected.id));
+      .find(
+        (l) => l.includes(expected.nameFragment) || l.includes(expected.id),
+      );
     assert.ok(
       line,
       `${DESIGN_DOC} の例外の節に「${expected.nameFragment}」の行がありません`,

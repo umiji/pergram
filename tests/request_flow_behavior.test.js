@@ -41,8 +41,10 @@ const WAITLIST_ENDPOINT = '/api/waitlist';
 /** 匿名シグナルの受け口。第1段階の押下で1回だけ（T-051） */
 const SIGNAL_ENDPOINT = '/api/request-signal';
 
-const waitlistCalls = (dom) => dom.fetchCalls.filter((call) => call.url.includes(WAITLIST_ENDPOINT));
-const signalCalls = (dom) => dom.fetchCalls.filter((call) => call.url.includes(SIGNAL_ENDPOINT));
+const waitlistCalls = (dom) =>
+  dom.fetchCalls.filter((call) => call.url.includes(WAITLIST_ENDPOINT));
+const signalCalls = (dom) =>
+  dom.fetchCalls.filter((call) => call.url.includes(SIGNAL_ENDPOINT));
 
 /** 自由記述の本文が GA4 へ漏れていないかを見るための目印 */
 const SENTINEL = 'ZZQ';
@@ -69,7 +71,8 @@ ${requestFlow(t, { support: market.support, page: PAGE_ID })}`;
 
 async function boot(options = {}) {
   const dom = await runLpScript(page(), { scriptPath: SCRIPT, ...options });
-  const step = (kind) => dom.body.querySelector(`[data-request-step="${kind}"]`);
+  const step = (kind) =>
+    dom.body.querySelector(`[data-request-step="${kind}"]`);
   return { dom, step };
 }
 
@@ -90,7 +93,8 @@ async function submitSurvey(options = {}) {
   const form = state.dom.body.querySelector('[data-request-survey]');
   assert.ok(form, 'アンケートのフォームがありません');
 
-  form.querySelector('input[name="nutrients"][value="creatine"]').checked = true;
+  form.querySelector('input[name="nutrients"][value="creatine"]').checked =
+    true;
   form.querySelector('input[name="channel"][value="rakuten"]').checked = true;
   form.querySelector('[name="nutrients_other"]').value = NUTRIENTS_OTHER_INPUT;
   form.querySelector('[name="requests"]').value = REQUESTS_INPUT;
@@ -128,7 +132,11 @@ test('押す前はどの段も閉じている（スクリプトが勝手に開�
   const { step } = await boot();
 
   for (const kind of ['survey', 'email', 'support']) {
-    assert.equal(step(kind).hidden, true, `${kind} の段が押す前から開いています`);
+    assert.equal(
+      step(kind).hidden,
+      true,
+      `${kind} の段が押す前から開いています`,
+    );
   }
 });
 
@@ -154,7 +162,11 @@ test('🔒 押下後のフィードバックに数値が出ない（押下数を
       !/\d/.test(button.textContent),
       `ボタンの文言に数値が出ています: ${button.textContent}`,
     );
-    assert.equal(button.getAttribute('aria-expanded'), 'true', '開いたことが伝わっていません');
+    assert.equal(
+      button.getAttribute('aria-expanded'),
+      'true',
+      '開いたことが伝わっていません',
+    );
   }
 });
 
@@ -166,7 +178,11 @@ test('🔒 要望ボタンを押しただけでは待機リストへ送らない
     0,
     `第1段階でメールアドレスの受け口へ ${waitlistCalls(dom).length} 回送っています`,
   );
-  assert.equal(signalCalls(dom).length, 1, '匿名シグナルが1回送られていません（T-051 完了条件7）');
+  assert.equal(
+    signalCalls(dom).length,
+    1,
+    '匿名シグナルが1回送られていません（T-051 完了条件7）',
+  );
 });
 
 test('🔒 匿名シグナルの送信本文は { id, page } ちょうどである（T-058 完了条件7）', async () => {
@@ -192,7 +208,9 @@ test('🔒 どのページか分からなければ匿名シグナルを送らな
 ${requestFlow(t, { support: null })}`,
     { scriptPath: SCRIPT },
   );
-  dom.body.querySelector('[data-request-cta]').dispatchEvent(new DomEvent('click'));
+  dom.body
+    .querySelector('[data-request-cta]')
+    .dispatchEvent(new DomEvent('click'));
   await Promise.resolve();
 
   assert.equal(signalCalls(dom).length, 0, 'page の無い本文を送っています');
@@ -208,7 +226,10 @@ ${requestFlow(t, { support: null })}`,
 test('アンケートを送るとメールの段が開き、アンケートは完了状態になる', async () => {
   const { step, surveyForm, surveySubmit, dom } = await submitSurvey();
 
-  assert.ok(surveySubmit.defaultPrevented, '🔒 送信で既定の遷移が止まっていません');
+  assert.ok(
+    surveySubmit.defaultPrevented,
+    '🔒 送信で既定の遷移が止まっていません',
+  );
   assert.equal(dom.navigations.length, 0, '🔒 送信後に別ページへ飛んでいます');
   assert.equal(surveyForm.hidden, true, 'アンケートのフォームが残っています');
   assert.equal(step('email').hidden, false, 'メールの段が開いていません');
@@ -232,11 +253,20 @@ test('🔒 アンケートの GA4 イベントに自由記述の本文が乗ら�
   assert.ok(hit, '自由記述の有無を数えるイベントがありません');
   assert.equal(hit.params.has_requests, 1);
   assert.equal(hit.params.has_nutrients_other, 1);
-  assert.ok(hit.params.selected_nutrients.includes('creatine'), '選択した成分が乗っていません');
-  assert.ok(hit.params.purchase_channel.includes('rakuten'), '購入先が乗っていません');
+  assert.ok(
+    hit.params.selected_nutrients.includes('creatine'),
+    '選択した成分が乗っていません',
+  );
+  assert.ok(
+    hit.params.purchase_channel.includes('rakuten'),
+    '購入先が乗っていません',
+  );
 
   const sent = JSON.stringify(dom.gtagCalls);
-  assert.ok(!sent.includes(SENTINEL), `自由記述の本文が GA4 へ流れています: ${SENTINEL}`);
+  assert.ok(
+    !sent.includes(SENTINEL),
+    `自由記述の本文が GA4 へ流れています: ${SENTINEL}`,
+  );
 });
 
 test('アンケートを飛ばしてもメールの段へ進める', async () => {
@@ -248,7 +278,11 @@ test('アンケートを飛ばしてもメールの段へ進める', async () =>
   await dom.flush();
 
   assert.equal(step('email').hidden, false, 'メールの段が開いていません');
-  assert.equal(waitlistCalls(dom).length, 0, '飛ばしたのに待機リストへ送信しています');
+  assert.equal(
+    waitlistCalls(dom).length,
+    0,
+    '飛ばしたのに待機リストへ送信しています',
+  );
 });
 
 /* ---- 第3段階: メールアドレス ------------------------------------------- */
@@ -256,13 +290,23 @@ test('アンケートを飛ばしてもメールの段へ進める', async () =>
 test('メールアドレスを送ると /api/waitlist へ POST され、支援の段が開く', async () => {
   const { dom, step, emailForm, emailSubmit } = await submitEmail();
 
-  assert.equal(waitlistCalls(dom).length, 1, `送信が ${waitlistCalls(dom).length} 回です`);
+  assert.equal(
+    waitlistCalls(dom).length,
+    1,
+    `送信が ${waitlistCalls(dom).length} 回です`,
+  );
   const [call] = waitlistCalls(dom);
   assert.equal(call.method, 'POST');
-  assert.ok(call.url.startsWith(WAITLIST_ENDPOINT), `送信先が ${call.url} です`);
+  assert.ok(
+    call.url.startsWith(WAITLIST_ENDPOINT),
+    `送信先が ${call.url} です`,
+  );
   assert.equal(call.body.email, TEST_EMAIL);
 
-  assert.ok(emailSubmit.defaultPrevented, '🔒 送信で既定の遷移が止まっていません');
+  assert.ok(
+    emailSubmit.defaultPrevented,
+    '🔒 送信で既定の遷移が止まっていません',
+  );
   assert.equal(dom.navigations.length, 0, '🔒 送信後に別ページへ飛んでいます');
   assert.equal(emailForm.hidden, true, 'メールのフォームが残っています');
   assert.equal(step('support').hidden, false, '支援の段が開いていません');
@@ -286,7 +330,10 @@ test('🔒 送信本文は保存してよい列の範囲だけ。アンケート
       `保存対象外の項目を送っています: ${key}`,
     );
   }
-  assert.ok(body.nutrients.includes('creatine'), '見たい成分が送られていません');
+  assert.ok(
+    body.nutrients.includes('creatine'),
+    '見たい成分が送られていません',
+  );
   assert.ok(body.channel.includes('rakuten'), '購入先が送られていません');
   assert.equal(body.nutrients_other, NUTRIENTS_OTHER_INPUT);
   assert.equal(body.requests, REQUESTS_INPUT);
@@ -305,19 +352,36 @@ test('メールアドレスの形が正しくなければ送らず、直し方�
   const { dom, step } = await submitEmail({}, 'not-an-email');
   const error = dom.body.querySelector('.request-form__error');
 
-  assert.equal(waitlistCalls(dom).length, 0, '不正なメールアドレスを送信しています');
+  assert.equal(
+    waitlistCalls(dom).length,
+    0,
+    '不正なメールアドレスを送信しています',
+  );
   assert.ok(error && !error.hidden, 'エラー文が出ていません');
-  assert.ok(error.textContent.trim().length > 0, '🔒 エラーを色だけで示しています');
-  assert.equal(step('support').hidden, true, '送れていないのに支援の段が開いています');
+  assert.ok(
+    error.textContent.trim().length > 0,
+    '🔒 エラーを色だけで示しています',
+  );
+  assert.equal(
+    step('support').hidden,
+    true,
+    '送れていないのに支援の段が開いています',
+  );
 });
 
 test('送信に失敗したら完了状態にせず、押し直せる', async () => {
-  const { dom, step, emailForm } = await submitEmail({ respond: () => ({ reject: true }) });
+  const { dom, step, emailForm } = await submitEmail({
+    respond: () => ({ reject: true }),
+  });
   const error = dom.body.querySelector('.request-form__error');
   const button = emailForm.querySelector('button[type="submit"]');
 
   assert.equal(emailForm.hidden, false, '失敗したのにフォームが隠れています');
-  assert.equal(step('support').hidden, true, '失敗したのに次の段が開いています');
+  assert.equal(
+    step('support').hidden,
+    true,
+    '失敗したのに次の段が開いています',
+  );
   assert.ok(error && !error.hidden, 'エラー文が出ていません');
   assert.equal(button.disabled, false, '失敗したままボタンが押せません');
   assert.equal(dom.navigations.length, 0, '🔒 別ページへ飛んでいます');
@@ -332,7 +396,11 @@ test('メールアドレスを入れずに支援の段まで進める', async ()
   await dom.flush();
 
   assert.equal(step('support').hidden, false, '支援の段が開いていません');
-  assert.equal(waitlistCalls(dom).length, 0, '飛ばしたのに待機リストへ送信しています');
+  assert.equal(
+    waitlistCalls(dom).length,
+    0,
+    '飛ばしたのに待機リストへ送信しています',
+  );
 });
 
 /* ---- 計測の分離 -------------------------------------------------------- */
@@ -358,7 +426,11 @@ test('段への到達が、それぞれ別のイベント名で数えられる',
   const { dom } = await submitEmail();
   const names = dom.eventNames();
 
-  assert.equal(new Set(names).size, names.length, `同じイベント名が重複しています: ${names}`);
+  assert.equal(
+    new Set(names).size,
+    names.length,
+    `同じイベント名が重複しています: ${names}`,
+  );
   assert.deepEqual(
     [...names].sort(),
     [...FULL_FLOW_EVENTS].sort(),
@@ -371,16 +443,25 @@ test('支援の設定が無い市場では、支援の段が無くても壊れ�
 ${requestFlow(t, { support: null })}`;
   const dom = await runLpScript(html, { scriptPath: SCRIPT });
 
-  dom.body.querySelector('[data-request-cta]').dispatchEvent(new DomEvent('click'));
+  dom.body
+    .querySelector('[data-request-cta]')
+    .dispatchEvent(new DomEvent('click'));
   await dom.flush();
 
   assert.equal(dom.body.querySelector('[data-request-step="support"]'), null);
-  assert.equal(dom.body.querySelector('[data-request-step="survey"]').hidden, false);
+  assert.equal(
+    dom.body.querySelector('[data-request-step="survey"]').hidden,
+    false,
+  );
 
   const skip = dom.body.querySelector('[data-request-skip="email"]');
   skip.dispatchEvent(new DomEvent('click'));
   await dom.flush();
-  assert.equal(dom.navigations.length, 0, '支援の段が無いときに別ページへ飛んでいます');
+  assert.equal(
+    dom.navigations.length,
+    0,
+    '支援の段が無いときに別ページへ飛んでいます',
+  );
 });
 
 /* ---- 飛ばした段に完了文言を出さない（T-051 レビュー R-051-2） ----------- */
@@ -407,7 +488,11 @@ test('🔒 アンケートを飛ばしたとき、回答したという完了文
   const done = doneOf(dom, 'survey');
   assert.ok(done, 'アンケートの段に完了文言の器がありません');
   assert.equal(done.hidden, true, '飛ばしたのに回答の完了文言が出ています');
-  assert.equal(done.textContent.trim(), '', '飛ばしたのに回答の完了文言が読める状態です');
+  assert.equal(
+    done.textContent.trim(),
+    '',
+    '飛ばしたのに回答の完了文言が読める状態です',
+  );
 });
 
 test('🔒 メールアドレスを飛ばしたとき、登録したという完了文言を出さない', async () => {
@@ -429,7 +514,9 @@ test('🔒 メールアドレスを飛ばしたとき、登録したという完
 test('飛ばした段でもフォームは畳まれ、次の段が開く', async () => {
   const { dom, step } = await clickRequest();
 
-  dom.body.querySelector('[data-request-skip="survey"]').dispatchEvent(new DomEvent('click'));
+  dom.body
+    .querySelector('[data-request-skip="survey"]')
+    .dispatchEvent(new DomEvent('click'));
   await dom.flush();
 
   assert.equal(
@@ -455,12 +542,15 @@ test('飛ばした段でもフォームは畳まれ、次の段が開く', async
  *    飛ばした人だけが二重に数えられると回答率が実際より低く出て、
  *    広告の撤退判定を誤らせる。
  */
-const countEvent = (dom, name) => dom.eventNames().filter((n) => n === name).length;
+const countEvent = (dom, name) =>
+  dom.eventNames().filter((n) => n === name).length;
 
 /** アンケートを飛ばしたあと、要望ボタンをもう一度押す */
 async function skipSurveyThenClickAgain() {
   const state = await clickRequest();
-  state.dom.body.querySelector('[data-request-skip="survey"]').dispatchEvent(new DomEvent('click'));
+  state.dom.body
+    .querySelector('[data-request-skip="survey"]')
+    .dispatchEvent(new DomEvent('click'));
   await state.dom.flush();
 
   state.buttons[0].dispatchEvent(new DomEvent('click'));
@@ -471,7 +561,11 @@ async function skipSurveyThenClickAgain() {
 test('🔒 アンケートを飛ばした後に押し直しても、空の段が開き直さない', async () => {
   const { step } = await skipSurveyThenClickAgain();
 
-  assert.equal(step('survey').hidden, true, '飛ばしたアンケートの段が空箱のまま復活しています');
+  assert.equal(
+    step('survey').hidden,
+    true,
+    '飛ばしたアンケートの段が空箱のまま復活しています',
+  );
 });
 
 test('🔒 アンケートを飛ばした後に押し直しても request_survey_view は1回だけ', async () => {
@@ -487,7 +581,11 @@ test('🔒 アンケートを飛ばした後に押し直しても request_survey
 test('押し直しても、飛ばした後に開いたメールの段は開いたまま', async () => {
   const { step } = await skipSurveyThenClickAgain();
 
-  assert.equal(step('email').hidden, false, '押し直しでメールの段が閉じています');
+  assert.equal(
+    step('email').hidden,
+    false,
+    '押し直しでメールの段が閉じています',
+  );
 });
 
 test('🔒 回答を送った後に押し直しても、完了文言が消えず二重に数えない', async () => {
@@ -496,8 +594,16 @@ test('🔒 回答を送った後に押し直しても、完了文言が消えず
   buttons[0].dispatchEvent(new DomEvent('click'));
   await dom.flush();
 
-  assert.equal(step('survey').hidden, false, '押し直しで回答の完了文言ごと段が消えています');
-  assert.equal(doneOf(dom, 'survey').hidden, false, '押し直しで完了文言が隠れています');
+  assert.equal(
+    step('survey').hidden,
+    false,
+    '押し直しで回答の完了文言ごと段が消えています',
+  );
+  assert.equal(
+    doneOf(dom, 'survey').hidden,
+    false,
+    '押し直しで完了文言が隠れています',
+  );
   assert.equal(
     countEvent(dom, 'request_survey_view'),
     1,
@@ -510,7 +616,11 @@ test('実際に送った段には完了文言が出る（飛ばした場合と�
 
   const surveyDone = doneOf(dom, 'survey');
   const emailDone = doneOf(dom, 'email');
-  assert.equal(surveyDone.hidden, false, '回答を送ったのに完了文言が出ていません');
+  assert.equal(
+    surveyDone.hidden,
+    false,
+    '回答を送ったのに完了文言が出ていません',
+  );
   assert.equal(surveyDone.textContent.trim(), t('request.surveyDone'));
   assert.equal(emailDone.hidden, false, '登録できたのに完了文言が出ていません');
   assert.equal(emailDone.textContent.trim(), t('request.emailDone'));
@@ -548,7 +658,9 @@ test('🔒 waitlist_submit に個人識別情報を載せない', async () => {
 
 test('🔒 メールアドレスを飛ばしたときは waitlist_submit を送らない', async () => {
   const { dom } = await submitSurvey();
-  dom.body.querySelector('[data-request-skip="email"]').dispatchEvent(new DomEvent('click'));
+  dom.body
+    .querySelector('[data-request-skip="email"]')
+    .dispatchEvent(new DomEvent('click'));
   await dom.flush();
 
   assert.ok(
@@ -585,13 +697,21 @@ test('🔒 要望ボタンの aria-controls が、押す前は閉じている要
   assert.ok(id, '要望ボタンに aria-controls がありません');
   const target = dom.body.querySelector(`#${id}`);
   assert.ok(target, `aria-controls="${id}" の指す要素がありません`);
-  assert.equal(target.hidden, true, 'aria-expanded="false" なのに指す先が見えています');
+  assert.equal(
+    target.hidden,
+    true,
+    'aria-expanded="false" なのに指す先が見えています',
+  );
   assert.equal(button.getAttribute('aria-expanded'), 'false');
 
   button.dispatchEvent(new DomEvent('click'));
   await dom.flush();
 
-  assert.equal(target.hidden, false, '押したのに aria-controls の指す先が閉じたままです');
+  assert.equal(
+    target.hidden,
+    false,
+    '押したのに aria-controls の指す先が閉じたままです',
+  );
   assert.equal(button.getAttribute('aria-expanded'), 'true');
 });
 
@@ -610,7 +730,9 @@ test('🔒 匿名シグナルの送信が同期的に失敗しても、段は開
     },
   });
 
-  dom.body.querySelector('[data-request-cta]').dispatchEvent(new DomEvent('click'));
+  dom.body
+    .querySelector('[data-request-cta]')
+    .dispatchEvent(new DomEvent('click'));
   await dom.flush();
 
   assert.equal(
@@ -635,14 +757,20 @@ test('🔒 匿名シグナルの送信が同期的に失敗しても、段は開
 const LP_SCRIPT = 'src/assets/lp.js';
 
 /** ヘッダの CTA。第1段階のボタンではないので、これは今までどおり cta_click で数える */
-const HEADER_CTA = '<a href="#waitlist" data-cta="header_waitlist">正式版を応援する</a>';
+const HEADER_CTA =
+  '<a href="#waitlist" data-cta="header_waitlist">正式版を応援する</a>';
 
-const ctaClicks = (dom) => dom.gtagCalls.filter((call) => call[1] === 'cta_click');
+const ctaClicks = (dom) =>
+  dom.gtagCalls.filter((call) => call[1] === 'cta_click');
 
 test('🔒 LP でも要望ボタンの押下は request_click ひとつだけで数える', async () => {
-  const dom = await runLpScript(`${HEADER_CTA}\n${page()}`, { scriptPath: LP_SCRIPT });
+  const dom = await runLpScript(`${HEADER_CTA}\n${page()}`, {
+    scriptPath: LP_SCRIPT,
+  });
 
-  dom.body.querySelector('[data-request-cta]').dispatchEvent(new DomEvent('click'));
+  dom.body
+    .querySelector('[data-request-cta]')
+    .dispatchEvent(new DomEvent('click'));
   await dom.flush();
 
   assert.equal(
@@ -653,9 +781,13 @@ test('🔒 LP でも要望ボタンの押下は request_click ひとつだけで
 });
 
 test('🔒 第1段階のボタンでない CTA は今までどおり cta_click で数える（計測の連続性）', async () => {
-  const dom = await runLpScript(`${HEADER_CTA}\n${page()}`, { scriptPath: LP_SCRIPT });
+  const dom = await runLpScript(`${HEADER_CTA}\n${page()}`, {
+    scriptPath: LP_SCRIPT,
+  });
 
-  dom.body.querySelector('[data-cta="header_waitlist"]').dispatchEvent(new DomEvent('click'));
+  dom.body
+    .querySelector('[data-cta="header_waitlist"]')
+    .dispatchEvent(new DomEvent('click'));
   await dom.flush();
 
   assert.deepEqual(

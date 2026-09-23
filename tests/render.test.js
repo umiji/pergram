@@ -78,7 +78,9 @@ test('🔒 絞り込みの初期値がどの製品も除外しない', () => {
   const sliderValue = (id) =>
     Number(html.match(new RegExp(`id="${id}"[\\s\\S]*?value="([\\d.]+)"`))[1]);
   const itemValues = (attr) =>
-    [...html.matchAll(new RegExp(`data-${attr}="([\\d.]+)"`, 'g'))].map((m) => Number(m[1]));
+    [...html.matchAll(new RegExp(`data-${attr}="([\\d.]+)"`, 'g'))].map((m) =>
+      Number(m[1]),
+    );
 
   const priceMax = Math.max(...itemValues('price'));
   const unitCostMax = Math.max(...itemValues('unit-cost'));
@@ -128,18 +130,28 @@ test('一覧は ol でマークアップされる', () => {
 
 test('🔒 表示順は単価の昇順になっている', () => {
   const html = renderProducts();
-  const costs = [...html.matchAll(/class="cost__value">¥([\d,.]+)</g)].map((m) =>
-    Number.parseFloat(m[1].replace(/,/g, '')),
+  const costs = [...html.matchAll(/class="cost__value">¥([\d,.]+)</g)].map(
+    (m) => Number.parseFloat(m[1].replace(/,/g, '')),
   );
   assert.equal(costs.length, rows.length);
-  assert.deepEqual(costs, [...costs].sort((a, b) => a - b));
+  assert.deepEqual(
+    costs,
+    [...costs].sort((a, b) => a - b),
+  );
 });
 
 test('🔒 並び替えのセレクトを置かない', () => {
   const html = renderProducts();
   assert.ok(!html.includes('data-sort'));
-  for (const banned of ['価格が安い順', '含有率が高い順', 'レビュー評価が高い順']) {
-    assert.ok(!html.includes(banned), `並び替えの選択肢「${banned}」が残っています`);
+  for (const banned of [
+    '価格が安い順',
+    '含有率が高い順',
+    'レビュー評価が高い順',
+  ]) {
+    assert.ok(
+      !html.includes(banned),
+      `並び替えの選択肢「${banned}」が残っています`,
+    );
   }
 });
 
@@ -174,9 +186,18 @@ test('🔒 最安を色だけで示さない。順位番号とテキストを併
 // 文面は言い換わるので t() 経由で見る。見張るのは「出ているか」であって字面ではない。
 test('免責が常時出ている', () => {
   const html = renderProducts();
-  assert.ok(html.includes(t('disclosure.jp.medical')), '医療に関する免責がありません');
-  assert.ok(t('disclosure.jp.dataSource').length > 0, '数値の出所を書いた文面が空です');
-  assert.ok(html.includes(t('disclosure.jp.dataSource')), '数値の出所の表示がありません');
+  assert.ok(
+    html.includes(t('disclosure.jp.medical')),
+    '医療に関する免責がありません',
+  );
+  assert.ok(
+    t('disclosure.jp.dataSource').length > 0,
+    '数値の出所を書いた文面が空です',
+  );
+  assert.ok(
+    html.includes(t('disclosure.jp.dataSource')),
+    '数値の出所の表示がありません',
+  );
   // 折りたたまない
   assert.ok(!html.includes('<details'));
 });
@@ -185,9 +206,18 @@ test('免責が常時出ている', () => {
 // 折りたたまず常時出す。market に紐づく（locale ではない）。
 test('🔒 アフィリエイトの広告表示を常時出す', () => {
   const products = renderProducts();
-  assert.ok(products.includes('アフィリエイトリンクを含みます'), '製品一覧の広告表示がありません');
-  assert.ok(products.includes('アフィリエイト広告を利用'), '製品一覧フッタの開示がありません');
-  assert.ok(renderLp().includes('アフィリエイト広告を利用'), 'LP フッタの開示がありません');
+  assert.ok(
+    products.includes('アフィリエイトリンクを含みます'),
+    '製品一覧の広告表示がありません',
+  );
+  assert.ok(
+    products.includes('アフィリエイト広告を利用'),
+    '製品一覧フッタの開示がありません',
+  );
+  assert.ok(
+    renderLp().includes('アフィリエイト広告を利用'),
+    'LP フッタの開示がありません',
+  );
   // 折りたたまない
   assert.ok(!products.includes('<details'));
 });
@@ -195,7 +225,10 @@ test('🔒 アフィリエイトの広告表示を常時出す', () => {
 // 報酬額で順位が動くと比較そのものが嘘になる。開示文でもそれを明言する。
 test('🔒 広告表示は「報酬は順位に影響しない」と明言する', () => {
   for (const html of [renderProducts(), renderLp()]) {
-    assert.ok(html.includes('報酬額は影響しません'), '報酬が順位に影響しない旨がありません');
+    assert.ok(
+      html.includes('報酬額は影響しません'),
+      '報酬が順位に影響しない旨がありません',
+    );
   }
 });
 
@@ -228,19 +261,35 @@ test('購入ボタンにカード用・リスト用のラベルとアクセス�
   const html = renderProducts();
   assert.ok(html.includes(t('merchant.viewShop')));
   assert.ok(html.includes(t('merchant.viewBestShop')));
-  assert.ok(html.includes(t('merchant.accessNotice', { merchant: t('merchant.rakuten') })));
+  assert.ok(
+    html.includes(
+      t('merchant.accessNotice', { merchant: t('merchant.rakuten') }),
+    ),
+  );
 });
 
 // 広告表示を戻したあとも、順位を決めるのは単価だけであること。
 test('🔒 広告表示があっても並び順は単価の昇順のまま', () => {
   const html = renderProducts();
-  const costs = [...html.matchAll(/class="cost__value">¥([\d,.]+)</g)].map((m) =>
-    Number.parseFloat(m[1].replace(/,/g, '')),
+  const costs = [...html.matchAll(/class="cost__value">¥([\d,.]+)</g)].map(
+    (m) => Number.parseFloat(m[1].replace(/,/g, '')),
   );
-  assert.deepEqual(costs, [...costs].sort((a, b) => a - b));
+  assert.deepEqual(
+    costs,
+    [...costs].sort((a, b) => a - b),
+  );
   // 報酬率・PR・スポンサー枠のような、価格以外で順位を動かす手掛かりを置かない
-  for (const banned of ['報酬率', 'PR枠', 'スポンサー', 'おすすめ順', '広告枠']) {
-    assert.ok(!html.includes(banned), `順位を歪める表示「${banned}」があります`);
+  for (const banned of [
+    '報酬率',
+    'PR枠',
+    'スポンサー',
+    'おすすめ順',
+    '広告枠',
+  ]) {
+    assert.ok(
+      !html.includes(banned),
+      `順位を歪める表示「${banned}」があります`,
+    );
   }
 });
 
@@ -259,17 +308,33 @@ test('送料込みか送料別かを商品価格の横に出す', () => {
 
 test('🔒 送料が判別できない製品には送料の表記を出さない', () => {
   const unknown = rows.filter((row) => row.postageIncluded === null);
-  assert.equal(unknown.length, 2, 'fixtures に送料不明の製品が無くなっています');
+  assert.equal(
+    unknown.length,
+    2,
+    'fixtures に送料不明の製品が無くなっています',
+  );
 
   const html = renderProducts({ rows: unknown });
 
   // 一覧の列見出しは製品の事実ではないので「送料」の語を持つ。
   // 見てはいけないのは製品行のほうなので、<ol> の中だけを取り出して確かめる。
-  const list = html.slice(html.indexOf('<ol class="p-list"'), html.indexOf('</ol>'));
+  const list = html.slice(
+    html.indexOf('<ol class="p-list"'),
+    html.indexOf('</ol>'),
+  );
   assert.ok(list.length > 0, '製品一覧が描画されていません');
-  assert.ok(!list.includes('class="p-item__postage"'), '判別できていない送料を書いています');
-  for (const label of [t('products.postage.included'), t('products.postage.excluded')]) {
-    assert.ok(!list.includes(label), `判別できていない送料「${label}」を書いています`);
+  assert.ok(
+    !list.includes('class="p-item__postage"'),
+    '判別できていない送料を書いています',
+  );
+  for (const label of [
+    t('products.postage.included'),
+    t('products.postage.excluded'),
+  ]) {
+    assert.ok(
+      !list.includes(label),
+      `判別できていない送料「${label}」を書いています`,
+    );
   }
 });
 
@@ -279,7 +344,8 @@ test('🔒 送料の有無で主指標は変わらない', () => {
   const withoutPostage = renderProducts({
     rows: rows.map((row) => ({ ...row, postageIncluded: null })),
   });
-  const costs = (html) => [...html.matchAll(/class="cost__value">([^<]+)</g)].map((m) => m[1]);
+  const costs = (html) =>
+    [...html.matchAll(/class="cost__value">([^<]+)</g)].map((m) => m[1]);
 
   assert.deepEqual(costs(withPostage), costs(withoutPostage));
 });
@@ -318,12 +384,16 @@ test('🔒 merchant ボタンは market 設定にある販売元だけ', () => {
 // 🔒 価格を取得していない販売元の欄に、それらしい金額を作って置かない。
 test('🔒 価格が無い販売元は金額を出さずプレースホルダにする', () => {
   const html = renderProducts();
-  const placeholders = html.match(/<tr data-placeholder="true"[^>]*>[\s\S]*?<\/tr>/g) ?? [];
+  const placeholders =
+    html.match(/<tr data-placeholder="true"[^>]*>[\s\S]*?<\/tr>/g) ?? [];
   assert.ok(placeholders.length > 0, '表示例の行が1つもありません');
 
   for (const tr of placeholders) {
     const text = tr.replace(/<[^>]*>/g, '');
-    assert.ok(!/[0-9]/.test(text), `表示例の行に金額らしき数字が入っています: ${text}`);
+    assert.ok(
+      !/[0-9]/.test(text),
+      `表示例の行に金額らしき数字が入っています: ${text}`,
+    );
     assert.ok(!tr.includes('href='), '価格が無い販売元にリンクを張っています');
   }
 });
@@ -347,19 +417,31 @@ test('🔒 他ストアの価格は table + scope で組む', () => {
 
 test('内容量スライダーは掲載中の Min〜Max 幅で出る', () => {
   const html = renderProducts();
-  const weights = [...html.matchAll(/data-net-weight="(\d+(?:\.\d+)?)"/g)].map((m) => Number(m[1]));
+  const weights = [...html.matchAll(/data-net-weight="(\d+(?:\.\d+)?)"/g)].map(
+    (m) => Number(m[1]),
+  );
 
   const min = Number(html.match(/id="net-weight"[\s\S]*?min="([\d.]+)"/)[1]);
   const max = Number(html.match(/id="net-weight"[\s\S]*?max="([\d.]+)"/)[1]);
 
-  assert.ok(min <= Math.min(...weights), '内容量スライダーの下限が実データの最小より大きいです');
-  assert.ok(max >= Math.max(...weights), '内容量スライダーの上限が実データの最大より小さいです');
+  assert.ok(
+    min <= Math.min(...weights),
+    '内容量スライダーの下限が実データの最小より大きいです',
+  );
+  assert.ok(
+    max >= Math.max(...weights),
+    '内容量スライダーの上限が実データの最大より小さいです',
+  );
 });
 
 test('絞り込みは fieldset + legend で組む', () => {
   const html = renderProducts();
-  assert.ok((html.match(/<fieldset class="filters__group">/g) ?? []).length >= 5);
-  assert.ok((html.match(/<legend class="filters__legend">/g) ?? []).length >= 5);
+  assert.ok(
+    (html.match(/<fieldset class="filters__group">/g) ?? []).length >= 5,
+  );
+  assert.ok(
+    (html.match(/<legend class="filters__legend">/g) ?? []).length >= 5,
+  );
 });
 
 test('該当が0件のファセットは押せない状態で件数0を出す', () => {
@@ -387,7 +469,10 @@ test('製品が0件のときはダミーを出さずに未登録と伝える', (
 test('禁止語が入っていない', () => {
   const html = renderProducts();
   for (const word of BANNED_WORDS) {
-    assert.ok(!html.includes(word), `製品一覧ページに禁止語「${word}」が含まれています`);
+    assert.ok(
+      !html.includes(word),
+      `製品一覧ページに禁止語「${word}」が含まれています`,
+    );
   }
 });
 
@@ -449,9 +534,15 @@ test('ベータ版への導線はヘッダとヒーローの両方に出る', ()
     'ヒーローに data-cta="hero_waitlist" が残っています',
   );
   // signal（オレンジの塗り）は待機リストの色のまま。β版には当てない
-  assert.ok(!heroBeta[1].includes('btn--signal'), 'β版を待機リストと同じ signal の面にしない');
+  assert.ok(
+    !heroBeta[1].includes('btn--signal'),
+    'β版を待機リストと同じ signal の面にしない',
+  );
   // ヘッダの意思表示の導線と、ページ下部のフォームの送信ボタンは主のまま
-  assert.ok(html.includes('data-cta="header_waitlist"'), 'ヘッダの意思表示の導線がありません');
+  assert.ok(
+    html.includes('data-cta="header_waitlist"'),
+    'ヘッダの意思表示の導線がありません',
+  );
   // 2026-09-07 / T-051: LP の待機リストが段構造へ置き換わり、送信ボタンの属性の並びが
   // 変わった。見張るのは「主 CTA の面を持つ送信ボタンがページ下部にある」ことなので、
   // 属性の順序に依存しない形にする（完全一致に戻すと実装の書き方を縛る）
@@ -496,11 +587,14 @@ test('🔒 実データが無いときはランキングカードを出さない
 
 test('🔒 ヒーローの並び順は単価の昇順', () => {
   const html = renderLp();
-  const costs = [...html.matchAll(/class="cost__value">¥([\d,.]+)</g)].map((m) =>
-    Number.parseFloat(m[1].replace(/,/g, '')),
+  const costs = [...html.matchAll(/class="cost__value">¥([\d,.]+)</g)].map(
+    (m) => Number.parseFloat(m[1].replace(/,/g, '')),
   );
   assert.equal(costs.length, HERO_ROWS);
-  assert.deepEqual(costs, [...costs].sort((a, b) => a - b));
+  assert.deepEqual(
+    costs,
+    [...costs].sort((a, b) => a - b),
+  );
 });
 
 test('主指標に単位が添えられている', () => {
@@ -513,7 +607,9 @@ test('主指標に単位が添えられている', () => {
 // 件数の表示そのものを消しても検査は生きる（LP のどこに書いても拾う）。
 test('掲載件数を出すなら実データの件数で、丸めない', () => {
   const html = renderLp();
-  const shown = [...html.matchAll(/(\d[\d,]*)\s*製品/g)].map((m) => Number(m[1].replace(/,/g, '')));
+  const shown = [...html.matchAll(/(\d[\d,]*)\s*製品/g)].map((m) =>
+    Number(m[1].replace(/,/g, '')),
+  );
   for (const count of shown) {
     assert.equal(
       count,
@@ -536,7 +632,10 @@ test('🔒 製品画像がない行は空白にせず代替表現を出す', () 
   // 期待値はフィクスチャから導く。画像を持つ製品が増えても件数を書き換えずに済む
   const heroRows = rows.slice(0, HERO_ROWS);
   const withoutImage = heroRows.filter((row) => !row.product.image_url);
-  assert.ok(withoutImage.length > 0, 'fixtures に画像なしの製品が無くなっています');
+  assert.ok(
+    withoutImage.length > 0,
+    'fixtures に画像なしの製品が無くなっています',
+  );
 
   const empties = (html.match(/class="thumb thumb--empty"/g) ?? []).length;
   assert.ok(
@@ -593,7 +692,10 @@ test('フォームは選択肢に無い成分と、その他の要望を自由�
   assert.ok(html.includes(t('lp.form.requests')));
 
   // 🔒 N-01 / N-05。自由記述に症状を書かせない注記を必ず添える
-  assert.ok(html.includes(t('lp.form.freeTextNote')), '自由記述の注記がありません');
+  assert.ok(
+    html.includes(t('lp.form.freeTextNote')),
+    '自由記述の注記がありません',
+  );
 });
 
 test('「その他」は成分チップの1つで、自由記述欄がその横に並ぶ', () => {
@@ -615,18 +717,27 @@ test('「その他」は成分チップの1つで、自由記述欄がその横�
 
   // チップの並びは waitlist_fields.js が唯一の出所
   for (const key of NUTRIENT_CHIPS) {
-    assert.ok(html.includes(`value="${key}"`), `成分チップ「${key}」が出ていません`);
+    assert.ok(
+      html.includes(`value="${key}"`),
+      `成分チップ「${key}」が出ていません`,
+    );
   }
 });
 
 // 「その他」は成分ではないので、製品一覧の成分ナビに出してはならない。
 // ROADMAP_NUTRIENTS は build.js のナビにも使われる。
 test('🔒 「その他」はフォームだけの選択肢で、成分の一覧には混ぜない', () => {
-  assert.ok(!ROADMAP_NUTRIENTS.includes('other'), '成分の並びに「その他」が混ざっています');
+  assert.ok(
+    !ROADMAP_NUTRIENTS.includes('other'),
+    '成分の並びに「その他」が混ざっています',
+  );
   assert.deepEqual(NUTRIENT_CHIPS, [...ROADMAP_NUTRIENTS, 'other']);
   // Worker が受け付ける値はチップの並びから導く（二重に持たない）
   for (const key of NUTRIENT_CHIPS) {
-    assert.ok(ALLOWED_NUTRIENTS.has(key), `Worker が「${key}」を受け付けません`);
+    assert.ok(
+      ALLOWED_NUTRIENTS.has(key),
+      `Worker が「${key}」を受け付けません`,
+    );
   }
 });
 
@@ -637,7 +748,10 @@ test('普段使っているショップに Yahoo!ショッピングとその他�
       html.includes(`value="${key}"`),
       `購入先のチップ「${key}」が出ていません`,
     );
-    assert.ok(html.includes(t(`channel.${key}`)), `購入先「${key}」の文言がありません`);
+    assert.ok(
+      html.includes(t(`channel.${key}`)),
+      `購入先「${key}」の文言がありません`,
+    );
   }
   // 複数選択。ラジオに戻さない
   assert.ok(!/name="channel"[^>]*type="radio"/.test(html));
@@ -649,10 +763,19 @@ test('🔒 できないことを書かない。利用目的と、リリースし
 
   // 配信停止の窓口がどこにも無いので、できると書かない
   for (const claim of ['配信停止', 'Unsubscribe', '解除']) {
-    assert.ok(!html.includes(claim), `実装していない「${claim}」を約束しています`);
+    assert.ok(
+      !html.includes(claim),
+      `実装していない「${claim}」を約束しています`,
+    );
   }
-  assert.ok(html.includes(t('lp.form.noteUse')), '取得した情報の利用目的がありません');
-  assert.ok(html.includes(t('lp.form.noteRelease')), 'リリースしない場合の扱いがありません');
+  assert.ok(
+    html.includes(t('lp.form.noteUse')),
+    '取得した情報の利用目的がありません',
+  );
+  assert.ok(
+    html.includes(t('lp.form.noteRelease')),
+    'リリースしない場合の扱いがありません',
+  );
 });
 
 /**
@@ -665,7 +788,14 @@ test('🔒 できないことを書かない。利用目的と、リリースし
  */
 test('🔒 できないことを書かない。翻訳ファイルに眠っている文言も全ロケール検査する', async () => {
   // 配信停止の窓口はどのロケールにも実装されていない。できると書かない
-  const CLAIMS = ['配信停止', '解除', '退会', 'unsubscribe', 'opt out', 'opt-out'];
+  const CLAIMS = [
+    '配信停止',
+    '解除',
+    '退会',
+    'unsubscribe',
+    'opt out',
+    'opt-out',
+  ];
 
   for (const locale of ['ja', 'en']) {
     const messages = JSON.parse(
@@ -705,9 +835,17 @@ test('🔒 LP のフォームは同一ページ内で次の段へ進む（別ペ
 test('🔒 支援ウィジェットは1ページに1つしか出ない', () => {
   const html = renderLp();
   const entries = html.match(/id="codoc-entry-[^"]+"/g) ?? [];
-  assert.equal(entries.length, 1, `支援ウィジェットが ${entries.length} 個あります`);
+  assert.equal(
+    entries.length,
+    1,
+    `支援ウィジェットが ${entries.length} 個あります`,
+  );
   assert.equal((html.match(/class="codoc-entries"/g) ?? []).length, 1);
-  assert.equal((html.match(/cms\.js/g) ?? []).length, 1, '読み込みタグが1つではありません');
+  assert.equal(
+    (html.match(/cms\.js/g) ?? []).length,
+    1,
+    '読み込みタグが1つではありません',
+  );
 });
 
 /**
@@ -716,8 +854,14 @@ test('🔒 支援ウィジェットは1ページに1つしか出ない', () => {
  *    英語になる。表示言語は locale の担当なので、明示して固定する。
  */
 test('🔒 支援ウィジェットの表示言語は locale で決める', () => {
-  assert.match(renderLp({ locale: 'ja' }), /<script[^>]+cms\.js[^>]+data-lang="ja"/);
-  assert.match(renderLp({ locale: 'en' }), /<script[^>]+cms\.js[^>]+data-lang="en"/);
+  assert.match(
+    renderLp({ locale: 'ja' }),
+    /<script[^>]+cms\.js[^>]+data-lang="ja"/,
+  );
+  assert.match(
+    renderLp({ locale: 'en' }),
+    /<script[^>]+cms\.js[^>]+data-lang="en"/,
+  );
 });
 
 /**
@@ -761,8 +905,14 @@ test('支援ウィジェットは、押す前には見えない段の中に出�
     '支援ウィジェットが support の段の中にありません',
   );
 
-  assert.ok(html.includes(t('lp.support.message')), '支援メッセージがありません');
-  assert.ok(html.includes(t('lp.support.buttonText')), '支援ボタンのテキストがありません');
+  assert.ok(
+    html.includes(t('lp.support.message')),
+    '支援メッセージがありません',
+  );
+  assert.ok(
+    html.includes(t('lp.support.buttonText')),
+    '支援ボタンのテキストがありません',
+  );
 });
 
 // 🔒 出し分けは条件分岐ではなくデータで。support を持たない市場では何も出ない
@@ -771,20 +921,28 @@ test('🔒 支援の設定が無い市場では何も出ない', () => {
   assert.ok(!html.includes('codoc'), '支援ウィジェットが漏れています');
   // 2026-09-07 / T-051: 支援が無い市場でも、要望の導線そのものは消えない
   assert.ok(
-    html.includes('data-request-step="survey"') && html.includes('data-request-step="email"'),
+    html.includes('data-request-step="survey"') &&
+      html.includes('data-request-step="email"'),
     '支援が無い市場で、要望の段まで消えています',
   );
 });
 
 test('🔒 免責と参照値の出典が常時表示される', () => {
   const html = renderLp();
-  assert.ok(html.includes(t('disclosure.jp.medical')), '医療に関する免責がありません');
-  assert.ok(html.includes(t('disclosure.jp.dataSource')), '数値の出所の表示がありません');
+  assert.ok(
+    html.includes(t('disclosure.jp.medical')),
+    '医療に関する免責がありません',
+  );
+  assert.ok(
+    html.includes(t('disclosure.jp.dataSource')),
+    '数値の出所の表示がありません',
+  );
 
   // 🔒 参照値（RDA / UL）を出すなら、必ず出典を添える。
   //    今は LP に参照値そのものを出していないので出典行も無くてよい。
   //    出し始めた時点でここが発火する。
-  const showsReferenceValue = html.includes(t('reference.none')) || /data-reference-value/.test(html);
+  const showsReferenceValue =
+    html.includes(t('reference.none')) || /data-reference-value/.test(html);
   if (showsReferenceValue) {
     assert.ok(
       t('disclosure.jp.referenceSource').length > 0 &&
@@ -804,7 +962,10 @@ test('未定義の翻訳キーはビルドを失敗させる', () => {
 });
 
 test('プレースホルダに値がなければ失敗させる', () => {
-  assert.throws(() => t('ranking.subtitle', { nutrient: 'タンパク質' }), /プレースホルダ/);
+  assert.throws(
+    () => t('ranking.subtitle', { nutrient: 'タンパク質' }),
+    /プレースホルダ/,
+  );
 });
 
 test('en の翻訳キーが ja と同じ集合である', async () => {
@@ -812,7 +973,10 @@ test('en の翻訳キーが ja と同じ集合である', async () => {
   const en = JSON.parse(await readFile('locales/en.json', 'utf8'));
 
   // 免責は翻訳ではなく市場ごとの差し替えなので、対応を求めない
-  const comparable = (dict) => Object.keys(dict).filter((k) => !k.startsWith('disclosure.')).sort();
+  const comparable = (dict) =>
+    Object.keys(dict)
+      .filter((k) => !k.startsWith('disclosure.'))
+      .sort();
   assert.deepEqual(comparable(en), comparable(ja));
 });
 
@@ -821,9 +985,15 @@ test('en の翻訳キーが ja と同じ集合である', async () => {
 test('🔒 カテゴリ固有の分岐は categories.json に閉じている', async () => {
   for (const [id, conf] of Object.entries(categories)) {
     if (id.startsWith('_')) continue;
-    assert.ok(Array.isArray(conf.secondaryMetrics), `${id}: secondaryMetrics がありません`);
+    assert.ok(
+      Array.isArray(conf.secondaryMetrics),
+      `${id}: secondaryMetrics がありません`,
+    );
     assert.ok(Array.isArray(conf.facets), `${id}: facets がありません`);
-    assert.ok(conf.unitCostRange && conf.priceRange, `${id}: レンジ設定がありません`);
+    assert.ok(
+      conf.unitCostRange && conf.priceRange,
+      `${id}: レンジ設定がありません`,
+    );
     assert.ok('explainerKey' in conf, `${id}: explainerKey が未定義です`);
     if (conf.explainerKey) t(conf.explainerKey);
     for (const facet of conf.facets) {
@@ -840,14 +1010,23 @@ function imageSize(buf) {
   if (buf[0] === 0x89 && buf[1] === 0x50) {
     return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
   }
-  for (let i = 2; i < buf.length; ) {
+  for (let i = 2; i < buf.length;) {
     if (buf[i] !== 0xff) {
       i += 1;
       continue;
     }
     const marker = buf[i + 1];
-    if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
-      return { width: buf.readUInt16BE(i + 7), height: buf.readUInt16BE(i + 5) };
+    if (
+      marker >= 0xc0 &&
+      marker <= 0xcf &&
+      marker !== 0xc4 &&
+      marker !== 0xc8 &&
+      marker !== 0xcc
+    ) {
+      return {
+        width: buf.readUInt16BE(i + 7),
+        height: buf.readUInt16BE(i + 5),
+      };
     }
     i += 2 + buf.readUInt16BE(i + 2);
   }
@@ -863,17 +1042,35 @@ test('🔒 OGP 画像は絶対 URL で指す（相対パスは SNS 側で解決�
   for (const html of [renderLp(), renderProducts()]) {
     const image = metaContent(html, 'property', 'og:image');
     assert.ok(image, 'og:image がありません');
-    assert.match(image, /^https:\/\//, `og:image が絶対 URL ではありません: ${image}`);
+    assert.match(
+      image,
+      /^https:\/\//,
+      `og:image が絶対 URL ではありません: ${image}`,
+    );
     assert.equal(image, absoluteUrl(OG_IMAGE.path));
   }
 });
 
 test('🔒 OGP 画像は SVG ではなく実在するラスタ画像', async () => {
-  assert.doesNotMatch(OG_IMAGE.path, /\.svg$/i, 'SVG は OGP 画像として描画されません');
-  const buf = await readFile(path.join('src', 'assets', OG_IMAGE.path.replace('/assets/', '')));
+  assert.doesNotMatch(
+    OG_IMAGE.path,
+    /\.svg$/i,
+    'SVG は OGP 画像として描画されません',
+  );
+  const buf = await readFile(
+    path.join('src', 'assets', OG_IMAGE.path.replace('/assets/', '')),
+  );
   const size = imageSize(buf);
-  assert.equal(size.width, OG_IMAGE.width, 'og:image:width が実ファイルと違います');
-  assert.equal(size.height, OG_IMAGE.height, 'og:image:height が実ファイルと違います');
+  assert.equal(
+    size.width,
+    OG_IMAGE.width,
+    'og:image:width が実ファイルと違います',
+  );
+  assert.equal(
+    size.height,
+    OG_IMAGE.height,
+    'og:image:height が実ファイルと違います',
+  );
 });
 
 test('canonical と og:url は絶対 URL で、そのページを指す', () => {
@@ -882,14 +1079,23 @@ test('canonical と og:url は絶対 URL で、そのページを指す', () => 
     [renderProducts({ canonicalPath: '/ja/protein/' }), '/ja/protein/'],
   ];
   for (const [html, pagePath] of pages) {
-    assert.equal(metaContent(html, 'property', 'og:url'), absoluteUrl(pagePath));
-    assert.match(html, new RegExp(`<link rel="canonical" href="${absoluteUrl(pagePath)}">`));
+    assert.equal(
+      metaContent(html, 'property', 'og:url'),
+      absoluteUrl(pagePath),
+    );
+    assert.match(
+      html,
+      new RegExp(`<link rel="canonical" href="${absoluteUrl(pagePath)}">`),
+    );
   }
 });
 
 test('X で大きいカードとして出すための指定が入っている', () => {
   for (const html of [renderLp(), renderProducts()]) {
-    assert.equal(metaContent(html, 'name', 'twitter:card'), 'summary_large_image');
+    assert.equal(
+      metaContent(html, 'name', 'twitter:card'),
+      'summary_large_image',
+    );
     assert.equal(metaContent(html, 'property', 'og:site_name'), 'pergram');
   }
 });
@@ -897,8 +1103,14 @@ test('X で大きいカードとして出すための指定が入っている', 
 test('🔒 OGP の代替テキストはワードマークとタグラインをセットで持つ', () => {
   for (const html of [renderLp(), renderProducts()]) {
     const alt = metaContent(html, 'property', 'og:image:alt');
-    assert.ok(alt?.includes('pergram'), 'og:image:alt にワードマークがありません');
-    assert.ok(alt.includes(t('brand.tagline')), 'og:image:alt にタグラインがありません');
+    assert.ok(
+      alt?.includes('pergram'),
+      'og:image:alt にワードマークがありません',
+    );
+    assert.ok(
+      alt.includes(t('brand.tagline')),
+      'og:image:alt にタグラインがありません',
+    );
   }
 });
 
@@ -907,16 +1119,28 @@ test('🔒 OGP の代替テキストはワードマークとタグラインを�
 test('含有率はカード用とリスト用の2箇所に出る（置き場所が違うため）', () => {
   const html = renderProducts();
   const inline = html.match(/class="p-item__ratio p-item__ratio--card"/g) ?? [];
-  const stacked = html.match(/class="p-item__ratio p-item__ratio--list"/g) ?? [];
-  assert.equal(inline.length, rows.length, 'カード用の含有率が製品数だけ出ていません');
-  assert.equal(stacked.length, rows.length, 'リスト用の含有率が製品数だけ出ていません');
+  const stacked =
+    html.match(/class="p-item__ratio p-item__ratio--list"/g) ?? [];
+  assert.equal(
+    inline.length,
+    rows.length,
+    'カード用の含有率が製品数だけ出ていません',
+  );
+  assert.equal(
+    stacked.length,
+    rows.length,
+    'リスト用の含有率が製品数だけ出ていません',
+  );
   assert.match(html, /（含有率: \d+%）/);
 });
 
 test('カードの含有率は製品価格と同じ行、リストの含有率は成分量の直後に置く', () => {
   const html = renderProducts();
   // カード: 「/ 内容量」の直後
-  assert.match(html, /p-item__price-pack">[^<]*<\/span>\s*<span class="p-item__ratio p-item__ratio--card"/);
+  assert.match(
+    html,
+    /p-item__price-pack">[^<]*<\/span>\s*<span class="p-item__ratio p-item__ratio--card"/,
+  );
   // リスト: 成分量の直後
   assert.match(
     html,
@@ -934,7 +1158,9 @@ test('🔒 含有率が出せない製品では欄ごと出さない（— で�
 
 /** ページから JSON-LD を取り出して parse する。無ければ空配列 */
 function jsonLdOf(html) {
-  const m = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
+  const m = html.match(
+    /<script type="application\/ld\+json">([\s\S]*?)<\/script>/,
+  );
   if (!m) return [];
   const parsed = JSON.parse(m[1]);
   return Array.isArray(parsed) ? parsed : [parsed];
@@ -951,7 +1177,9 @@ test('🔒 LP のヒーローを ItemList にしない — 手動指定で表示
 });
 
 test('製品一覧は BreadcrumbList と ItemList を出す', () => {
-  const types = jsonLdOf(renderProducts({ canonicalPath: '/ja/protein/' })).map((o) => o['@type']);
+  const types = jsonLdOf(renderProducts({ canonicalPath: '/ja/protein/' })).map(
+    (o) => o['@type'],
+  );
   assert.deepEqual(types.sort(), ['BreadcrumbList', 'ItemList']);
 });
 
@@ -973,7 +1201,10 @@ test('🔒 ItemList の並びは描画順（単価の昇順）と一致する', 
 test('🔒 構造化データにレビュー評価を入れない（N-08）', () => {
   for (const html of [renderLp(), renderProducts()]) {
     const raw = JSON.stringify(jsonLdOf(html));
-    assert.ok(!raw.includes('aggregateRating'), 'aggregateRating が含まれている');
+    assert.ok(
+      !raw.includes('aggregateRating'),
+      'aggregateRating が含まれている',
+    );
     assert.ok(!raw.includes('"review"'), 'review が含まれている');
     assert.ok(!raw.includes('ratingValue'), 'ratingValue が含まれている');
   }
@@ -983,26 +1214,40 @@ test('🔒 構造化データに禁止語を入れない', () => {
   for (const html of [renderLp(), renderProducts()]) {
     const raw = JSON.stringify(jsonLdOf(html));
     for (const word of BANNED_WORDS) {
-      assert.ok(!raw.includes(word), `構造化データに禁止語「${word}」が含まれている`);
+      assert.ok(
+        !raw.includes(word),
+        `構造化データに禁止語「${word}」が含まれている`,
+      );
     }
   }
 });
 
 test('🔒 JSON-LD の中で < をエスケープする — 生のままだとそこでスクリプトが切れる', () => {
-  const withTag = rows.map((r, i) => (i === 0 ? { ...r, name: '<script>x</script>' } : r));
+  const withTag = rows.map((r, i) =>
+    i === 0 ? { ...r, name: '<script>x</script>' } : r,
+  );
   const html = renderProducts({ rows: withTag, canonicalPath: '/ja/protein/' });
-  const block = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)[1];
+  const block = html.match(
+    /<script type="application\/ld\+json">([\s\S]*?)<\/script>/,
+  )[1];
 
   assert.ok(!block.includes('<'), 'JSON-LD 内に生の < が残っている');
   const list = JSON.parse(block).find((o) => o['@type'] === 'ItemList');
-  assert.equal(list.itemListElement[0].name, '<script>x</script>', '値が壊れている');
+  assert.equal(
+    list.itemListElement[0].name,
+    '<script>x</script>',
+    '値が壊れている',
+  );
 });
 
 /* ---- クローラ向けの meta ----------------------------------------------- */
 
 test('スニペットと画像プレビューの上限を外す', () => {
   for (const html of [renderLp(), renderProducts()]) {
-    assert.match(html, /<meta name="robots" content="max-snippet:-1, max-image-preview:large/);
+    assert.match(
+      html,
+      /<meta name="robots" content="max-snippet:-1, max-image-preview:large/,
+    );
   }
 });
 
@@ -1016,7 +1261,9 @@ test('Search Console の所有権確認タグは、トークンを渡したと�
 
 test('🔒 β版のプレースホルダ価格は引用対象から外す（data-nosnippet）', () => {
   const html = renderProducts();
-  const placeholders = [...html.matchAll(/<tr data-placeholder="true"([^>]*)>/g)];
+  const placeholders = [
+    ...html.matchAll(/<tr data-placeholder="true"([^>]*)>/g),
+  ];
   assert.ok(placeholders.length > 0, 'プレースホルダ行が無い');
   for (const [, attrs] of placeholders) {
     assert.match(attrs, /data-nosnippet/);

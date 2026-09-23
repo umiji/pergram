@@ -51,9 +51,14 @@ test('1食量の有無で単価が変わらない', () => {
     servingSizeG: 30,
     proteinPerServingG: 21.3,
   });
-  const withoutServing = normalizeProtein({ netWeightG: 1000, proteinPer100g: 71 });
+  const withoutServing = normalizeProtein({
+    netWeightG: 1000,
+    proteinPer100g: 71,
+  });
 
-  const a = costPerNutrientUnit(3000, withServing, { amount_elemental: withServing.amount_elemental });
+  const a = costPerNutrientUnit(3000, withServing, {
+    amount_elemental: withServing.amount_elemental,
+  });
   const b = costPerNutrientUnit(3000, withoutServing, {
     amount_elemental: withoutServing.amount_elemental,
   });
@@ -61,7 +66,11 @@ test('1食量の有無で単価が変わらない', () => {
 });
 
 test('正規形は cost.js の導出と整合する', () => {
-  const r = normalizeProtein({ netWeightG: 3000, servingSizeG: 30, proteinPerServingG: 24 });
+  const r = normalizeProtein({
+    netWeightG: 3000,
+    servingSizeG: 30,
+    proteinPerServingG: 24,
+  });
   assert.equal(contentPer100g(r, { amount_elemental: r.amount_elemental }), 80);
 });
 
@@ -78,7 +87,10 @@ test('内容量が読めなければ取り込まない', () => {
 });
 
 test('商品名から内容量を取り出す', () => {
-  assert.equal(parseNetWeightFromName('ホエイプロテイン 3kg プレーン').valueG, 3000);
+  assert.equal(
+    parseNetWeightFromName('ホエイプロテイン 3kg プレーン').valueG,
+    3000,
+  );
   assert.equal(parseNetWeightFromName('WPC 1000g チョコ').valueG, 1000);
   assert.equal(parseNetWeightFromName('プロテイン 1,000g').valueG, 1000);
   assert.equal(parseNetWeightFromName('プロテイン　３ｋｇ').valueG, 3000);
@@ -87,7 +99,10 @@ test('商品名から内容量を取り出す', () => {
 
 test('掛け算表記を内容量に反映する', () => {
   assert.equal(parseNetWeightFromName('プロテイン 1kg×3袋').valueG, 3000);
-  assert.equal(parseNetWeightFromName('プロテイン 500g 2個セット').valueG, 1000);
+  assert.equal(
+    parseNetWeightFromName('プロテイン 500g 2個セット').valueG,
+    1000,
+  );
 });
 
 test('異なる重量が複数あるときは曖昧として人間に回す', () => {
@@ -109,9 +124,18 @@ test('単位でない g を拾わない', () => {
 /* ---- product_type 判定 ------------------------------------------------- */
 
 test('商品名からホエイ・ソイを判定する', () => {
-  assert.equal(classifyProteinType('ザバス ホエイプロテイン100 リッチショコラ 980g'), 'whey_wpc');
-  assert.equal(classifyProteinType('WPI ホエイプロテインアイソレート 1kg'), 'whey_wpi');
-  assert.equal(classifyProteinType('無添加 ソイプロテイン きなこ味 1kg'), 'soy');
+  assert.equal(
+    classifyProteinType('ザバス ホエイプロテイン100 リッチショコラ 980g'),
+    'whey_wpc',
+  );
+  assert.equal(
+    classifyProteinType('WPI ホエイプロテインアイソレート 1kg'),
+    'whey_wpi',
+  );
+  assert.equal(
+    classifyProteinType('無添加 ソイプロテイン きなこ味 1kg'),
+    'soy',
+  );
   assert.equal(classifyProteinType('大豆プロテイン 900g'), 'soy');
 });
 

@@ -41,7 +41,9 @@ try {
 }
 
 const schema = await readFile('worker/schema.sql', 'utf8');
-const sqliteOptions = DatabaseSync ? {} : { skip: 'node:sqlite が無い Node で実行された' };
+const sqliteOptions = DatabaseSync
+  ? {}
+  : { skip: 'node:sqlite が無い Node で実行された' };
 
 const BROWSER_ID = 'b1d9f0c4-6a2e-4c31-8f7b-2d5e91ac4470';
 const EMAIL = 'merge-unit@example.com';
@@ -61,7 +63,8 @@ function makeEnv({ failLookup = false } = {}) {
   const db = new DatabaseSync(':memory:');
   db.exec(schema);
 
-  const bindParams = (args) => Object.fromEntries(args.map((value, index) => [index + 1, value]));
+  const bindParams = (args) =>
+    Object.fromEntries(args.map((value, index) => [index + 1, value]));
 
   const statement = (sql, params) => ({
     bind: (...args) => statement(sql, bindParams(args)),
@@ -102,7 +105,11 @@ const post = (path, body) =>
 
 const allRows = (db) => db.prepare('SELECT * FROM waitlist').all();
 const bothRows = (db) =>
-  db.prepare('SELECT * FROM waitlist WHERE id IS NOT NULL AND email IS NOT NULL').all();
+  db
+    .prepare(
+      'SELECT * FROM waitlist WHERE id IS NOT NULL AND email IS NOT NULL',
+    )
+    .all();
 
 test(
   'メールアドレスの行が先にあっても、匿名の行を引き取って1行にまとめる',
@@ -113,7 +120,10 @@ test(
     // 1. 先にメールアドレスだけを登録した（回答なし）
     await worker.fetch(post('/api/waitlist', { email: EMAIL }), env);
     // 2. あとからアンケートに匿名で答えた（別の行になる）
-    await worker.fetch(post('/api/request-survey', { id: BROWSER_ID, ...ANSWERS }), env);
+    await worker.fetch(
+      post('/api/request-survey', { id: BROWSER_ID, ...ANSWERS }),
+      env,
+    );
     assert.equal(allRows(db).length, 2, '前提: この時点では2行ある');
 
     // 3. 同じブラウザからもう一度メールアドレスを送る（識別子を添えて）
@@ -124,11 +134,23 @@ test(
 
     assert.equal(res.status, 200, 'email が既にある行と衝突して落ちている');
     const rows = allRows(db);
-    assert.equal(rows.length, 1, `1行にまとまっていません（${rows.length} 行）`);
+    assert.equal(
+      rows.length,
+      1,
+      `1行にまとまっていません（${rows.length} 行）`,
+    );
     assert.equal(rows[0].email, EMAIL);
     assert.equal(rows[0].id, null, '🔒 まとめた行に匿名の識別子が残っています');
-    assert.equal(rows[0].nutrients, 'creatine', '匿名の行の回答が引き取られていません');
-    assert.equal(rows[0].requests, ANSWERS.requests, '自由記述が引き取られていません');
+    assert.equal(
+      rows[0].nutrients,
+      'creatine',
+      '匿名の行の回答が引き取られていません',
+    );
+    assert.equal(
+      rows[0].requests,
+      ANSWERS.requests,
+      '自由記述が引き取られていません',
+    );
     assert.equal(bothRows(db).length, 0);
   },
 );
@@ -139,9 +161,16 @@ test(
   async () => {
     const { db, env } = makeEnv({ failLookup: true });
 
-    await worker.fetch(post('/api/request-survey', { id: BROWSER_ID, ...ANSWERS }), env);
+    await worker.fetch(
+      post('/api/request-survey', { id: BROWSER_ID, ...ANSWERS }),
+      env,
+    );
     const res = await worker.fetch(
-      post('/api/waitlist', { email: EMAIL, signal_id: BROWSER_ID, ...ANSWERS }),
+      post('/api/waitlist', {
+        email: EMAIL,
+        signal_id: BROWSER_ID,
+        ...ANSWERS,
+      }),
       env,
     );
 
@@ -149,12 +178,20 @@ test(
     assert.deepEqual(await res.json(), { ok: true });
 
     const rows = allRows(db);
-    assert.equal(rows.length, 2, 'まとめられないのは劣化として許すが、登録は残ること');
+    assert.equal(
+      rows.length,
+      2,
+      'まとめられないのは劣化として許すが、登録は残ること',
+    );
     assert.ok(
       rows.some((row) => row.email === EMAIL),
       'メールアドレスの行ができていません',
     );
-    assert.equal(bothRows(db).length, 0, '🔒 id と email が同じ行に載っています');
+    assert.equal(
+      bothRows(db).length,
+      0,
+      '🔒 id と email が同じ行に載っています',
+    );
   },
 );
 
@@ -191,7 +228,8 @@ const SCRIPT = 'src/assets/request.js';
 const page = () => `${requestCta(t, { location: 'products_request_top' })}
 ${requestFlow(t, { support: market.support, page: 'ja:protein' })}`;
 
-const callsTo = (dom, path) => dom.fetchCalls.filter((call) => call.url.includes(path));
+const callsTo = (dom, path) =>
+  dom.fetchCalls.filter((call) => call.url.includes(path));
 
 /** アンケートの受け口だけを失敗させる（待機リストは成功させる） */
 const surveyFails = (call) =>
@@ -205,7 +243,8 @@ const allOk = (call) =>
     : { ok: true, status: 200, body: { ok: true } };
 
 /** ページを開く。`storage` を渡すと前の訪問の localStorage を引き継げる */
-const visit = (storage, respond) => runLpScript(page(), { scriptPath: SCRIPT, storage, respond });
+const visit = (storage, respond) =>
+  runLpScript(page(), { scriptPath: SCRIPT, storage, respond });
 
 /** 押下は受領済みにしておく（匿名シグナルの送信を混ぜない） */
 const freshStorage = () => ({
@@ -216,22 +255,28 @@ const freshStorage = () => ({
 const inherit = (dom) => Object.fromEntries(dom.storageData);
 
 async function clickCta(dom) {
-  dom.body.querySelectorAll('[data-request-cta]')[0].dispatchEvent(new DomEvent('click'));
+  dom.body
+    .querySelectorAll('[data-request-cta]')[0]
+    .dispatchEvent(new DomEvent('click'));
   await dom.flush();
 }
 
 async function answerSurvey(dom) {
   const form = dom.body.querySelector('[data-request-survey]');
-  form.querySelector('input[name="nutrients"][value="creatine"]').checked = true;
+  form.querySelector('input[name="nutrients"][value="creatine"]').checked =
+    true;
   form.querySelector('input[name="channel"][value="rakuten"]').checked = true;
-  form.querySelector('[name="nutrients_other"]').value = ANSWERS.nutrients_other;
+  form.querySelector('[name="nutrients_other"]').value =
+    ANSWERS.nutrients_other;
   form.querySelector('[name="requests"]').value = ANSWERS.requests;
   form.dispatchEvent(new DomEvent('submit'));
   await dom.flush();
 }
 
 async function skipSurvey(dom) {
-  dom.body.querySelector('[data-request-skip="survey"]').dispatchEvent(new DomEvent('click'));
+  dom.body
+    .querySelector('[data-request-skip="survey"]')
+    .dispatchEvent(new DomEvent('click'));
   await dom.flush();
 }
 
@@ -258,7 +303,10 @@ test(
     const first = await visit(freshStorage(), surveyFails);
     await clickCta(first);
     await answerSurvey(first);
-    assert.ok(first.storageData.get(OUTBOX_KEY), '前提: 送れなかった回答が控えられている');
+    assert.ok(
+      first.storageData.get(OUTBOX_KEY),
+      '前提: 送れなかった回答が控えられている',
+    );
     await submitEmail(first);
 
     assert.equal(
@@ -281,11 +329,19 @@ test(
     await replay([...first.fetchCalls, ...second.fetchCalls], env);
 
     const rows = allRows(db);
-    assert.equal(rows.length, 1, `行が ${rows.length} 行あります（二重計上が戻っている）`);
+    assert.equal(
+      rows.length,
+      1,
+      `行が ${rows.length} 行あります（二重計上が戻っている）`,
+    );
     assert.equal(rows[0].email, EMAIL);
     assert.equal(rows[0].id, null, '🔒 まとめた行に匿名の識別子が残っています');
     assert.equal(rows[0].nutrients, 'creatine', '回答が失われています');
-    assert.equal(rows[0].requests, ANSWERS.requests, '自由記述が失われています');
+    assert.equal(
+      rows[0].requests,
+      ANSWERS.requests,
+      '自由記述が失われています',
+    );
     assert.equal(bothRows(db).length, 0);
   },
 );
@@ -303,8 +359,15 @@ test(
     // 2回目: 送り直しも失敗する。**このセッションでは回答が手元に無い**（答えていない）
     const second = await visit(inherit(first), surveyFails);
     await second.flush();
-    assert.equal(callsTo(second, SURVEY_PATH).length, 1, '前提: 送り直しは試みている');
-    assert.ok(second.storageData.get(OUTBOX_KEY), '前提: 5xx なので控えは残ったまま');
+    assert.equal(
+      callsTo(second, SURVEY_PATH).length,
+      1,
+      '前提: 送り直しは試みている',
+    );
+    assert.ok(
+      second.storageData.get(OUTBOX_KEY),
+      '前提: 5xx なので控えは残ったまま',
+    );
 
     // その2回目でメールアドレスだけを登録する（アンケートは飛ばす）
     await clickCta(second);
@@ -318,8 +381,16 @@ test(
       ANSWERS.nutrients,
       '🔒 前の訪問の回答が待機リストの送信に載っていません（控えを捨てると回答が失われる）',
     );
-    assert.equal(waitlistCall.body.requests, ANSWERS.requests, '🔒 自由記述が失われています');
-    assert.equal(waitlistCall.body.id, undefined, '🔒 控えの id をそのまま送っています');
+    assert.equal(
+      waitlistCall.body.requests,
+      ANSWERS.requests,
+      '🔒 自由記述が失われています',
+    );
+    assert.equal(
+      waitlistCall.body.id,
+      undefined,
+      '🔒 控えの id をそのまま送っています',
+    );
 
     assert.equal(
       second.storageData.get(OUTBOX_KEY),
@@ -333,7 +404,11 @@ test(
     const rows = allRows(db);
     assert.equal(rows.length, 1, `行が ${rows.length} 行あります`);
     assert.equal(rows[0].email, EMAIL);
-    assert.equal(rows[0].nutrients, 'creatine', '🔒 前の訪問の回答が保存されていません');
+    assert.equal(
+      rows[0].nutrients,
+      'creatine',
+      '🔒 前の訪問の回答が保存されていません',
+    );
     assert.equal(rows[0].requests, ANSWERS.requests);
   },
 );
@@ -347,7 +422,11 @@ test(
     await clickCta(first);
     await answerSurvey(first);
     await submitEmail(first);
-    assert.equal(callsTo(first, SURVEY_PATH).length, 1, '前提: 1回目は匿名でも送っている');
+    assert.equal(
+      callsTo(first, SURVEY_PATH).length,
+      1,
+      '前提: 1回目は匿名でも送っている',
+    );
 
     // 2回目: 同じブラウザでもう一度アンケートに答える
     const second = await visit(inherit(first), allOk);
@@ -371,7 +450,11 @@ test(
 
     const { db, env } = makeEnv();
     await replay([...first.fetchCalls, ...second.fetchCalls], env);
-    assert.equal(allRows(db).length, 1, '🔒 匿名の行が作り直されて2行になっています');
+    assert.equal(
+      allRows(db).length,
+      1,
+      '🔒 匿名の行が作り直されて2行になっています',
+    );
   },
 );
 
@@ -419,7 +502,11 @@ test(
     await clickCta(first);
     await skipSurvey(first);
     await submitEmail(first);
-    assert.equal(callsTo(first, SURVEY_PATH).length, 0, '前提: まだ何も答えていない');
+    assert.equal(
+      callsTo(first, SURVEY_PATH).length,
+      0,
+      '前提: まだ何も答えていない',
+    );
 
     // 2回目: **ここで初めてアンケートに答える。** 答え直しではなく最初の回答である
     const second = await visit(inherit(first), allOk);
@@ -449,7 +536,11 @@ test(
       ANSWERS.nutrients,
       '🔒 引き取りの後に答えた回答が、待機リストの送信に載っていません',
     );
-    assert.equal(waitlistCall.body.requests, ANSWERS.requests, '🔒 自由記述が失われています');
+    assert.equal(
+      waitlistCall.body.requests,
+      ANSWERS.requests,
+      '🔒 自由記述が失われています',
+    );
     assert.equal(
       third.storageData.get(OUTBOX_KEY),
       undefined,
@@ -457,13 +548,24 @@ test(
     );
 
     const { db, env } = makeEnv();
-    await replay([...first.fetchCalls, ...second.fetchCalls, ...third.fetchCalls], env);
+    await replay(
+      [...first.fetchCalls, ...second.fetchCalls, ...third.fetchCalls],
+      env,
+    );
 
     const rows = allRows(db);
-    assert.equal(rows.length, 1, `行が ${rows.length} 行あります（1行であるべき）`);
+    assert.equal(
+      rows.length,
+      1,
+      `行が ${rows.length} 行あります（1行であるべき）`,
+    );
     assert.equal(rows[0].email, EMAIL);
     assert.equal(rows[0].id, null);
-    assert.equal(rows[0].nutrients, 'creatine', '🔒 後から答えた回答が保存されていません');
+    assert.equal(
+      rows[0].nutrients,
+      'creatine',
+      '🔒 後から答えた回答が保存されていません',
+    );
     assert.equal(rows[0].requests, ANSWERS.requests);
   },
 );
@@ -472,25 +574,36 @@ test(
 /* R-3 本文が null / 配列でも 500 にしない                                  */
 /* ====================================================================== */
 
-test('R-3 本文が null の JSON でも 500 にならず 400 を返す', sqliteOptions, async () => {
-  const { db, env } = makeEnv();
+test(
+  'R-3 本文が null の JSON でも 500 にならず 400 を返す',
+  sqliteOptions,
+  async () => {
+    const { db, env } = makeEnv();
 
-  const res = await worker.fetch(post('/api/waitlist', null), env);
+    const res = await worker.fetch(post('/api/waitlist', null), env);
 
-  assert.equal(
-    res.status,
-    400,
-    '🔒 500 になっています（送り方の誤りを、サーバの故障として返している）',
-  );
-  assert.deepEqual(await res.json(), { error: 'invalid_json' });
-  assert.equal(allRows(db).length, 0);
-});
+    assert.equal(
+      res.status,
+      400,
+      '🔒 500 になっています（送り方の誤りを、サーバの故障として返している）',
+    );
+    assert.deepEqual(await res.json(), { error: 'invalid_json' });
+    assert.equal(allRows(db).length, 0);
+  },
+);
 
-test('R-3 本文が配列の JSON でも 500 にならず 400 を返す', sqliteOptions, async () => {
-  const { db, env } = makeEnv();
+test(
+  'R-3 本文が配列の JSON でも 500 にならず 400 を返す',
+  sqliteOptions,
+  async () => {
+    const { db, env } = makeEnv();
 
-  const res = await worker.fetch(post('/api/waitlist', [{ email: EMAIL }]), env);
+    const res = await worker.fetch(
+      post('/api/waitlist', [{ email: EMAIL }]),
+      env,
+    );
 
-  assert.equal(res.status, 400);
-  assert.equal(allRows(db).length, 0);
-});
+    assert.equal(res.status, 400);
+    assert.equal(allRows(db).length, 0);
+  },
+);

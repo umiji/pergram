@@ -112,7 +112,10 @@ export function isBlocked(pathname, blocked) {
  * @param {ReturnType<typeof crawlPolicy>} policy
  * @param {{ brandName: string, tagline: string, updatedAt: string, productCount: number }} opts
  */
-export function llmsTxt(policy, { brandName, tagline, updatedAt, productCount }) {
+export function llmsTxt(
+  policy,
+  { brandName, tagline, updatedAt, productCount },
+) {
   const lp = policy.open[0];
 
   return `# ${brandName}

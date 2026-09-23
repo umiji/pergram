@@ -25,7 +25,9 @@ export async function loadTranslator(locale) {
     }
     return template.replace(/\{(\w+)\}/g, (match, name) => {
       if (!(name in params)) {
-        throw new Error(`翻訳キー ${key} のプレースホルダ {${name}} に値がありません`);
+        throw new Error(
+          `翻訳キー ${key} のプレースホルダ {${name}} に値がありません`,
+        );
       }
       return String(params[name]);
     });

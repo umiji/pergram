@@ -46,7 +46,10 @@ const specs = [
     attrs: ['third_party_cert', 'whey_wpc'],
     postage: true,
     image: 'https://thumbnail.image.rakuten.co.jp/@0_mall/example/p1.jpg',
-    others: [{ merchant: 'amazon_jp', price: 8200 }, { merchant: 'iherb', price: 8600 }],
+    others: [
+      { merchant: 'amazon_jp', price: 8200 },
+      { merchant: 'iherb', price: 8600 },
+    ],
   },
   {
     id: 'p2',
@@ -66,9 +69,20 @@ const specs = [
     price: 3600,
     attrs: ['third_party_cert', 'whey_wpi'],
     postage: true,
-    others: [{ merchant: 'amazon_jp', price: 3850 }, { merchant: 'iherb', price: 4100 }],
+    others: [
+      { merchant: 'amazon_jp', price: 3850 },
+      { merchant: 'iherb', price: 4100 },
+    ],
   },
-  { id: 'p4', brand: 'ブランドD', ratio: 75, weight: 1000, price: 3900, attrs: ['soy'], others: [] },
+  {
+    id: 'p4',
+    brand: 'ブランドD',
+    ratio: 75,
+    weight: 1000,
+    price: 3900,
+    attrs: ['soy'],
+    others: [],
+  },
   {
     id: 'p5',
     brand: 'ブランドE',
@@ -79,7 +93,15 @@ const specs = [
     postage: false,
     others: [{ merchant: 'iherb', price: 5600 }],
   },
-  { id: 'p6', brand: 'ブランドF', ratio: 68, weight: 5000, price: 11800, attrs: ['casein'], others: [] },
+  {
+    id: 'p6',
+    brand: 'ブランドF',
+    ratio: 68,
+    weight: 5000,
+    price: 11800,
+    attrs: ['casein'],
+    others: [],
+  },
 ];
 
 export function makeRows({ targetIntake = 60 } = {}) {
@@ -119,7 +141,14 @@ export function makeRows({ targetIntake = 60 } = {}) {
       ...(spec.others ?? []).map((o) => snapshot(o.merchant, o.price)),
     ];
 
-    const row = buildRow({ product, content, nutrient, snapshots, market, targetIntake });
+    const row = buildRow({
+      product,
+      content,
+      nutrient,
+      snapshots,
+      market,
+      targetIntake,
+    });
     row.name = `${spec.brand} ホエイプロテイン`;
     row.attributeKeys = spec.attrs;
     row.snapshotsByMerchant = new Map(snapshots.map((s) => [s.merchant, s]));

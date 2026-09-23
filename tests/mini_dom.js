@@ -17,14 +17,36 @@ import nodeCrypto from 'node:crypto';
 import vm from 'node:vm';
 
 const VOID_TAGS = new Set([
-  'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input',
-  'link', 'meta', 'param', 'source', 'track', 'wbr',
+  'area',
+  'base',
+  'br',
+  'col',
+  'embed',
+  'hr',
+  'img',
+  'input',
+  'link',
+  'meta',
+  'param',
+  'source',
+  'track',
+  'wbr',
 ]);
 
-const ENTITIES = { amp: '&', lt: '<', gt: '>', quot: '"', '#39': "'", nbsp: ' ' };
+const ENTITIES = {
+  amp: '&',
+  lt: '<',
+  gt: '>',
+  quot: '"',
+  '#39': "'",
+  nbsp: ' ',
+};
 
 function decodeEntities(value) {
-  return String(value).replace(/&(#?\w+);/g, (whole, name) => ENTITIES[name] ?? whole);
+  return String(value).replace(
+    /&(#?\w+);/g,
+    (whole, name) => ENTITIES[name] ?? whole,
+  );
 }
 
 /* ---- イベント ---------------------------------------------------------- */
@@ -146,11 +168,13 @@ export class Element extends Listenable {
   get classList() {
     const owner = this;
     const tokens = () => owner.className.split(/\s+/).filter(Boolean);
-    const write = (list) => owner.setAttribute('class', [...new Set(list)].join(' '));
+    const write = (list) =>
+      owner.setAttribute('class', [...new Set(list)].join(' '));
     return {
       contains: (name) => tokens().includes(name),
       add: (...names) => write([...tokens(), ...names]),
-      remove: (...names) => write(tokens().filter((token) => !names.includes(token))),
+      remove: (...names) =>
+        write(tokens().filter((token) => !names.includes(token))),
       toggle: (name, force) => {
         const has = tokens().includes(name);
         const next = force === undefined ? !has : Boolean(force);
@@ -168,7 +192,9 @@ export class Element extends Listenable {
     const out = {};
     for (const [key, value] of Object.entries(this._attrs)) {
       if (!key.startsWith('data-')) continue;
-      out[key.slice(5).replace(/-([a-z])/g, (_match, char) => char.toUpperCase())] = value;
+      out[
+        key.slice(5).replace(/-([a-z])/g, (_match, char) => char.toUpperCase())
+      ] = value;
     }
     return out;
   }
@@ -222,7 +248,10 @@ export class Element extends Listenable {
   }
 
   get type() {
-    return this.getAttribute('type') ?? (this.tagName === 'TEXTAREA' ? 'textarea' : '');
+    return (
+      this.getAttribute('type') ??
+      (this.tagName === 'TEXTAREA' ? 'textarea' : '')
+    );
   }
 
   /* 木構造 */
@@ -392,14 +421,17 @@ function serialize(node) {
 const TAG_RE =
   /<!--[\s\S]*?-->|<\/([a-zA-Z][\w:-]*)\s*>|<([a-zA-Z][\w:-]*)((?:\s+[^\s"'>/=]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'>`]+))?)*)\s*(\/?)>/g;
 
-const ATTR_RE = /([^\s"'>/=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>`]+)))?/g;
+const ATTR_RE =
+  /([^\s"'>/=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>`]+)))?/g;
 
 function parseAttrs(source) {
   const attrs = {};
   let match;
   ATTR_RE.lastIndex = 0;
   while ((match = ATTR_RE.exec(source))) {
-    attrs[match[1].toLowerCase()] = decodeEntities(match[2] ?? match[3] ?? match[4] ?? '');
+    attrs[match[1].toLowerCase()] = decodeEntities(
+      match[2] ?? match[3] ?? match[4] ?? '',
+    );
   }
   return attrs;
 }
@@ -460,13 +492,15 @@ function tokenizeCompound(compound) {
       i = j;
     } else if (char === '[') {
       const end = compound.indexOf(']', i);
-      if (end < 0) throw new Error(`mini_dom: 属性セレクタが閉じていません: ${compound}`);
+      if (end < 0)
+        throw new Error(`mini_dom: 属性セレクタが閉じていません: ${compound}`);
       tokens.push(compound.slice(i, end + 1));
       i = end + 1;
     } else {
       let j = i;
       while (j < compound.length && /[\w*-]/.test(compound[j])) j += 1;
-      if (j === i) throw new Error(`mini_dom: 解釈できないセレクタです: ${compound}`);
+      if (j === i)
+        throw new Error(`mini_dom: 解釈できないセレクタです: ${compound}`);
       tokens.push(compound.slice(i, j));
       i = j;
     }
@@ -487,7 +521,8 @@ function matchToken(el, token) {
   if (token.startsWith('[')) {
     const body = token.slice(1, -1);
     const parsed = body.match(/^([\w:-]+)(?:([~^$*|]?=)\s*"?([^"]*)"?)?$/);
-    if (!parsed) throw new Error(`mini_dom: 解釈できない属性セレクタです: ${token}`);
+    if (!parsed)
+      throw new Error(`mini_dom: 解釈できない属性セレクタです: ${token}`);
     const [, name, operator, expected] = parsed;
     if (!el.hasAttribute(name)) return false;
     if (!operator) return true;
@@ -625,7 +660,8 @@ export async function runLpScript(html, options = {}) {
     Object.entries(storage).map(([key, value]) => [String(key), String(value)]),
   );
   const localStorage = {
-    getItem: (key) => (storageData.has(String(key)) ? storageData.get(String(key)) : null),
+    getItem: (key) =>
+      storageData.has(String(key)) ? storageData.get(String(key)) : null,
     setItem: (key, value) => {
       storageData.set(String(key), String(value));
     },
@@ -704,7 +740,8 @@ export async function runLpScript(html, options = {}) {
       if (!form) return;
       for (const el of form.querySelectorAll('input,textarea,select')) {
         if (!el.name) continue;
-        if ((el.type === 'checkbox' || el.type === 'radio') && !el.checked) continue;
+        if ((el.type === 'checkbox' || el.type === 'radio') && !el.checked)
+          continue;
         this._entries.push([el.name, el.value]);
       }
     }
@@ -715,7 +752,9 @@ export async function runLpScript(html, options = {}) {
     }
 
     getAll(name) {
-      return this._entries.filter(([key]) => key === name).map(([, value]) => value);
+      return this._entries
+        .filter(([key]) => key === name)
+        .map(([, value]) => value);
     }
 
     append(name, value) {
@@ -754,7 +793,8 @@ export async function runLpScript(html, options = {}) {
         url: String(url),
         init,
         method: (init && init.method) || 'GET',
-        body: init && typeof init.body === 'string' ? safeJson(init.body) : null,
+        body:
+          init && typeof init.body === 'string' ? safeJson(init.body) : null,
       };
       fetchCalls.push(call);
       const result = respond(call, fetchCalls.length) ?? {};
@@ -837,7 +877,8 @@ export async function runLpScript(html, options = {}) {
     observers,
     flush,
     /** GA4 に送られたイベント名（送った順） */
-    eventNames: () => gtagCalls.filter((call) => call[0] === 'event').map((call) => call[1]),
+    eventNames: () =>
+      gtagCalls.filter((call) => call[0] === 'event').map((call) => call[1]),
     /** GA4 に送られたイベントを `{ name, params }` で取り出す */
     events: () =>
       gtagCalls

@@ -15,12 +15,25 @@ import {
   totalNutrientAmount,
 } from '../src/lib/cost.js';
 
-const proteinNutrient = { id: 'protein', canonical_unit: 'g', category: 'protein' };
+const proteinNutrient = {
+  id: 'protein',
+  canonical_unit: 'g',
+  category: 'protein',
+};
 const zincNutrient = { id: 'zinc', canonical_unit: 'mg', category: 'mineral' };
 
 // 3kg / 1食30g / 1食あたりタンパク質 24g（含有率80%）
-const product = { id: 'p1', brand: 'A', serving_size_g: 30, servings_per_unit: 100 };
-const content = { product_id: 'p1', nutrient_id: 'protein', amount_elemental: 24 };
+const product = {
+  id: 'p1',
+  brand: 'A',
+  serving_size_g: 30,
+  servings_per_unit: 100,
+};
+const content = {
+  product_id: 'p1',
+  nutrient_id: 'protein',
+  amount_elemental: 24,
+};
 
 test('内容量は導出値として求まる', () => {
   assert.equal(netWeightG(product), 3000);
@@ -47,7 +60,10 @@ test('100gあたり含有量と含有率', () => {
 test('単位が g でない成分では含有率を出さない', () => {
   const zincProduct = { id: 'z1', serving_size_g: 1, servings_per_unit: 60 };
   const zincContent = { amount_elemental: 15 };
-  assert.equal(contentRatioPercent(zincProduct, zincContent, zincNutrient), null);
+  assert.equal(
+    contentRatioPercent(zincProduct, zincContent, zincNutrient),
+    null,
+  );
   assert.equal(contentPer100g(zincProduct, zincContent), 1500);
 });
 
@@ -56,8 +72,18 @@ test('目標摂取量あたりの価格', () => {
 });
 
 test('分母が 0 や欠損なら null を返し、推定で埋めない', () => {
-  assert.equal(costPerNutrientUnit(1000, { serving_size_g: 30, servings_per_unit: 0 }, content), null);
-  assert.equal(costPerNutrientUnit(1000, product, { amount_elemental: 0 }), null);
+  assert.equal(
+    costPerNutrientUnit(
+      1000,
+      { serving_size_g: 30, servings_per_unit: 0 },
+      content,
+    ),
+    null,
+  );
+  assert.equal(
+    costPerNutrientUnit(1000, product, { amount_elemental: 0 }),
+    null,
+  );
   assert.equal(netWeightG({ serving_size_g: 30 }), null);
   assert.equal(contentPer100g({ serving_size_g: 0 }, content), null);
   assert.equal(costPerTargetIntake(null, 60), null);
@@ -75,7 +101,10 @@ test('🔒 serving の定義が違っても単価は変わらない', () => {
   assert.equal(costPerServing(7200, b), 144);
 
   // 主指標は一致する。だから per serving をソートキーにしてはならない
-  assert.equal(costPerNutrientUnit(7200, a, aContent), costPerNutrientUnit(7200, b, bContent));
+  assert.equal(
+    costPerNutrientUnit(7200, a, aContent),
+    costPerNutrientUnit(7200, b, bContent),
+  );
 });
 
 test('🔒 並び順は単価の昇順のみで決まる', () => {
@@ -116,14 +145,23 @@ test('在庫ありを優先し、なければ在庫なしから最安を返す',
     { merchant: 'rakuten', price: 5000, in_stock: false },
     { merchant: 'iherb', price: 7000, in_stock: true },
   ];
-  assert.equal(pickBestPrice(snapshots, ['rakuten', 'iherb']).merchant, 'iherb');
+  assert.equal(
+    pickBestPrice(snapshots, ['rakuten', 'iherb']).merchant,
+    'iherb',
+  );
 
   const allOut = [{ merchant: 'rakuten', price: 5000, in_stock: false }];
   assert.equal(pickBestPrice(allOut, ['rakuten']).price, 5000);
 });
 
 test('市場に merchant がなければ価格なし', () => {
-  assert.equal(pickBestPrice([{ merchant: 'amazon_us', price: 10, in_stock: true }], ['rakuten']), null);
+  assert.equal(
+    pickBestPrice(
+      [{ merchant: 'amazon_us', price: 10, in_stock: true }],
+      ['rakuten'],
+    ),
+    null,
+  );
 });
 
 test('buildRow は価格が取れない製品を null にする', () => {
@@ -144,7 +182,13 @@ test('buildRow が導出値を揃える', () => {
     content,
     nutrient: proteinNutrient,
     snapshots: [
-      { merchant: 'rakuten', price: 7200, currency: 'JPY', in_stock: true, url: 'https://example.test' },
+      {
+        merchant: 'rakuten',
+        price: 7200,
+        currency: 'JPY',
+        in_stock: true,
+        url: 'https://example.test',
+      },
     ],
     market: { merchants: ['rakuten', 'iherb'] },
     targetIntake: 60,
@@ -187,7 +231,11 @@ test('🔒 送料は表示用に運ぶだけで、単価にも並び順にも混
 });
 
 test('プレミアム幅は最安どうしの差', () => {
-  const all = [{ costPerNutrientUnit: 3 }, { costPerNutrientUnit: 5 }, { costPerNutrientUnit: 4 }];
+  const all = [
+    { costPerNutrientUnit: 3 },
+    { costPerNutrientUnit: 5 },
+    { costPerNutrientUnit: 4 },
+  ];
   const filtered = [{ costPerNutrientUnit: 4 }, { costPerNutrientUnit: 5 }];
   assert.equal(premiumGap(all, filtered), 1);
   assert.equal(premiumGap(all, []), null);

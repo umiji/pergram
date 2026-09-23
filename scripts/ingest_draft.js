@@ -12,14 +12,18 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-import { classifyProteinType, normalizeProtein } from '../src/lib/normalize_protein.js';
+import {
+  classifyProteinType,
+  normalizeProtein,
+} from '../src/lib/normalize_protein.js';
 import { validateDataset, hasBlockingIssue } from '../src/lib/validate.js';
 
 const DATA_DIR = 'data';
 const NUTRIENT_ID = 'protein';
 
 const readJson = async (p) => JSON.parse(await readFile(p, 'utf8'));
-const writeJson = async (p, v) => writeFile(p, `${JSON.stringify(v, null, 2)}\n`, 'utf8');
+const writeJson = async (p, v) =>
+  writeFile(p, `${JSON.stringify(v, null, 2)}\n`, 'utf8');
 
 /**
  * 既存の行に今回の下書き由来の行を upsert する。
@@ -48,8 +52,12 @@ function upsertBy(existing, incoming, keyFn) {
  *    🔒 2つ目のソース（Yahoo! / iHerb 等）を足す前に Q-07 を確定させ、この処理は捨てる。
  */
 function sameProductKey(normalized) {
-  const netWeightG = Math.round(normalized.serving_size_g * normalized.servings_per_unit);
-  const ratio = (normalized.amount_elemental / normalized.serving_size_g).toFixed(4);
+  const netWeightG = Math.round(
+    normalized.serving_size_g * normalized.servings_per_unit,
+  );
+  const ratio = (
+    normalized.amount_elemental / normalized.serving_size_g
+  ).toFixed(4);
   return `${netWeightG}|${ratio}`;
 }
 
@@ -71,12 +79,16 @@ function keepCheapestOfSameProduct(candidates) {
   const kept = [];
   const merged = [];
   for (const group of groups.values()) {
-    const cheapest = group.reduce((best, c) => (c.row.price < best.row.price ? c : best));
+    const cheapest = group.reduce((best, c) =>
+      c.row.price < best.row.price ? c : best,
+    );
     kept.push(cheapest);
     if (group.length > 1) {
       merged.push({
         kept: cheapest.row.product_id,
-        dropped: group.filter((c) => c !== cheapest).map((c) => c.row.product_id),
+        dropped: group
+          .filter((c) => c !== cheapest)
+          .map((c) => c.row.product_id),
       });
     }
   }
@@ -177,7 +189,15 @@ export function toRecords(draft) {
     }
   }
 
-  return { products, productI18n, nutrientContents, priceSnapshots, productAttributes, skipped, merged };
+  return {
+    products,
+    productI18n,
+    nutrientContents,
+    priceSnapshots,
+    productAttributes,
+    skipped,
+    merged,
+  };
 }
 
 async function main() {
@@ -190,10 +210,18 @@ async function main() {
   const draft = await readJson(draftPath);
   const nutrients = await readJson(path.join(DATA_DIR, 'nutrients.json'));
   const existingProducts = await readJson(path.join(DATA_DIR, 'products.json'));
-  const existingProductI18n = await readJson(path.join(DATA_DIR, 'product_i18n.json'));
-  const existingNutrientContents = await readJson(path.join(DATA_DIR, 'nutrient_contents.json'));
-  const existingPriceSnapshots = await readJson(path.join(DATA_DIR, 'price_snapshots.json'));
-  const existingProductAttributes = await readJson(path.join(DATA_DIR, 'product_attributes.json'));
+  const existingProductI18n = await readJson(
+    path.join(DATA_DIR, 'product_i18n.json'),
+  );
+  const existingNutrientContents = await readJson(
+    path.join(DATA_DIR, 'nutrient_contents.json'),
+  );
+  const existingPriceSnapshots = await readJson(
+    path.join(DATA_DIR, 'price_snapshots.json'),
+  );
+  const existingProductAttributes = await readJson(
+    path.join(DATA_DIR, 'product_attributes.json'),
+  );
 
   const {
     products: newProducts,
@@ -209,7 +237,11 @@ async function main() {
   // 🔒 V-05（ブランド内の含有率外れ値）等はカタログ全体を見て初めて判定できるため、
   //    今回の下書き分だけを検証すると見落とす。
   const products = upsertBy(existingProducts, newProducts, (r) => r.id);
-  const productI18n = upsertBy(existingProductI18n, newProductI18n, (r) => `${r.product_id}:${r.locale}`);
+  const productI18n = upsertBy(
+    existingProductI18n,
+    newProductI18n,
+    (r) => `${r.product_id}:${r.locale}`,
+  );
   const nutrientContents = upsertBy(
     existingNutrientContents,
     newNutrientContents,
@@ -237,13 +269,23 @@ async function main() {
   const blocking = issues.filter((i) => i.severity === 'error');
   const blockedIds = new Set(blocking.map((i) => i.productId));
 
-  const keep = (list) => list.filter((r) => !blockedIds.has(r.product_id ?? r.id));
+  const keep = (list) =>
+    list.filter((r) => !blockedIds.has(r.product_id ?? r.id));
 
   await writeJson(path.join(DATA_DIR, 'products.json'), keep(products));
   await writeJson(path.join(DATA_DIR, 'product_i18n.json'), keep(productI18n));
-  await writeJson(path.join(DATA_DIR, 'nutrient_contents.json'), keep(nutrientContents));
-  await writeJson(path.join(DATA_DIR, 'price_snapshots.json'), keep(priceSnapshots));
-  await writeJson(path.join(DATA_DIR, 'product_attributes.json'), keep(productAttributes));
+  await writeJson(
+    path.join(DATA_DIR, 'nutrient_contents.json'),
+    keep(nutrientContents),
+  );
+  await writeJson(
+    path.join(DATA_DIR, 'price_snapshots.json'),
+    keep(priceSnapshots),
+  );
+  await writeJson(
+    path.join(DATA_DIR, 'product_attributes.json'),
+    keep(productAttributes),
+  );
 
   await mkdir(path.join(DATA_DIR, '_review'), { recursive: true });
   await writeJson(path.join(DATA_DIR, '_review', 'issues.json'), issues);
@@ -257,21 +299,30 @@ async function main() {
   console.log(
     `product_type 判定 ${productAttributes.length} 件 — ホエイ・ソイのみ対応（casein/pea/rice は未実装）`,
   );
-  console.log(`下書きから除外 ${skipped.length} 件（data/_review/skipped.json）`);
+  console.log(
+    `下書きから除外 ${skipped.length} 件（data/_review/skipped.json）`,
+  );
   console.log(
     `同一商品としてまとめ ${merged.flatMap((m) => m.dropped).length} 件 — ` +
       '⚠️ 内容量と含有率が一致すれば同じ商品とみなす力技（data/_review/merged.json）',
   );
   console.log(`error   ${blocking.length} 件 — 取り込まず保留`);
-  console.log(`review  ${issues.filter((i) => i.severity === 'review').length} 件 — 公開前に確認`);
+  console.log(
+    `review  ${issues.filter((i) => i.severity === 'review').length} 件 — 公開前に確認`,
+  );
 
   if (hasBlockingIssue(issues)) {
-    console.log('\ndata/_review/issues.json を確認して下書きを直し、再実行してください。');
+    console.log(
+      '\ndata/_review/issues.json を確認して下書きを直し、再実行してください。',
+    );
   }
 }
 
 // テストから toRecords を読むため、直接実行されたときだけ走らせる。
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (
+  process.argv[1] &&
+  import.meta.url === pathToFileURL(process.argv[1]).href
+) {
   main().catch((err) => {
     console.error(err.message);
     process.exit(1);

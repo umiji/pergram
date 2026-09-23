@@ -51,7 +51,9 @@ function makeEnv() {
               // D1 の `.bind(a, b, …)` は SQL の `?1 ?2 …` に順番で入る。
               // node:sqlite は番号付きのプレースホルダを名前として受けるので、
               // 1 始まりのキーに詰め替える（値の順番の意味は変えていない）。
-              const params = Object.fromEntries(args.map((value, index) => [index + 1, value]));
+              const params = Object.fromEntries(
+                args.map((value, index) => [index + 1, value]),
+              );
               return {
                 async run() {
                   statement.run(params);
@@ -85,7 +87,9 @@ const STEP_TWO = {
   requests: '送料込みで並べたい',
 };
 
-const options = DatabaseSync ? {} : { skip: 'node:sqlite が無い Node で実行された' };
+const options = DatabaseSync
+  ? {}
+  : { skip: 'node:sqlite が無い Node で実行された' };
 
 test('ステップ1だけで行が1つできる', options, async () => {
   const { db, env } = makeEnv();
@@ -105,34 +109,57 @@ test('🔒 ステップ2の回答は同じ行へ入る（行が増えない）',
   await worker.fetch(post(STEP_TWO), env);
 
   const stored = rows(db);
-  assert.equal(stored.length, 1, `行が ${stored.length} 本あります。追記になっていません`);
+  assert.equal(
+    stored.length,
+    1,
+    `行が ${stored.length} 本あります。追記になっていません`,
+  );
   assert.equal(stored[0].nutrients, 'creatine,hmb');
   assert.equal(stored[0].channel, 'rakuten');
   assert.equal(stored[0].nutrients_other, 'グルタミン');
   assert.equal(stored[0].requests, '送料込みで並べたい');
 });
 
-test('🔒 空のステップ1が後から来ても、集めた回答を消さない', options, async () => {
-  const { db, env } = makeEnv();
+test(
+  '🔒 空のステップ1が後から来ても、集めた回答を消さない',
+  options,
+  async () => {
+    const { db, env } = makeEnv();
 
-  await worker.fetch(post({ email: EMAIL }), env);
-  await worker.fetch(post(STEP_TWO), env);
-  // 同じ人がもう一度メールアドレスだけを送ってくる経路（登録済みに気づかず再送信）
-  await worker.fetch(post({ email: EMAIL }), env);
+    await worker.fetch(post({ email: EMAIL }), env);
+    await worker.fetch(post(STEP_TWO), env);
+    // 同じ人がもう一度メールアドレスだけを送ってくる経路（登録済みに気づかず再送信）
+    await worker.fetch(post({ email: EMAIL }), env);
 
-  const stored = rows(db);
-  assert.equal(stored.length, 1);
-  assert.equal(stored[0].nutrients, 'creatine,hmb', '成分の回答が消えています');
-  assert.equal(stored[0].channel, 'rakuten', '購入先の回答が消えています');
-  assert.equal(stored[0].nutrients_other, 'グルタミン', '自由記述が消えています');
-  assert.equal(stored[0].requests, '送料込みで並べたい', '自由記述が消えています');
-});
+    const stored = rows(db);
+    assert.equal(stored.length, 1);
+    assert.equal(
+      stored[0].nutrients,
+      'creatine,hmb',
+      '成分の回答が消えています',
+    );
+    assert.equal(stored[0].channel, 'rakuten', '購入先の回答が消えています');
+    assert.equal(
+      stored[0].nutrients_other,
+      'グルタミン',
+      '自由記述が消えています',
+    );
+    assert.equal(
+      stored[0].requests,
+      '送料込みで並べたい',
+      '自由記述が消えています',
+    );
+  },
+);
 
 test('ステップ2をやり直したら新しい回答で置き換わる', options, async () => {
   const { db, env } = makeEnv();
 
   await worker.fetch(post(STEP_TWO), env);
-  await worker.fetch(post({ ...STEP_TWO, nutrients: ['vitamins'], requests: '書き直した' }), env);
+  await worker.fetch(
+    post({ ...STEP_TWO, nutrients: ['vitamins'], requests: '書き直した' }),
+    env,
+  );
 
   const stored = rows(db);
   assert.equal(stored.length, 1);

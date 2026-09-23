@@ -47,15 +47,39 @@ const rows = makeRows();
 const MARKETS = JSON.parse(await readFile('config/markets.json', 'utf8'));
 
 /** 🔒 保存してよい列。ここが増えたら要件が変わったということ */
-const STORED_COLUMNS = ['email', 'nutrients', 'channel', 'nutrients_other', 'requests', 'created_at'];
+const STORED_COLUMNS = [
+  'email',
+  'nutrients',
+  'channel',
+  'nutrients_other',
+  'requests',
+  'created_at',
+];
 
 /** フォームの入力欄として許される name。created_at は入力ではない */
-const ALLOWED_FIELD_NAMES = new Set(['email', 'nutrients', 'channel', 'nutrients_other', 'requests']);
+const ALLOWED_FIELD_NAMES = new Set([
+  'email',
+  'nutrients',
+  'channel',
+  'nutrients_other',
+  'requests',
+]);
 
 /** 🔒 取ってはいけない項目。名前で入り込んでいないかを見る */
 const FORBIDDEN_FIELD_NAMES = [
-  'age', 'birth', 'birthday', 'sex', 'gender', 'condition', 'symptom',
-  'medication', 'medicine', 'height', 'weight', 'disease', 'health',
+  'age',
+  'birth',
+  'birthday',
+  'sex',
+  'gender',
+  'condition',
+  'symptom',
+  'medication',
+  'medicine',
+  'height',
+  'weight',
+  'disease',
+  'health',
 ];
 
 /**
@@ -148,11 +172,19 @@ function inputControls(scope) {
 }
 
 function fieldNames(scope) {
-  return [...new Set(inputControls(scope).map((el) => el.name).filter(Boolean))];
+  return [
+    ...new Set(
+      inputControls(scope)
+        .map((el) => el.name)
+        .filter(Boolean),
+    ),
+  ];
 }
 
 function chipValues(scope, name) {
-  return scope.querySelectorAll(`input[name="${name}"]`).map((el) => el.getAttribute('value'));
+  return scope
+    .querySelectorAll(`input[name="${name}"]`)
+    .map((el) => el.getAttribute('value'));
 }
 
 /* ======================================================================== */
@@ -207,7 +239,9 @@ test('🔒 自由記述の注記（lp.form.freeTextNote）が段の中にある'
 test('🔒 注記は自由記述と同じ段にある（本文だけ移して注記を置き去りにしない）', () => {
   const root = tree(renderWaitlist());
   const survey = surveyForm(root);
-  const freeTextFields = survey.querySelectorAll('[name="nutrients_other"],[name="requests"]');
+  const freeTextFields = survey.querySelectorAll(
+    '[name="nutrients_other"],[name="requests"]',
+  );
 
   assert.ok(
     freeTextFields.length >= 2,
@@ -237,8 +271,14 @@ test('アンケートの段に、見たい成分・購入先・自由記述の3�
     CHANNEL_CHIPS,
     '🔒 購入先のチップと並びは src/lib/waitlist_fields.js が唯一の出所',
   );
-  assert.ok(step2.querySelector('[name="nutrients_other"]'), 'アンケートの段に nutrients_other がありません');
-  assert.ok(step2.querySelector('[name="requests"]'), 'アンケートの段に requests がありません');
+  assert.ok(
+    step2.querySelector('[name="nutrients_other"]'),
+    'アンケートの段に nutrients_other がありません',
+  );
+  assert.ok(
+    step2.querySelector('[name="requests"]'),
+    'アンケートの段に requests がありません',
+  );
 });
 
 test('🔒 アンケートの段を必須にしない（required を付けない）', () => {
@@ -306,7 +346,10 @@ test('🔒 禁止語が要望の導線の出力に含まれていない', () => 
   ]) {
     const html = flowRegion(tree(renderWaitlist(t, locale))).outerHTML;
     for (const banned of BANNED_WORDS) {
-      assert.ok(!html.includes(banned), `${locale}: 禁止語「${banned}」が要望の導線の出力にあります`);
+      assert.ok(
+        !html.includes(banned),
+        `${locale}: 禁止語「${banned}」が要望の導線の出力にあります`,
+      );
     }
   }
 });
@@ -370,7 +413,10 @@ const post = (body, path = '/api/waitlist') =>
 /** 既存の行を狙う書き込みか（新しい行を作らないか） */
 function targetsExistingRow(sql) {
   const flat = sql.replace(/\s+/g, ' ').trim().toUpperCase();
-  return /ON CONFLICT\s*\(\s*EMAIL\s*\)/.test(flat) || /^UPDATE\s+WAITLIST\b.*WHERE.*EMAIL/.test(flat);
+  return (
+    /ON CONFLICT\s*\(\s*EMAIL\s*\)/.test(flat) ||
+    /^UPDATE\s+WAITLIST\b.*WHERE.*EMAIL/.test(flat)
+  );
 }
 
 test('メールアドレスだけの送信でレコードが作られる', async () => {
@@ -380,7 +426,11 @@ test('メールアドレスだけの送信でレコードが作られる', async
   assert.equal(res.status, 200);
   assert.deepEqual(await res.json(), { ok: true });
   assert.equal(writes.length, 1, 'ステップ1の送信でレコードが作られていません');
-  assert.equal(writes[0].args.length, STORED_COLUMNS.length, '🔒 保存列が6つではありません');
+  assert.equal(
+    writes[0].args.length,
+    STORED_COLUMNS.length,
+    '🔒 保存列が6つではありません',
+  );
   assert.equal(writes[0].args[0], TEST_EMAIL);
 });
 
@@ -398,7 +448,11 @@ test('🔒 アンケートを相乗りさせた送信は既存の行を狙う（
     env,
   );
 
-  assert.equal(writes.length, 2, `書き込みが ${writes.length} 回です（2回であるべき）`);
+  assert.equal(
+    writes.length,
+    2,
+    `書き込みが ${writes.length} 回です（2回であるべき）`,
+  );
   const second = writes[1];
   assert.ok(
     targetsExistingRow(second.sql),
@@ -424,8 +478,16 @@ test('アンケートの3項目が保存の引数に載る', async () => {
   );
 
   const dumped = JSON.stringify(writes[0].args);
-  for (const expected of ['creatine,hmb', 'rakuten', NUTRIENTS_OTHER_INPUT, REQUESTS_INPUT]) {
-    assert.ok(dumped.includes(expected), `保存の引数に ${expected} がありません`);
+  for (const expected of [
+    'creatine,hmb',
+    'rakuten',
+    NUTRIENTS_OTHER_INPUT,
+    REQUESTS_INPUT,
+  ]) {
+    assert.ok(
+      dumped.includes(expected),
+      `保存の引数に ${expected} がありません`,
+    );
   }
 });
 
@@ -442,15 +504,24 @@ const SCHEMA_COLUMNS = ['id', ...STORED_COLUMNS];
 
 test('🔒 スキーマの waitlist テーブルの列が id を足した7つである', async () => {
   const schema = await readFile('worker/schema.sql', 'utf8');
-  const block = schema.match(/CREATE TABLE IF NOT EXISTS waitlist\s*\(([\s\S]*?)\n\);/i);
-  assert.ok(block, 'worker/schema.sql に waitlist テーブルの定義が見つかりません');
+  const block = schema.match(
+    /CREATE TABLE IF NOT EXISTS waitlist\s*\(([\s\S]*?)\n\);/i,
+  );
+  assert.ok(
+    block,
+    'worker/schema.sql に waitlist テーブルの定義が見つかりません',
+  );
 
   const columns = block[1]
     .split('\n')
     .map((line) => line.replace(/--.*/, '').trim())
     .filter(Boolean)
     .map((line) => line.split(/[\s(,]/)[0].toLowerCase())
-    .filter((name) => /^[a-z_]+$/.test(name) && !['primary', 'unique', 'foreign', 'check'].includes(name));
+    .filter(
+      (name) =>
+        /^[a-z_]+$/.test(name) &&
+        !['primary', 'unique', 'foreign', 'check'].includes(name),
+    );
 
   assert.deepEqual(
     [...columns].sort(),
@@ -479,9 +550,14 @@ test('🔒 移行 SQL が保存列の外に列を足していない', async () =
       .split('\n')
       .map((line) => line.replace(/--.*/, ''))
       .join('\n');
-    for (const [, table, column] of sql.matchAll(/ALTER TABLE\s+(\w+)\s+ADD COLUMN\s+(\w+)/gi)) {
+    for (const [, table, column] of sql.matchAll(
+      /ALTER TABLE\s+(\w+)\s+ADD COLUMN\s+(\w+)/gi,
+    )) {
       const allowed = ALLOWED_ADDED_COLUMNS[table.toLowerCase()];
-      assert.ok(allowed, `${file}: 想定していない表 "${table}" に列を足しています`);
+      assert.ok(
+        allowed,
+        `${file}: 想定していない表 "${table}" に列を足しています`,
+      );
       assert.ok(
         allowed.includes(column.toLowerCase()),
         `${file}: ${table} の保存列にない列 "${column}" を足しています`,

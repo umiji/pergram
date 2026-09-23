@@ -56,7 +56,11 @@ export function packageThumb({ imageUrl, brand, noImageLabel, initial }) {
   if (imageUrl) {
     return `<img class="thumb" src="${escapeHtml(imageUrl)}" alt="" width="76" height="76" loading="lazy" decoding="async">`;
   }
-  const letter = initial ?? String(brand ?? '').trim().slice(0, 1);
+  const letter =
+    initial ??
+    String(brand ?? '')
+      .trim()
+      .slice(0, 1);
   return `<span class="thumb thumb--empty" role="img" aria-label="${escapeHtml(noImageLabel)}">
   <span aria-hidden="true">${escapeHtml(letter)}</span>
 </span>`;

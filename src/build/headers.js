@@ -98,15 +98,25 @@ export function contentSecurityPolicy({ supportOrigin = null } = {}) {
   const scriptKeywords = supportOrigin
     ? `'self' 'unsafe-inline' 'unsafe-eval'`
     : `'self' 'unsafe-inline'`;
-  const scriptSrc = ['script-src', scriptKeywords, ...MEASUREMENT_SCRIPT_SRC].join(' ');
+  const scriptSrc = [
+    'script-src',
+    scriptKeywords,
+    ...MEASUREMENT_SCRIPT_SRC,
+  ].join(' ');
 
   return [
     `default-src 'self'`,
     withOrigin(scriptSrc, supportOrigin),
-    withOrigin(`style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`, supportOrigin),
+    withOrigin(
+      `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
+      supportOrigin,
+    ),
     `font-src 'self' https://fonts.gstatic.com`,
     `img-src 'self' data: https:`,
-    withOrigin([`connect-src 'self'`, ...MEASUREMENT_CONNECT_SRC].join(' '), supportOrigin),
+    withOrigin(
+      [`connect-src 'self'`, ...MEASUREMENT_CONNECT_SRC].join(' '),
+      supportOrigin,
+    ),
     `form-action 'self'`,
     `frame-ancestors 'none'`,
     `base-uri 'self'`,

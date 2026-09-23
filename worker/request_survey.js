@@ -75,14 +75,21 @@ import {
  *
  * 🔒 前後の空白を落として救わない。**形の合わない値は捨てる。**
  */
-const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_V4 =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /**
  * 本文が持ってよいキー。**この集合ちょうどでなければ 400。**
  * `created_at` はサーバが打つので本文には無い。
  * 🔒 `email` も `page` も `location` もここに無い。増やすのは PO 判断。
  */
-const PAYLOAD_KEYS = ['id', 'nutrients', 'channel', 'nutrients_other', 'requests'];
+const PAYLOAD_KEYS = [
+  'id',
+  'nutrients',
+  'channel',
+  'nutrients_other',
+  'requests',
+];
 
 const problem = (status) => new Response(null, { status });
 
@@ -128,7 +135,11 @@ export async function handleRequestSurvey(request, env) {
     return problem(400);
   }
 
-  if (payload === null || typeof payload !== 'object' || Array.isArray(payload)) {
+  if (
+    payload === null ||
+    typeof payload !== 'object' ||
+    Array.isArray(payload)
+  ) {
     return problem(400);
   }
 
@@ -136,10 +147,14 @@ export async function handleRequestSurvey(request, env) {
   //    余計な情報を保存経路に近づけない。**足りない側も通さない** —— 任意項目にすると、
   //    送り側の書き換えでキーが1つ消えても誰も気づかないまま列が空になる。
   const keys = Object.keys(payload);
-  if (keys.length !== PAYLOAD_KEYS.length || !PAYLOAD_KEYS.every((key) => keys.includes(key))) {
+  if (
+    keys.length !== PAYLOAD_KEYS.length ||
+    !PAYLOAD_KEYS.every((key) => keys.includes(key))
+  ) {
     return problem(400);
   }
-  if (typeof payload.id !== 'string' || !UUID_V4.test(payload.id)) return problem(400);
+  if (typeof payload.id !== 'string' || !UUID_V4.test(payload.id))
+    return problem(400);
 
   const nutrients = allowedValues(payload.nutrients, ALLOWED_NUTRIENTS);
   const channels = allowedValues(payload.channel, ALLOWED_CHANNELS);

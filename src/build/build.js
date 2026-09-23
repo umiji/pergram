@@ -29,7 +29,9 @@ const tempFilesToDelete = [
 for (const f of tempFilesToDelete) {
   const p = path.join(process.cwd(), 'scripts', f);
   if (existsSync(p)) {
-    try { unlinkSync(p); } catch (e) {}
+    try {
+      unlinkSync(p);
+    } catch (e) {}
   }
 }
 
@@ -93,17 +95,20 @@ function pickHeroRows(rows) {
   if (rows.length < MIN_HERO_PRODUCTS) return { heroRows: [], fellBack: false };
 
   const byUnitCost = rows.slice(0, HERO_ROWS);
-  if (HERO_PRODUCT_IDS.length === 0) return { heroRows: byUnitCost, fellBack: false };
+  if (HERO_PRODUCT_IDS.length === 0)
+    return { heroRows: byUnitCost, fellBack: false };
 
   const byId = new Map(rows.map((row) => [row.product.id, row]));
   const picked = HERO_PRODUCT_IDS.map((id) => byId.get(id)).filter(Boolean);
-  if (picked.length !== HERO_PRODUCT_IDS.length) return { heroRows: byUnitCost, fellBack: true };
+  if (picked.length !== HERO_PRODUCT_IDS.length)
+    return { heroRows: byUnitCost, fellBack: true };
 
   return { heroRows: picked, fellBack: false };
 }
 
 const strict = process.argv.includes('--strict');
-const readJson = async (...p) => JSON.parse(await readFile(path.join(...p), 'utf8'));
+const readJson = async (...p) =>
+  JSON.parse(await readFile(path.join(...p), 'utf8'));
 
 async function emit(relPath, html) {
   const full = path.join(DIST, relPath);
@@ -116,22 +121,28 @@ function buildRows({ nutrientId, market, targetIntake, locale, data }) {
   const nutrient = data.nutrients.find((n) => n.id === nutrientId);
   if (!nutrient) throw new Error(`成分が見つかりません: ${nutrientId}`);
 
-  const contents = data.nutrientContents.filter((c) => c.nutrient_id === nutrientId);
+  const contents = data.nutrientContents.filter(
+    (c) => c.nutrient_id === nutrientId,
+  );
   const productById = new Map(data.products.map((p) => [p.id, p]));
 
   const namesByProduct = new Map(
-    data.productI18n.filter((r) => r.locale === locale).map((r) => [r.product_id, r.name]),
+    data.productI18n
+      .filter((r) => r.locale === locale)
+      .map((r) => [r.product_id, r.name]),
   );
 
   const snapshotsByProduct = new Map();
   for (const snapshot of data.priceSnapshots) {
-    if (!snapshotsByProduct.has(snapshot.product_id)) snapshotsByProduct.set(snapshot.product_id, []);
+    if (!snapshotsByProduct.has(snapshot.product_id))
+      snapshotsByProduct.set(snapshot.product_id, []);
     snapshotsByProduct.get(snapshot.product_id).push(snapshot);
   }
 
   const attributesByProduct = new Map();
   for (const attr of data.productAttributes) {
-    if (!attributesByProduct.has(attr.product_id)) attributesByProduct.set(attr.product_id, []);
+    if (!attributesByProduct.has(attr.product_id))
+      attributesByProduct.set(attr.product_id, []);
     attributesByProduct.get(attr.product_id).push(attr);
   }
 
@@ -141,13 +152,24 @@ function buildRows({ nutrientId, market, targetIntake, locale, data }) {
     if (!product) continue;
 
     const snapshots = snapshotsByProduct.get(product.id) ?? [];
-    const row = buildRow({ product, content, nutrient, snapshots, market, targetIntake });
+    const row = buildRow({
+      product,
+      content,
+      nutrient,
+      snapshots,
+      market,
+      targetIntake,
+    });
     if (row === null) continue;
 
     row.name = namesByProduct.get(product.id) ?? product.id;
-    row.attributeKeys = (attributesByProduct.get(product.id) ?? []).map((a) => a.key);
+    row.attributeKeys = (attributesByProduct.get(product.id) ?? []).map(
+      (a) => a.key,
+    );
     row.snapshotsByMerchant = new Map(
-      snapshots.filter((s) => market.merchants.includes(s.merchant)).map((s) => [s.merchant, s]),
+      snapshots
+        .filter((s) => market.merchants.includes(s.merchant))
+        .map((s) => [s.merchant, s]),
     );
     rows.push(row);
   }
@@ -160,13 +182,17 @@ async function main() {
   await rm(DIST, { recursive: true, force: true }).catch(() => {});
   await mkdir(DIST, { recursive: true }).catch(() => {});
 
-  const artifactDir = 'C:\\Users\\kaiki\\.gemini\\antigravity-ide\\brain\\6f6a2748-6361-4a6a-ad54-e16a9a9b12ed';
+  const artifactDir =
+    'C:\\Users\\kaiki\\.gemini\\antigravity-ide\\brain\\6f6a2748-6361-4a6a-ad54-e16a9a9b12ed';
   const imgDir = path.join(process.cwd(), 'src', 'assets', 'images');
   const distImgDir = path.join(process.cwd(), 'dist', 'assets', 'images');
   mkdirSync(imgDir, { recursive: true });
   mkdirSync(distImgDir, { recursive: true });
 
-  const faviconPngSrc = path.join(artifactDir, 'favicon_png_white_bg_1786334778729.png');
+  const faviconPngSrc = path.join(
+    artifactDir,
+    'favicon_png_white_bg_1786334778729.png',
+  );
   if (existsSync(faviconPngSrc)) {
     try {
       copyFileSync(faviconPngSrc, path.join(imgDir, 'favicon.png'));
@@ -176,18 +202,23 @@ async function main() {
 
   // 表示用の手直し（ブランド・商品名）。無ければ何もしない。
   // 🔒 上書きできるのは文言だけ。単価と並び順には触れない（display_overrides.js）
-  const overrides = await readJson(DATA, 'display_overrides.json').catch(() => []);
+  const overrides = await readJson(DATA, 'display_overrides.json').catch(
+    () => [],
+  );
 
-  const data = applyDisplayOverrides({
-    nutrients: await readJson(DATA, 'nutrients.json'),
-    nutrientI18n: await readJson(DATA, 'nutrient_i18n.json'),
-    products: await readJson(DATA, 'products.json'),
-    productI18n: await readJson(DATA, 'product_i18n.json'),
-    nutrientContents: await readJson(DATA, 'nutrient_contents.json'),
-    productAttributes: await readJson(DATA, 'product_attributes.json'),
-    priceSnapshots: await readJson(DATA, 'price_snapshots.json'),
-    referenceValues: await readJson(DATA, 'reference_values.json'),
-  }, overrides);
+  const data = applyDisplayOverrides(
+    {
+      nutrients: await readJson(DATA, 'nutrients.json'),
+      nutrientI18n: await readJson(DATA, 'nutrient_i18n.json'),
+      products: await readJson(DATA, 'products.json'),
+      productI18n: await readJson(DATA, 'product_i18n.json'),
+      nutrientContents: await readJson(DATA, 'nutrient_contents.json'),
+      productAttributes: await readJson(DATA, 'product_attributes.json'),
+      priceSnapshots: await readJson(DATA, 'price_snapshots.json'),
+      referenceValues: await readJson(DATA, 'reference_values.json'),
+    },
+    overrides,
+  );
 
   const markets = await readJson(CONFIG, 'markets.json');
   const categories = await readJson(CONFIG, 'categories.json');
@@ -208,14 +239,23 @@ async function main() {
   const targetIntake = category.targetIntake.default;
 
   const nutrientName =
-    data.nutrientI18n.find((r) => r.nutrient_id === nutrientId && r.locale === locale)?.name ??
-    nutrientId;
+    data.nutrientI18n.find(
+      (r) => r.nutrient_id === nutrientId && r.locale === locale,
+    )?.name ?? nutrientId;
 
-  const { rows } = buildRows({ nutrientId, market, targetIntake, locale, data });
+  const { rows } = buildRows({
+    nutrientId,
+    market,
+    targetIntake,
+    locale,
+    data,
+  });
 
   const updatedAt =
-    data.priceSnapshots.map((s) => s.fetched_at).sort().at(-1) ??
-    new Date().toISOString().slice(0, 10);
+    data.priceSnapshots
+      .map((s) => s.fetched_at)
+      .sort()
+      .at(-1) ?? new Date().toISOString().slice(0, 10);
 
   // 🔒 ダミーを入れない。実データが足りないならヒーローのカードを出さない。
   //    LP 自体は常に出力する（Waitlist の登録を測るのがこのページの仕事）。
@@ -228,7 +268,10 @@ async function main() {
   // 絞り込みの成分欄。掲載中の成分と、ロードマップ上の成分（件数0）を並べる
   const nutrients = [
     { id: nutrientId, count: rows.length },
-    ...ROADMAP_NUTRIENTS.filter((id) => id !== nutrientId).map((id) => ({ id, count: 0 })),
+    ...ROADMAP_NUTRIENTS.filter((id) => id !== nutrientId).map((id) => ({
+      id,
+      count: 0,
+    })),
   ];
 
   // --- 製品一覧 -------------------------------------------------------
@@ -299,7 +342,11 @@ async function main() {
   //    sitemap.xml をここで別々に組み立てない（塞いだ URL を申告する事故になる）。
   const policy = crawlPolicy({ lpPath, productsPath });
   await writeFile(path.join(DIST, 'robots.txt'), robotsTxt(policy), 'utf8');
-  await writeFile(path.join(DIST, 'sitemap.xml'), sitemapXml(policy, { lastmod: updatedAt }), 'utf8');
+  await writeFile(
+    path.join(DIST, 'sitemap.xml'),
+    sitemapXml(policy, { lastmod: updatedAt }),
+    'utf8',
+  );
   await writeFile(
     path.join(DIST, 'llms.txt'),
     llmsTxt(policy, {
@@ -323,11 +370,16 @@ async function main() {
   await cp('src/styles/tokens.css', path.join(DIST, 'assets', 'tokens.css'));
   await cp('src/styles/site.css', path.join(DIST, 'assets', 'site.css'));
   await cp('src/styles/lp.css', path.join(DIST, 'assets', 'lp.css'));
-  await cp('src/styles/products.css', path.join(DIST, 'assets', 'products.css'));
+  await cp(
+    'src/styles/products.css',
+    path.join(DIST, 'assets', 'products.css'),
+  );
   await cp('src/assets/lp.js', path.join(DIST, 'assets', 'lp.js'));
   await cp('src/assets/products.js', path.join(DIST, 'assets', 'products.js'));
   await cp('src/assets/request.js', path.join(DIST, 'assets', 'request.js'));
-  await cp('src/assets/images', path.join(DIST, 'assets', 'images'), { recursive: true }).catch(() => { });
+  await cp('src/assets/images', path.join(DIST, 'assets', 'images'), {
+    recursive: true,
+  }).catch(() => {});
 
   // --- 結果 ------------------------------------------------------------
   console.log(`LP          ${lpPath}`);
@@ -336,7 +388,9 @@ async function main() {
     console.log(
       `            ヒーローのランキングカードは未出力 — 実データが ${rows.length} 件しかありません（最低 ${MIN_HERO_PRODUCTS} 件）。`,
     );
-    console.log(`            ダミーを置かない決まりのため、データを揃えると自動でカードが出ます。`);
+    console.log(
+      `            ダミーを置かない決まりのため、データを揃えると自動でカードが出ます。`,
+    );
     if (strict) process.exit(1);
   }
   if (heroReady && HERO_PRODUCT_IDS.length > 0) {
@@ -346,7 +400,9 @@ async function main() {
         : `⚠️ ヒーロー   HERO_PRODUCT_IDS で手動指定した ${HERO_PRODUCT_IDS.length} 件を出しています（実際の単価順ではありません）。`,
     );
   }
-  console.log(`クロール    ${policy.open.map((e) => e.path).join(' ')} を許可 / ${policy.blocked.join(' ')} を拒否`);
+  console.log(
+    `クロール    ${policy.open.map((e) => e.path).join(' ')} を許可 / ${policy.blocked.join(' ')} を拒否`,
+  );
   console.log(`            robots.txt  sitemap.xml  llms.txt を出力`);
   if (!siteVerification) {
     console.log(
@@ -354,7 +410,9 @@ async function main() {
     );
   }
   if (!gaMeasurementId) {
-    console.log('GA4         未設定 — GA4_MEASUREMENT_ID を渡すと計測タグが入ります。');
+    console.log(
+      'GA4         未設定 — GA4_MEASUREMENT_ID を渡すと計測タグが入ります。',
+    );
   }
 }
 

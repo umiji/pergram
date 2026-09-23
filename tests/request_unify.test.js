@@ -90,7 +90,8 @@ const SIGNAL_ENDPOINT = '/api/request-signal';
 const SIGNAL_STORAGE_KEY = 'pergram.request_signal_id';
 /** 受領の確認（T-062）。**これがあるときだけ送らない。**id の有無では判定しない */
 const SIGNAL_ACK_STORAGE_KEY = 'pergram.request_signal_ack';
-const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_V4 =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const SAMPLE_UUID = '3f2504e0-4f89-41d3-9a0c-0305e82c3301';
 
 const nutrients = [
@@ -100,7 +101,12 @@ const nutrients = [
 
 /* ---- 描画ヘルパ -------------------------------------------------------- */
 
-function renderProducts({ t = tJa, locale = 'ja', nutrientName = 'タンパク質', ...overrides } = {}) {
+function renderProducts({
+  t = tJa,
+  locale = 'ja',
+  nutrientName = 'タンパク質',
+  ...overrides
+} = {}) {
   const mk = locale === 'en' ? MARKETS.US : MARKETS.JP;
   return productsPage({
     t,
@@ -120,7 +126,12 @@ function renderProducts({ t = tJa, locale = 'ja', nutrientName = 'タンパク�
   });
 }
 
-function renderLp({ t = tJa, locale = 'ja', nutrientName = 'タンパク質', ...overrides } = {}) {
+function renderLp({
+  t = tJa,
+  locale = 'ja',
+  nutrientName = 'タンパク質',
+  ...overrides
+} = {}) {
   const mk = locale === 'en' ? MARKETS.US : MARKETS.JP;
   return lpPage({
     t,
@@ -187,13 +198,17 @@ function norm(value) {
  * 要素そのものの文言と、中の span の文言を**どれか1つが一致すればよい**として扱う。
  */
 function labelVariants(el) {
-  return [norm(el.textContent), ...el.querySelectorAll('span').map((one) => norm(one.textContent))]
-    .filter(Boolean);
+  return [
+    norm(el.textContent),
+    ...el.querySelectorAll('span').map((one) => norm(one.textContent)),
+  ].filter(Boolean);
 }
 
 /** 本文（＝ヘッダの外）にある第1段階のボタン */
 function bodyRequestCtas(root) {
-  return root.querySelectorAll('[data-request-cta]').filter((el) => el.closest('header') === null);
+  return root
+    .querySelectorAll('[data-request-cta]')
+    .filter((el) => el.closest('header') === null);
 }
 
 /**
@@ -229,7 +244,10 @@ function headerCtaNamed(root, locale, label) {
 /* ====================================================================== */
 
 test('完了条件1 製品一覧に「リリース通知を受け取る」が1回も出てこない', async () => {
-  for (const source of await htmlSources('dist/ja/protein/index.html', renderProducts())) {
+  for (const source of await htmlSources(
+    'dist/ja/protein/index.html',
+    renderProducts(),
+  )) {
     const hits = source.html.split(RETIRED_LABEL).length - 1;
     assert.equal(
       hits,
@@ -256,7 +274,10 @@ test('完了条件1 待機リストの案内ブロックが製品一覧から出
 
 test('完了条件2 製品一覧の本文の要望ボタンが「正式版のリリースを応援する」である', () => {
   const buttons = bodyRequestCtas(tree(renderProducts()));
-  assert.ok(buttons.length > 0, '製品一覧の本文に data-request-cta のボタンが無い');
+  assert.ok(
+    buttons.length > 0,
+    '製品一覧の本文に data-request-cta のボタンが無い',
+  );
 
   for (const button of buttons) {
     assert.ok(
@@ -282,8 +303,12 @@ test('完了条件2 LP と製品一覧の本文の要望ボタンが同じ文言
   const labelsOf = (html) =>
     new Set(bodyRequestCtas(tree(html)).flatMap(labelVariants));
 
-  const lp = labelsOf(renderLp({ t: tEn, locale: 'en', nutrientName: 'Protein' }));
-  const products = labelsOf(renderProducts({ t: tEn, locale: 'en', nutrientName: 'Protein' }));
+  const lp = labelsOf(
+    renderLp({ t: tEn, locale: 'en', nutrientName: 'Protein' }),
+  );
+  const products = labelsOf(
+    renderProducts({ t: tEn, locale: 'en', nutrientName: 'Protein' }),
+  );
 
   assert.ok(lp.size > 0, 'en の LP に本文の要望ボタンが無い');
   assert.ok(products.size > 0, 'en の製品一覧に本文の要望ボタンが無い');
@@ -331,9 +356,17 @@ for (const [name, render, expectedPage] of [
 }
 
 test('完了条件3 en でも LP と製品一覧のヘッダの CTA の文言が揃っている', () => {
-  const lp = new Set(headerCtaLabels(tree(renderLp({ t: tEn, locale: 'en', nutrientName: 'Protein' })), 'en'));
+  const lp = new Set(
+    headerCtaLabels(
+      tree(renderLp({ t: tEn, locale: 'en', nutrientName: 'Protein' })),
+      'en',
+    ),
+  );
   const products = new Set(
-    headerCtaLabels(tree(renderProducts({ t: tEn, locale: 'en', nutrientName: 'Protein' })), 'en'),
+    headerCtaLabels(
+      tree(renderProducts({ t: tEn, locale: 'en', nutrientName: 'Protein' })),
+      'en',
+    ),
   );
 
   assert.ok(lp.size > 0, 'en の LP のヘッダに CTA が無い');
@@ -350,7 +383,10 @@ test('完了条件3 en でも LP と製品一覧のヘッダの CTA の文言が
 /* ====================================================================== */
 
 test('完了条件4 製品一覧の最初の data-request-cta が class="toolbar" より前に出る', async () => {
-  for (const source of await htmlSources('dist/ja/protein/index.html', renderProducts())) {
+  for (const source of await htmlSources(
+    'dist/ja/protein/index.html',
+    renderProducts(),
+  )) {
     const cta = source.html.indexOf('data-request-cta');
     const toolbar = source.html.indexOf('class="toolbar"');
 
@@ -399,7 +435,10 @@ test('完了条件5 LP の3段とも初期状態は hidden である', () => {
   for (const kind of ['survey', 'email', 'support']) {
     const step = root.querySelector(`[data-request-step="${kind}"]`);
     assert.ok(step, `LP に ${kind} の段が無い`);
-    assert.ok(step.hidden, `LP の ${kind} の段が初期状態で hidden になっていない`);
+    assert.ok(
+      step.hidden,
+      `LP の ${kind} の段が初期状態で hidden になっていない`,
+    );
   }
 });
 
@@ -459,18 +498,26 @@ test('完了条件6 LP のメールアドレス入力欄は email の段の中�
   const emailStep = root.querySelector('[data-request-step="email"]');
   assert.ok(emailStep, 'LP に email の段が無い');
 
-  const inputs = root.querySelectorAll('input[type="email"], input[name="email"]');
+  const inputs = root.querySelectorAll(
+    'input[type="email"], input[name="email"]',
+  );
   assert.ok(inputs.length > 0, 'LP にメールアドレスの入力欄が無い');
 
   for (const input of inputs) {
     const step = input.closest('[data-request-step]');
-    assert.ok(step, 'LP のメールアドレス入力欄が段（data-request-step）の外に置かれている');
+    assert.ok(
+      step,
+      'LP のメールアドレス入力欄が段（data-request-step）の外に置かれている',
+    );
     assert.equal(
       step.getAttribute('data-request-step'),
       'email',
       'LP のメールアドレス入力欄が email 以外の段にある',
     );
-    assert.ok(step.hidden, 'メールアドレス入力欄を含む段が初期状態で hidden になっていない');
+    assert.ok(
+      step.hidden,
+      'メールアドレス入力欄を含む段が初期状態で hidden になっていない',
+    );
   }
 });
 
@@ -480,11 +527,17 @@ test('完了条件6 LP のメールアドレス入力欄は email の段の中�
 
 /** 第1段階のボタンを1つ押したところまで進める */
 async function clickFirstStage(html, options = {}) {
-  const dom = await runLpScript(html, { scriptPath: REQUEST_SCRIPT, ...options });
+  const dom = await runLpScript(html, {
+    scriptPath: REQUEST_SCRIPT,
+    ...options,
+  });
   const buttons = dom.body
     .querySelectorAll('[data-request-cta]')
     .filter((el) => el.closest('header') === null);
-  assert.ok(buttons.length > 0, '本文に第1段階のボタン（data-request-cta）が無い');
+  assert.ok(
+    buttons.length > 0,
+    '本文に第1段階のボタン（data-request-cta）が無い',
+  );
 
   buttons[0].dispatchEvent(new DomEvent('click'));
   await dom.flush();
@@ -492,7 +545,9 @@ async function clickFirstStage(html, options = {}) {
   return {
     dom,
     button: buttons[0],
-    signals: dom.fetchCalls.filter((call) => call.url.includes(SIGNAL_ENDPOINT)),
+    signals: dom.fetchCalls.filter((call) =>
+      call.url.includes(SIGNAL_ENDPOINT),
+    ),
     step: (kind) => dom.body.querySelector(`[data-request-step="${kind}"]`),
   };
 }
@@ -509,8 +564,16 @@ for (const [name, render, expectedPage] of [
   test(`完了条件7 ${name}の第1段階の押下で POST ${SIGNAL_ENDPOINT} が1回だけ飛ぶ`, async () => {
     const { signals } = await clickFirstStage(render());
 
-    assert.equal(signals.length, 1, `${name}: 匿名シグナルの送信が ${signals.length} 回`);
-    assert.equal(signals[0].method, 'POST', `${name}: メソッドが ${signals[0].method}`);
+    assert.equal(
+      signals.length,
+      1,
+      `${name}: 匿名シグナルの送信が ${signals.length} 回`,
+    );
+    assert.equal(
+      signals[0].method,
+      'POST',
+      `${name}: メソッドが ${signals[0].method}`,
+    );
   });
 
   test(`完了条件7 ${name}の送信本文が { "id": "<UUID v4>", "page": "${expectedPage}" } だけである`, async () => {
@@ -518,20 +581,35 @@ for (const [name, render, expectedPage] of [
     assert.equal(signals.length, 1, `${name}: 匿名シグナルが送られていない`);
 
     const { body } = signals[0];
-    assert.ok(body && typeof body === 'object', `${name}: 送信本文が JSON のオブジェクトでない`);
+    assert.ok(
+      body && typeof body === 'object',
+      `${name}: 送信本文が JSON のオブジェクトでない`,
+    );
     assert.deepEqual(
       Object.keys(body).sort(),
       ['id', 'page'],
       `🔒 ${name}: 送信本文のキーが {id, page} でない: ${Object.keys(body).join(' / ')}。` +
         'IP・User-Agent・リファラ・成分・自由記述・ページ内の位置を入れない',
     );
-    assert.match(String(body.id), UUID_V4, `${name}: id が UUID v4 の形式でない: ${body.id}`);
-    assert.equal(body.page, expectedPage, `${name}: どのページで押されたかが違う`);
+    assert.match(
+      String(body.id),
+      UUID_V4,
+      `${name}: id が UUID v4 の形式でない: ${body.id}`,
+    );
+    assert.equal(
+      body.page,
+      expectedPage,
+      `${name}: どのページで押されたかが違う`,
+    );
   });
 
   test(`完了条件7 ${name}の押下で段が開く（送信の結果を待たずに開く）`, async () => {
     const { step } = await clickFirstStage(render());
-    assert.equal(step('survey').hidden, false, `${name}: アンケートの段が開いていない`);
+    assert.equal(
+      step('survey').hidden,
+      false,
+      `${name}: アンケートの段が開いていない`,
+    );
   });
 
   test(`完了条件7 ${name}の送信した id が localStorage へ残る`, async () => {
@@ -546,7 +624,9 @@ for (const [name, render, expectedPage] of [
   });
 
   test(`完了条件7 ${name}の送信に失敗しても段は開く（導線を止めない）`, async () => {
-    const { step, dom } = await clickFirstStage(render(), { respond: () => ({ reject: true }) });
+    const { step, dom } = await clickFirstStage(render(), {
+      respond: () => ({ reject: true }),
+    });
 
     assert.equal(
       step('survey').hidden,
@@ -598,7 +678,11 @@ for (const [name, render, expectedPage] of [
       storage: { [SIGNAL_STORAGE_KEY]: SAMPLE_UUID },
     });
 
-    assert.equal(step('survey').hidden, false, `${name}: 2回目の押下で段が開かない`);
+    assert.equal(
+      step('survey').hidden,
+      false,
+      `${name}: 2回目の押下で段が開かない`,
+    );
   });
 
   test(`完了条件8 ${name}: 既にある id を書き換えない`, async () => {
@@ -615,7 +699,9 @@ for (const [name, render, expectedPage] of [
 }
 
 test('完了条件8 同じページで2回押しても送信は1回だけ', async () => {
-  const dom = await runLpScript(renderProducts(), { scriptPath: REQUEST_SCRIPT });
+  const dom = await runLpScript(renderProducts(), {
+    scriptPath: REQUEST_SCRIPT,
+  });
   const buttons = dom.body
     .querySelectorAll('[data-request-cta]')
     .filter((el) => el.closest('header') === null);
@@ -628,8 +714,14 @@ test('完了条件8 同じページで2回押しても送信は1回だけ', asyn
   buttons[0].dispatchEvent(new DomEvent('click'));
   await dom.flush();
 
-  const signals = dom.fetchCalls.filter((call) => call.url.includes(SIGNAL_ENDPOINT));
-  assert.equal(signals.length, 1, `同じページ内で ${signals.length} 回送信している`);
+  const signals = dom.fetchCalls.filter((call) =>
+    call.url.includes(SIGNAL_ENDPOINT),
+  );
+  assert.equal(
+    signals.length,
+    1,
+    `同じページ内で ${signals.length} 回送信している`,
+  );
 });
 
 /* ====================================================================== */
@@ -646,11 +738,16 @@ function parseColumns(inner) {
     .split(',')
     .map((one) => one.trim())
     .filter(Boolean)
-    .map((one) => ({ name: one.split(/\s+/)[0].toLowerCase(), definition: one }));
+    .map((one) => ({
+      name: one.split(/\s+/)[0].toLowerCase(),
+      definition: one,
+    }));
 }
 
 function requestSignalBlock(sql) {
-  const match = sql.match(/CREATE TABLE(?:\s+IF NOT EXISTS)?\s+request_signal\s*\(([\s\S]*?)\)\s*;/i);
+  const match = sql.match(
+    /CREATE TABLE(?:\s+IF NOT EXISTS)?\s+request_signal\s*\(([\s\S]*?)\)\s*;/i,
+  );
   return match ? parseColumns(match[1]) : null;
 }
 
@@ -671,8 +768,13 @@ test('完了条件9 worker/schema.sql に request_signal テーブルがある',
 const REQUEST_SIGNAL_COLUMNS = ['id', 'created_at', 'page'];
 
 test('完了条件9 request_signal の列は id と created_at と page の3つだけである', async () => {
-  const columns = requestSignalBlock(await readFile('worker/schema.sql', 'utf8'));
-  assert.ok(columns, 'worker/schema.sql に request_signal テーブルの定義が無い');
+  const columns = requestSignalBlock(
+    await readFile('worker/schema.sql', 'utf8'),
+  );
+  assert.ok(
+    columns,
+    'worker/schema.sql に request_signal テーブルの定義が無い',
+  );
 
   assert.deepEqual(
     columns.map((one) => one.name),
@@ -680,8 +782,16 @@ test('完了条件9 request_signal の列は id と created_at と page の3つ�
     '🔒 匿名シグナルのテーブルに UUID と日時と page 以外の列を作らない。' +
       '個人を識別できるものを何も持たないことが、この行の存在理由である',
   );
-  assert.match(columns[0].definition, /TEXT\s+PRIMARY KEY/i, 'id が TEXT PRIMARY KEY でない');
-  assert.match(columns[1].definition, /TEXT\s+NOT NULL/i, 'created_at が TEXT NOT NULL でない');
+  assert.match(
+    columns[0].definition,
+    /TEXT\s+PRIMARY KEY/i,
+    'id が TEXT PRIMARY KEY でない',
+  );
+  assert.match(
+    columns[1].definition,
+    /TEXT\s+NOT NULL/i,
+    'created_at が TEXT NOT NULL でない',
+  );
   assert.ok(
     !/NOT NULL/i.test(columns[2].definition),
     '🔒 page に NOT NULL を付けない。移行前に入った行の page は NULL のままである',
@@ -721,8 +831,11 @@ test('完了条件9 同じ内容の移行 SQL が worker/migrations/ にある',
       .split('\n')
       .map((line) => line.replace(/--.*/, ''))
       .join('\n');
-    for (const [, table, column] of sql.matchAll(/ALTER TABLE\s+(\w+)\s+ADD COLUMN\s+(\w+)/gi)) {
-      if (table.toLowerCase() === 'request_signal') alters.push(column.toLowerCase());
+    for (const [, table, column] of sql.matchAll(
+      /ALTER TABLE\s+(\w+)\s+ADD COLUMN\s+(\w+)/gi,
+    )) {
+      if (table.toLowerCase() === 'request_signal')
+        alters.push(column.toLowerCase());
     }
   }
   assert.deepEqual(
@@ -742,15 +855,28 @@ test('完了条件9 同じ内容の移行 SQL が worker/migrations/ にある',
  */
 test('完了条件9 waitlist は id を足した7列で、email の主キーは外れている', async () => {
   const schema = await readFile('worker/schema.sql', 'utf8');
-  const block = schema.match(/CREATE TABLE IF NOT EXISTS waitlist\s*\(([\s\S]*?)\n\);/i);
-  assert.ok(block, 'worker/schema.sql に waitlist テーブルの定義が見つからない');
+  const block = schema.match(
+    /CREATE TABLE IF NOT EXISTS waitlist\s*\(([\s\S]*?)\n\);/i,
+  );
+  assert.ok(
+    block,
+    'worker/schema.sql に waitlist テーブルの定義が見つからない',
+  );
 
   assert.deepEqual(
     parseColumns(block[1])
       .map((one) => one.name)
       .filter((name) => name !== 'check')
       .sort(),
-    ['channel', 'created_at', 'email', 'id', 'nutrients', 'nutrients_other', 'requests'],
+    [
+      'channel',
+      'created_at',
+      'email',
+      'id',
+      'nutrients',
+      'nutrients_other',
+      'requests',
+    ],
     'waitlist の列が T-071 で決めた7つと違う',
   );
   assert.ok(
@@ -810,13 +936,18 @@ function signalRequest(bodyText) {
 
 /** 送信本文。⚠️ T-058 から `page` は必須である（無い本文は 400 で捨てる） */
 const SAMPLE_PAGE = 'ja:protein';
-const signalBody = (over = {}) => JSON.stringify({ id: SAMPLE_UUID, page: SAMPLE_PAGE, ...over });
+const signalBody = (over = {}) =>
+  JSON.stringify({ id: SAMPLE_UUID, page: SAMPLE_PAGE, ...over });
 
 test('完了条件10 正しい UUID なら 204 を返し、本文を返さない', async () => {
   const { env } = makeEnv();
   const res = await worker.fetch(signalRequest(signalBody()), env);
 
-  assert.equal(res.status, 204, `成功応答が ${res.status} です（204 No Content であるべき）`);
+  assert.equal(
+    res.status,
+    204,
+    `成功応答が ${res.status} です（204 No Content であるべき）`,
+  );
   assert.equal(await res.text(), '', '204 なのに本文を返している');
 });
 

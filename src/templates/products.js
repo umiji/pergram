@@ -13,7 +13,13 @@ import { escapeHtml } from '../lib/i18n.js';
 import { layout, wordmark } from './layout.js';
 import { filters } from './products/filters.js';
 import { productItem } from './products/item.js';
-import { affiliateNotice, appHeader, explainer, pageHead, toolbar } from './products/head.js';
+import {
+  affiliateNotice,
+  appHeader,
+  explainer,
+  pageHead,
+  toolbar,
+} from './products/head.js';
 import { requestCta, requestFlow, requestPageId } from './request.js';
 import { supportScript } from './lp/support.js';
 import { breadcrumbList, itemList } from '../lib/jsonld.js';
@@ -33,7 +39,12 @@ function productList(rows, ctx) {
   const items = rows
     .map((row, i) => {
       const html = productItem(row, i, { ...ctx, baseline });
-      return i < PAGE_SIZE ? html : html.replace('<li class="p-item', '<li hidden data-overflow class="p-item');
+      return i < PAGE_SIZE
+        ? html
+        : html.replace(
+            '<li class="p-item',
+            '<li hidden data-overflow class="p-item',
+          );
     })
     .join('\n');
 
@@ -116,8 +127,12 @@ export function productsPage(ctx) {
    *    メールの段の送り先も支援の案内も、LP の要望の導線と同じ経路だからである。
    */
   const support = ctx.support ?? market.support ?? null;
-  const ctaTop = waitlistPath ? requestCta(t, { location: 'products_request_top' }) : '';
-  const ctaBottom = waitlistPath ? requestCta(t, { location: 'products_request_bottom' }) : '';
+  const ctaTop = waitlistPath
+    ? requestCta(t, { location: 'products_request_top' })
+    : '';
+  const ctaBottom = waitlistPath
+    ? requestCta(t, { location: 'products_request_bottom' })
+    : '';
   const flow = waitlistPath
     ? requestFlow(t, { support, page: requestPageId(locale, nutrientId) })
     : '';
@@ -183,7 +198,10 @@ ${waitlistPath ? supportScript(support, { locale }) : ''}`;
   return layout({
     locale,
     title: `${t('products.title', { nutrient: nutrientName, unit: displayUnit })} — ${t('brand.name')}`,
-    description: t('ranking.subtitle', { nutrient: nutrientName, unit: displayUnit }),
+    description: t('ranking.subtitle', {
+      nutrient: nutrientName,
+      unit: displayUnit,
+    }),
     bodyClass: 'app-body',
     content,
     gaMeasurementId,

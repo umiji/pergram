@@ -40,21 +40,29 @@ const t = await loadTranslator('ja');
 const page = () => `${requestCta(t, { location: 'products_request_top' })}
 ${requestFlow(t, { support: market.support, page: PAGE_ID })}`;
 
-const surveyCalls = (dom) => dom.fetchCalls.filter((call) => call.url.includes(SURVEY_PATH));
+const surveyCalls = (dom) =>
+  dom.fetchCalls.filter((call) => call.url.includes(SURVEY_PATH));
 
 /** 押して答えて送るところまで進める。受領済みのブラウザなので押下は飛ばない */
 async function answerOnce({ respond, storage = {} } = {}) {
   const dom = await runLpScript(page(), {
     scriptPath: SCRIPT,
-    storage: { [SIGNAL_STORAGE_KEY]: BROWSER_ID, [SIGNAL_ACK_KEY]: BROWSER_ID, ...storage },
+    storage: {
+      [SIGNAL_STORAGE_KEY]: BROWSER_ID,
+      [SIGNAL_ACK_KEY]: BROWSER_ID,
+      ...storage,
+    },
     respond,
   });
 
-  dom.body.querySelectorAll('[data-request-cta]')[0].dispatchEvent(new DomEvent('click'));
+  dom.body
+    .querySelectorAll('[data-request-cta]')[0]
+    .dispatchEvent(new DomEvent('click'));
   await dom.flush();
 
   const form = dom.body.querySelector('[data-request-survey]');
-  form.querySelector('input[name="nutrients"][value="creatine"]').checked = true;
+  form.querySelector('input[name="nutrients"][value="creatine"]').checked =
+    true;
   form.querySelector('[name="requests"]').value = REQUESTS_INPUT;
   form.dispatchEvent(new DomEvent('submit'));
   await dom.flush();
@@ -88,9 +96,17 @@ test('送信に失敗した回答は控えに残り、次の訪問で送り直�
   const second = await revisit(first, { respond: received });
   const calls = surveyCalls(second);
   assert.equal(calls.length, 1, '🔒 次の訪問で送り直していない');
-  assert.equal(calls[0].body.id, BROWSER_ID, '押下と違う識別子で送り直している');
+  assert.equal(
+    calls[0].body.id,
+    BROWSER_ID,
+    '押下と違う識別子で送り直している',
+  );
   assert.deepEqual(calls[0].body.nutrients, ['creatine']);
-  assert.equal(calls[0].body.requests, REQUESTS_INPUT, '控えた回答の中身が変わっている');
+  assert.equal(
+    calls[0].body.requests,
+    REQUESTS_INPUT,
+    '控えた回答の中身が変わっている',
+  );
   assert.deepEqual(
     Object.keys(calls[0].body).sort(),
     ['channel', 'id', 'nutrients', 'nutrients_other', 'requests'],
@@ -107,7 +123,11 @@ test('受領できたら控えは消え、次の訪問では何も送らない',
   );
 
   const second = await revisit(first, { respond: received });
-  assert.equal(surveyCalls(second).length, 0, '受領済みの回答をもう一度送っている');
+  assert.equal(
+    surveyCalls(second).length,
+    0,
+    '受領済みの回答をもう一度送っている',
+  );
 });
 
 test('送り直しが受領されたら控えは消える', async () => {
@@ -139,7 +159,9 @@ test('503 でも控えを消さない（移行前のデプロイの窓で失わ�
 });
 
 test('400 なら控えを消す（同じ本文は何度送っても通らない）', async () => {
-  const first = await answerOnce({ respond: () => ({ ok: false, status: 400 }) });
+  const first = await answerOnce({
+    respond: () => ({ ok: false, status: 400 }),
+  });
   assert.equal(
     first.storageData.get(OUTBOX_KEY),
     undefined,
@@ -161,7 +183,11 @@ test('読めない控えは消して、何も送らない', async () => {
   await dom.flush();
 
   assert.equal(surveyCalls(dom).length, 0, '読めない控えを投げている');
-  assert.equal(dom.storageData.get(OUTBOX_KEY), undefined, '読めない控えを抱え続けている');
+  assert.equal(
+    dom.storageData.get(OUTBOX_KEY),
+    undefined,
+    '読めない控えを抱え続けている',
+  );
 });
 
 test('識別子を持たない控えは消して、何も送らない', async () => {
@@ -180,7 +206,10 @@ test('形の崩れた控えはキー集合を揃えて送る（中身は解釈�
   const dom = await runLpScript(page(), {
     scriptPath: SCRIPT,
     storage: {
-      [OUTBOX_KEY]: JSON.stringify({ id: BROWSER_ID, requests: REQUESTS_INPUT }),
+      [OUTBOX_KEY]: JSON.stringify({
+        id: BROWSER_ID,
+        requests: REQUESTS_INPUT,
+      }),
     },
     respond: received,
   });
@@ -193,7 +222,11 @@ test('形の崩れた控えはキー集合を揃えて送る（中身は解釈�
     ['channel', 'id', 'nutrients', 'nutrients_other', 'requests'],
     '🔒 キーが足りない控えをそのまま投げている。受け口は 400 で捨て、永久に通らない',
   );
-  assert.equal(calls[0].body.requests, REQUESTS_INPUT, '🔒 自由記述の中身に手を入れている');
+  assert.equal(
+    calls[0].body.requests,
+    REQUESTS_INPUT,
+    '🔒 自由記述の中身に手を入れている',
+  );
   assert.deepEqual(calls[0].body.nutrients, []);
   assert.equal(calls[0].body.nutrients_other, null);
 });
@@ -209,7 +242,10 @@ test('🔒 メールアドレスの段まで進めても、控えにメールア
   await dom.flush();
 
   const outbox = dom.storageData.get(OUTBOX_KEY) || '';
-  assert.ok(!outbox.includes('request@example.com'), '🔒 控えにメールアドレスが混ざっている');
+  assert.ok(
+    !outbox.includes('request@example.com'),
+    '🔒 控えにメールアドレスが混ざっている',
+  );
   assert.ok(!/mail/i.test(outbox), '🔒 控えがメールアドレスの器を持っている');
   for (const [key, value] of dom.storageData) {
     assert.ok(

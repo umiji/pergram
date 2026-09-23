@@ -25,7 +25,10 @@ function fractionDigitsFor(value) {
 /**
  * 通貨を書式化する。数値部分は Intl が組み立てる。
  */
-export function formatCurrency(value, { locale, currency, fractionDigits } = {}) {
+export function formatCurrency(
+  value,
+  { locale, currency, fractionDigits } = {},
+) {
   if (value === null || !Number.isFinite(value)) return null;
   const digits = fractionDigits ?? fractionDigitsFor(value);
 
@@ -82,7 +85,9 @@ export function formatDate(iso, { locale } = {}) {
   if (!iso) return null;
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return null;
-  return new Intl.DateTimeFormat(locale, { year: 'numeric', month: 'numeric', day: 'numeric' }).format(
-    date,
-  );
+  return new Intl.DateTimeFormat(locale, {
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+  }).format(date);
 }

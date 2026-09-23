@@ -47,7 +47,10 @@ test('🔒 説明文に無い根拠は支持されたとみなさない', () => 
 // 空白の詰め方だけは吸収する。それ以外の文字は一切変換しない。
 test('空白の詰め方の違いは吸収する', () => {
   assert.equal(evidenceSupports(CAPTION, 'たんぱく質　76.5g'), true);
-  assert.equal(evidenceSupports(CAPTION, 'エネルギー 402kcal たんぱく質 76.5g'), true);
+  assert.equal(
+    evidenceSupports(CAPTION, 'エネルギー 402kcal たんぱく質 76.5g'),
+    true,
+  );
 });
 
 test('根拠が空なら支持されたとみなさない', () => {
@@ -59,14 +62,20 @@ test('根拠が空なら支持されたとみなさない', () => {
 /* ---- 値の受け取り ----------------------------------------------------- */
 
 test('根拠が実在すれば含有率を受け取る', () => {
-  const got = enrichRow(row(), { protein_per_100g: 76.5, protein_evidence: 'たんぱく質 76.5g' });
+  const got = enrichRow(row(), {
+    protein_per_100g: 76.5,
+    protein_evidence: 'たんぱく質 76.5g',
+  });
 
   assert.equal(got.row.protein_per_100g, 76.5);
   assert.deepEqual(got.rejected, []);
 });
 
 test('🔒 根拠が説明文に無ければ値を捨てて null のままにする', () => {
-  const got = enrichRow(row(), { protein_per_100g: 88.0, protein_evidence: 'たんぱく質 88.0g' });
+  const got = enrichRow(row(), {
+    protein_per_100g: 88.0,
+    protein_evidence: 'たんぱく質 88.0g',
+  });
 
   assert.equal(got.row.protein_per_100g, null);
   assert.equal(got.rejected.length, 1);
@@ -76,7 +85,10 @@ test('🔒 根拠が説明文に無ければ値を捨てて null のままにす
 // 根拠として説明文の別の箇所を貼れば、どんな数値でも通ってしまう。
 // 🔒 根拠の中に値そのものが書かれていることまで確かめる。
 test('🔒 根拠の中に値そのものが無ければ受け取らない', () => {
-  const got = enrichRow(row(), { protein_per_100g: 76.5, protein_evidence: 'エネルギー 402kcal' });
+  const got = enrichRow(row(), {
+    protein_per_100g: 76.5,
+    protein_evidence: 'エネルギー 402kcal',
+  });
 
   assert.equal(got.row.protein_per_100g, null);
   assert.match(got.rejected[0].reason, /値/);
@@ -104,10 +116,16 @@ test('🔒 すでに埋まっている値を上書きしない', () => {
 });
 
 test('ブランドは商品名か説明文に実在する場合だけ受け取る', () => {
-  const ok = enrichRow(row(), { brand: 'テストブランド', brand_evidence: 'テストブランド ホエイプロテイン' });
+  const ok = enrichRow(row(), {
+    brand: 'テストブランド',
+    brand_evidence: 'テストブランド ホエイプロテイン',
+  });
   assert.equal(ok.row.brand, 'テストブランド');
 
-  const ng = enrichRow(row(), { brand: '架空ブランド', brand_evidence: '架空ブランド ホエイプロテイン' });
+  const ng = enrichRow(row(), {
+    brand: '架空ブランド',
+    brand_evidence: '架空ブランド ホエイプロテイン',
+  });
   assert.equal(ng.row.brand, null);
 });
 
@@ -130,7 +148,10 @@ test('🔒 ホワイトリスト外の項目は取り込まない', () => {
 // 🔒 元の行を書き換えず、新しい行を返す。
 test('元の行を書き換えない', () => {
   const original = row();
-  enrichRow(original, { protein_per_100g: 76.5, protein_evidence: 'たんぱく質 76.5g' });
+  enrichRow(original, {
+    protein_per_100g: 76.5,
+    protein_evidence: 'たんぱく質 76.5g',
+  });
 
   assert.equal(original.protein_per_100g, null);
 });
@@ -149,5 +170,9 @@ test('🔒 プロンプトは根拠の抜粋を必ず返させ、読めなけれ
 test('🔒 プロンプトは効能・効果を書かせない', () => {
   const prompt = buildPrompt(row());
 
-  assert.match(prompt, /効能|効果/, '効能・効果を書かせない指示が入っていません');
+  assert.match(
+    prompt,
+    /効能|効果/,
+    '効能・効果を書かせない指示が入っていません',
+  );
 });

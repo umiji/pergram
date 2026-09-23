@@ -70,7 +70,12 @@ const nutrients = [
 
 /* ---- 描画ヘルパ -------------------------------------------------------- */
 
-function renderProducts({ t = tJa, locale = 'ja', nutrientName = 'タンパク質', ...overrides } = {}) {
+function renderProducts({
+  t = tJa,
+  locale = 'ja',
+  nutrientName = 'タンパク質',
+  ...overrides
+} = {}) {
   const mk = locale === 'en' ? MARKETS.US : MARKETS.JP;
   return productsPage({
     t,
@@ -90,7 +95,11 @@ function renderProducts({ t = tJa, locale = 'ja', nutrientName = 'タンパク�
   });
 }
 
-function renderLp({ t = tJa, locale = 'ja', nutrientName = 'タンパク質' } = {}) {
+function renderLp({
+  t = tJa,
+  locale = 'ja',
+  nutrientName = 'タンパク質',
+} = {}) {
   const mk = locale === 'en' ? MARKETS.US : MARKETS.JP;
   return lpPage({
     t,
@@ -151,7 +160,9 @@ function stageHost() {
     { name: '製品一覧ページ', root: tree(renderProducts()) },
     { name: 'LP', root: tree(renderLp()) },
   ];
-  const hit = candidates.find((one) => one.root.querySelectorAll('[data-request-step]').length > 0);
+  const hit = candidates.find(
+    (one) => one.root.querySelectorAll('[data-request-step]').length > 0,
+  );
   assert.ok(
     hit,
     'data-request-step を持つ要素が製品一覧ページにも LP にも無い。' +
@@ -167,11 +178,23 @@ function stageHost() {
 test('完了条件1 ja のヒーローのラベルが「価格情報・順位はサンプル」と名乗る', () => {
   for (const key of ['lp.hero.cardTitle', 'lp.hero.cardTitleShort']) {
     const value = jaLocale[key];
-    assert.ok(typeof value === 'string' && value.length > 0, `${key} が locales/ja.json に無い`);
+    assert.ok(
+      typeof value === 'string' && value.length > 0,
+      `${key} が locales/ja.json に無い`,
+    );
 
-    assert.ok(!/sample/i.test(value), `${key} に英字の Sample が残っている: ${value}`);
-    assert.ok(value.includes('サンプル'), `${key} が「サンプル」と名乗っていない: ${value}`);
-    assert.ok(value.includes('価格'), `${key} が価格情報に触れていない: ${value}`);
+    assert.ok(
+      !/sample/i.test(value),
+      `${key} に英字の Sample が残っている: ${value}`,
+    );
+    assert.ok(
+      value.includes('サンプル'),
+      `${key} が「サンプル」と名乗っていない: ${value}`,
+    );
+    assert.ok(
+      value.includes('価格'),
+      `${key} が価格情報に触れていない: ${value}`,
+    );
     assert.ok(value.includes('順位'), `${key} が順位に触れていない: ${value}`);
   }
 
@@ -184,12 +207,24 @@ test('完了条件1 ja のヒーローのラベルが「価格情報・順位は
 test('完了条件1 en のヒーローのラベルも対応する文言になっている', () => {
   for (const key of ['lp.hero.cardTitle', 'lp.hero.cardTitleShort']) {
     const value = enLocale[key];
-    assert.ok(typeof value === 'string' && value.length > 0, `${key} が locales/en.json に無い`);
+    assert.ok(
+      typeof value === 'string' && value.length > 0,
+      `${key} が locales/en.json に無い`,
+    );
 
     const lower = value.toLowerCase();
-    assert.ok(!lower.includes('(sample)'), `${key} に (Sample) が残っている: ${value}`);
-    assert.ok(lower.includes('sample'), `${key} がサンプルである旨を名乗っていない: ${value}`);
-    assert.ok(lower.includes('pric'), `${key} が価格情報に触れていない: ${value}`);
+    assert.ok(
+      !lower.includes('(sample)'),
+      `${key} に (Sample) が残っている: ${value}`,
+    );
+    assert.ok(
+      lower.includes('sample'),
+      `${key} がサンプルである旨を名乗っていない: ${value}`,
+    );
+    assert.ok(
+      lower.includes('pric'),
+      `${key} が価格情報に触れていない: ${value}`,
+    );
     assert.ok(lower.includes('rank'), `${key} が順位に触れていない: ${value}`);
   }
 
@@ -199,9 +234,19 @@ test('完了条件1 en のヒーローのラベルも対応する文言になっ
 
 test('完了条件1 描画された LP に （Sample） が出てこない', () => {
   for (const locale of ['ja', 'en']) {
-    const html = renderLp({ t: locale === 'en' ? tEn : tJa, locale, nutrientName: locale === 'en' ? 'Protein' : 'タンパク質' });
-    assert.ok(!/（Sample）/.test(html), `${locale} の LP に （Sample） が残っている`);
-    assert.ok(!/\(Sample\)/i.test(html), `${locale} の LP に (Sample) が残っている`);
+    const html = renderLp({
+      t: locale === 'en' ? tEn : tJa,
+      locale,
+      nutrientName: locale === 'en' ? 'Protein' : 'タンパク質',
+    });
+    assert.ok(
+      !/（Sample）/.test(html),
+      `${locale} の LP に （Sample） が残っている`,
+    );
+    assert.ok(
+      !/\(Sample\)/i.test(html),
+      `${locale} の LP に (Sample) が残っている`,
+    );
   }
 });
 
@@ -227,29 +272,53 @@ test('完了条件3 要望ボタンが2箇所（リストの前と後ろ）に�
   const order = docOrder(root);
   const buttons = requestButtons(root);
 
-  assert.equal(buttons.length, 2, `要望ボタン（data-request-cta）が2つでない: ${buttons.length}個`);
+  assert.equal(
+    buttons.length,
+    2,
+    `要望ボタン（data-request-cta）が2つでない: ${buttons.length}個`,
+  );
 
   const list = root.querySelector('#products');
   assert.ok(list, '製品リスト（#products）が見つからない');
   const listStart = positionOf(order, list);
   const items = list.querySelectorAll('.p-item, li');
-  const listEnd = items.length === 0 ? listStart : positionOf(order, items[items.length - 1]);
+  const listEnd =
+    items.length === 0 ? listStart : positionOf(order, items[items.length - 1]);
 
-  const positions = buttons.map((el) => positionOf(order, el)).sort((a, b) => a - b);
-  assert.ok(positions[0] < listStart, '要望ボタンの1つが製品リストより前に出ていない（絞り込み側）');
-  assert.ok(positions[1] > listEnd, '要望ボタンの1つが製品リストの末尾より後ろに出ていない');
+  const positions = buttons
+    .map((el) => positionOf(order, el))
+    .sort((a, b) => a - b);
+  assert.ok(
+    positions[0] < listStart,
+    '要望ボタンの1つが製品リストより前に出ていない（絞り込み側）',
+  );
+  assert.ok(
+    positions[1] > listEnd,
+    '要望ボタンの1つが製品リストの末尾より後ろに出ていない',
+  );
 });
 
 test('完了条件3 要望ボタンの data-cta の値が互いに異なる', () => {
   const root = tree(renderProducts());
   const buttons = requestButtons(root);
-  assert.equal(buttons.length, 2, '要望ボタンが2つでないので data-cta を比較できない');
+  assert.equal(
+    buttons.length,
+    2,
+    '要望ボタンが2つでないので data-cta を比較できない',
+  );
 
   const values = buttons.map((el) => el.getAttribute('data-cta'));
   for (const value of values) {
-    assert.ok(value && value.trim().length > 0, '要望ボタンに data-cta が付いていない');
+    assert.ok(
+      value && value.trim().length > 0,
+      '要望ボタンに data-cta が付いていない',
+    );
   }
-  assert.notEqual(values[0], values[1], `data-cta の値が同じで押された位置を分離できない: ${values[0]}`);
+  assert.notEqual(
+    values[0],
+    values[1],
+    `data-cta の値が同じで押された位置を分離できない: ${values[0]}`,
+  );
 });
 
 /* ====================================================================== */
@@ -269,7 +338,10 @@ test('完了条件4 要望ボタンが「正式版のリリースを応援する
   for (const button of buttons) {
     const label = text(button);
     assert.ok(/応援/.test(label), `ボタンが「応援」と名乗っていない: ${label}`);
-    assert.ok(/正式版|リリース/.test(label), `ボタンが正式版のリリースに触れていない: ${label}`);
+    assert.ok(
+      /正式版|リリース/.test(label),
+      `ボタンが正式版のリリースに触れていない: ${label}`,
+    );
   }
 });
 
@@ -282,7 +354,9 @@ test('完了条件4 要望ボタンの近傍に、登録が不要である旨の
 
   for (const button of buttons) {
     const near = ancestors(button, 3).map(text);
-    const hit = near.some((one) => needsRegistration.test(one) && notNeeded.test(one));
+    const hit = near.some(
+      (one) => needsRegistration.test(one) && notNeeded.test(one),
+    );
     assert.ok(
       hit,
       `要望ボタンの近傍（祖先3段以内）に「登録は不要」の旨の注記が無い: ${text(button)}`,
@@ -291,15 +365,27 @@ test('完了条件4 要望ボタンの近傍に、登録が不要である旨の
 });
 
 test('完了条件4 en の製品一覧にも要望ボタンが2つ出る', () => {
-  const root = tree(renderProducts({ t: tEn, locale: 'en', nutrientName: 'Protein' }));
+  const root = tree(
+    renderProducts({ t: tEn, locale: 'en', nutrientName: 'Protein' }),
+  );
   const buttons = requestButtons(root);
-  assert.equal(buttons.length, 2, `en の要望ボタンが2つでない: ${buttons.length}個`);
+  assert.equal(
+    buttons.length,
+    2,
+    `en の要望ボタンが2つでない: ${buttons.length}個`,
+  );
 
   for (const button of buttons) {
     const label = text(button).toLowerCase();
     // ⚠️ T-061 で文言が変わった（design.md §4.12）。旧 "request a nutrient" へ戻さない
-    assert.ok(/support/.test(label), `en のボタンが support と名乗っていない: ${label}`);
-    assert.ok(/release|version/.test(label), `en のボタンが正式版のリリースに触れていない: ${label}`);
+    assert.ok(
+      /support/.test(label),
+      `en のボタンが support と名乗っていない: ${label}`,
+    );
+    assert.ok(
+      /release|version/.test(label),
+      `en のボタンが正式版のリリースに触れていない: ${label}`,
+    );
   }
 });
 
@@ -334,7 +420,10 @@ test('完了条件5 段の順序が アンケート → メール → 支援 で
   const survey = root.querySelector('[data-request-step="survey"]');
   const email = root.querySelector('[data-request-step="email"]');
   const support = root.querySelector('[data-request-step="support"]');
-  assert.ok(survey && email && support, '3つの段（survey / email / support）が揃っていない');
+  assert.ok(
+    survey && email && support,
+    '3つの段（survey / email / support）が揃っていない',
+  );
 
   assert.ok(
     positionOf(order, survey) < positionOf(order, email),
@@ -363,12 +452,20 @@ test('完了条件5 製品一覧のメール入力欄は、段の中にあり初
   );
 
   const root = tree(renderProducts());
-  const emails = root.querySelectorAll('input[type="email"], input[name="email"]');
+  const emails = root.querySelectorAll(
+    'input[type="email"], input[name="email"]',
+  );
 
   for (const input of emails) {
     const step = input.closest('[data-request-step]');
-    assert.ok(step, '製品一覧のメール入力欄が、段（data-request-step）の外に置かれている');
-    assert.ok(step.hidden, 'メール入力欄を含む段が初期状態で hidden になっていない');
+    assert.ok(
+      step,
+      '製品一覧のメール入力欄が、段（data-request-step）の外に置かれている',
+    );
+    assert.ok(
+      step.hidden,
+      'メール入力欄を含む段が初期状態で hidden になっていない',
+    );
   }
 });
 
@@ -412,7 +509,10 @@ test('完了条件6 要望ボタンの周辺に押下数が描画されていな
     assert.ok(buttons.length > 0, `${locale} の要望ボタンが見つからない`);
 
     for (const button of buttons) {
-      assert.ok(!/\d/.test(text(button)), `ボタンの文言に数値がある: ${text(button)}`);
+      assert.ok(
+        !/\d/.test(text(button)),
+        `ボタンの文言に数値がある: ${text(button)}`,
+      );
 
       for (const node of ancestors(button, 2)) {
         const near = text(node);
@@ -424,7 +524,10 @@ test('完了条件6 要望ボタンの周辺に押下数が描画されていな
         }
         for (const [name, value] of Object.entries(node.attributes)) {
           assert.ok(
-            !(/count|total|votes/.test(name) && /^\d+$/.test(String(value).trim())),
+            !(
+              /count|total|votes/.test(name) &&
+              /^\d+$/.test(String(value).trim())
+            ),
             `要望ボタンの周辺に押下数の属性がある: ${name}="${value}"`,
           );
         }

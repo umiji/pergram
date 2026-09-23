@@ -13,7 +13,15 @@ import { escapeHtml } from '../../lib/i18n.js';
 import { formatCurrency, formatWeight } from '../../lib/format.js';
 
 /** 選択肢1つ。count が 0 なら disabled にして淡くする */
-function option({ type, name, value, label, count, checked = false, disabled = false }) {
+function option({
+  type,
+  name,
+  value,
+  label,
+  count,
+  checked = false,
+  disabled = false,
+}) {
   const attrs = [
     `type="${type}"`,
     `name="${escapeHtml(name)}"`,
@@ -97,7 +105,11 @@ function facetGroup(facet, { t, counts }) {
     count: counts.get(key) ?? 0,
   }));
   const available = items.some((item) => item.count > 0);
-  const status = { label: t(available ? 'filters.status.available' : 'filters.status.mockOnly') };
+  const status = {
+    label: t(
+      available ? 'filters.status.available' : 'filters.status.mockOnly',
+    ),
+  };
   const inputName = `attr:${facet.id}`;
 
   if (facet.style === 'chip') {
@@ -131,7 +143,11 @@ function facetGroup(facet, { t, counts }) {
       }),
     )
     .join('\n');
-  return group({ legend: t(`filters.${facet.id}`), status, body: `<ul class="filters__opts">${opts}</ul>` });
+  return group({
+    legend: t(`filters.${facet.id}`),
+    status,
+    body: `<ul class="filters__opts">${opts}</ul>`,
+  });
 }
 
 /**
@@ -144,7 +160,17 @@ function facetGroup(facet, { t, counts }) {
  * unit は既定が通貨（money()）。'weight' を渡すと data-unit 属性が付き、
  * クライアント側（src/assets/products.js）が formatWeight 相当で書式化する。
  */
-function rangeGroup({ id, legend, range, value, valueLabel, template, digits, unit, status }) {
+function rangeGroup({
+  id,
+  legend,
+  range,
+  value,
+  valueLabel,
+  template,
+  digits,
+  unit,
+  status,
+}) {
   return `<fieldset class="filters__group">
   <div class="filters__range-head">
     <legend class="filters__legend">${escapeHtml(legend)}${statusBadge(status)}</legend>
@@ -165,11 +191,16 @@ function rangeGroup({ id, legend, range, value, valueLabel, template, digits, un
  *    両端とも動く。対象行が無ければ 0〜step の空レンジを返す。
  */
 function netWeightRangeFromRows(rows, step) {
-  const values = rows.map((r) => r.netWeightG).filter((v) => Number.isFinite(v));
+  const values = rows
+    .map((r) => r.netWeightG)
+    .filter((v) => Number.isFinite(v));
   if (values.length === 0) return { min: 0, max: step, step };
 
   const min = Math.floor(Math.min(...values) / step) * step;
-  const max = Math.max(Math.ceil(Math.max(...values) / step) * step, min + step);
+  const max = Math.max(
+    Math.ceil(Math.max(...values) / step) * step,
+    min + step,
+  );
   return { min, max, step };
 }
 
@@ -242,7 +273,9 @@ export function filters(ctx) {
   // メーカーは件数の多い順。全件を描画したうえで、先頭以外を hidden で畳む。
   // 描画しないと「すべてのメーカーを見る」が押しても何も起きないボタンになる。
   const BRAND_VISIBLE = 8;
-  const brands = [...brandCounts.entries()].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1));
+  const brands = [...brandCounts.entries()].sort(
+    (a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1),
+  );
   const brandOpts =
     brands.length === 0
       ? `<li><p class="filters__hint">${escapeHtml(t('filters.noneYet'))}</p></li>`
@@ -255,7 +288,9 @@ export function filters(ctx) {
               label: brand,
               count,
             });
-            return i < BRAND_VISIBLE ? li : li.replace('<li>', '<li hidden data-filter-overflow>');
+            return i < BRAND_VISIBLE
+              ? li
+              : li.replace('<li>', '<li hidden data-filter-overflow>');
           })
           .join('\n');
 
@@ -266,14 +301,28 @@ export function filters(ctx) {
         )}</button>`
       : '';
 
-  const unitCostRange = rangeCovering(category.unitCostRange, rows, (r) => r.costPerNutrientUnit);
+  const unitCostRange = rangeCovering(
+    category.unitCostRange,
+    rows,
+    (r) => r.costPerNutrientUnit,
+  );
   const priceRange = rangeCovering(category.priceRange, rows, (r) => r.price);
-  const netWeightRange = netWeightRangeFromRows(rows, category.netWeightStep ?? 100);
+  const netWeightRange = netWeightRangeFromRows(
+    rows,
+    category.netWeightStep ?? 100,
+  );
   const unitCostLabel = t('filters.rangeUpTo', {
-    max: formatCurrency(unitCostRange.max, { locale, currency, fractionDigits: 1 }) ?? '',
+    max:
+      formatCurrency(unitCostRange.max, {
+        locale,
+        currency,
+        fractionDigits: 1,
+      }) ?? '',
   });
   const priceLabel = t('filters.rangeUpTo', {
-    max: formatCurrency(priceRange.max, { locale, currency, fractionDigits: 0 }) ?? '',
+    max:
+      formatCurrency(priceRange.max, { locale, currency, fractionDigits: 0 }) ??
+      '',
   });
   const netWeightLabel = t('filters.rangeUpTo', {
     max: formatWeight(netWeightRange.max, { locale }) ?? '',
@@ -289,7 +338,11 @@ export function filters(ctx) {
     ),
   };
   const brandStatus = {
-    label: t(brands.length > 0 ? 'filters.status.available' : 'filters.status.mockOnly'),
+    label: t(
+      brands.length > 0
+        ? 'filters.status.available'
+        : 'filters.status.mockOnly',
+    ),
   };
 
   return `<form class="filters" id="filters" aria-labelledby="filters-title"

@@ -9,7 +9,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildItemUrl, resolveCredentials, toSnapshot } from '../scripts/refresh_prices.js';
+import {
+  buildItemUrl,
+  resolveCredentials,
+  toSnapshot,
+} from '../scripts/refresh_prices.js';
 
 const APP_ID = 'dc5bdc72-0000-0000-0000-000000000000';
 const ACCESS_KEY = 'pk_testkey';
@@ -47,7 +51,10 @@ test('🔒 新しい認証基盤のエンドポイントに applicationId と ac
   });
 
   assert.equal(url.origin, 'https://openapi.rakuten.co.jp');
-  assert.ok(url.pathname.startsWith('/ichibams/api/IchibaItem/Search/'), url.pathname);
+  assert.ok(
+    url.pathname.startsWith('/ichibams/api/IchibaItem/Search/'),
+    url.pathname,
+  );
   assert.equal(url.searchParams.get('applicationId'), APP_ID);
   assert.equal(url.searchParams.get('accessKey'), ACCESS_KEY);
   assert.equal(url.searchParams.get('itemCode'), 'shop:item1');
@@ -69,13 +76,25 @@ test('🔒 アフィリエイト ID を必ず問い合わせに載せる', () =>
 // 🔒 収集は素の URL でも下書きが残るだけだが、更新は公開中のリンクを壊す。
 //    未設定なら走らせない。警告では足りない。
 test('🔒 アフィリエイト ID が未設定なら実行させない', () => {
-  assert.throws(() => resolveCredentials(env({ RAKUTEN_AFFILIATE_ID: undefined })), /AFFILIATE/);
-  assert.throws(() => resolveCredentials(env({ RAKUTEN_AFFILIATE_ID: '' })), /AFFILIATE/);
+  assert.throws(
+    () => resolveCredentials(env({ RAKUTEN_AFFILIATE_ID: undefined })),
+    /AFFILIATE/,
+  );
+  assert.throws(
+    () => resolveCredentials(env({ RAKUTEN_AFFILIATE_ID: '' })),
+    /AFFILIATE/,
+  );
 });
 
 test('🔒 認証情報が欠けていたら、何が足りないかを名指しして止める', () => {
-  assert.throws(() => resolveCredentials(env({ RAKUTEN_ACCESS_KEY: undefined })), /ACCESS_KEY/);
-  assert.throws(() => resolveCredentials(env({ RAKUTEN_APP_URL: undefined })), /APP_URL/);
+  assert.throws(
+    () => resolveCredentials(env({ RAKUTEN_ACCESS_KEY: undefined })),
+    /ACCESS_KEY/,
+  );
+  assert.throws(
+    () => resolveCredentials(env({ RAKUTEN_APP_URL: undefined })),
+    /APP_URL/,
+  );
 });
 
 test('揃っていれば認証情報を返す', () => {
@@ -90,7 +109,8 @@ test('揃っていれば認証情報を返す', () => {
 /* ---- スナップショット ------------------------------------------------- */
 
 test('🔒 購入リンクをアフィリエイト URL のまま保つ', () => {
-  const affiliateUrl = 'https://hb.afl.rakuten.co.jp/hgc/xxxx/?pc=https%3A%2F%2Fitem.rakuten.co.jp%2Fshop%2Fitem1%2F';
+  const affiliateUrl =
+    'https://hb.afl.rakuten.co.jp/hgc/xxxx/?pc=https%3A%2F%2Fitem.rakuten.co.jp%2Fshop%2Fitem1%2F';
 
   const got = toSnapshot({
     item: item({ affiliateUrl }),
@@ -163,6 +183,9 @@ test('🔒 報酬率をスナップショットに残さない', () => {
   });
 
   for (const key of Object.keys(got)) {
-    assert.ok(!/rate|reward|commission|報酬/i.test(key), `報酬に関する項目「${key}」が残っています`);
+    assert.ok(
+      !/rate|reward|commission|報酬/i.test(key),
+      `報酬に関する項目「${key}」が残っています`,
+    );
   }
 });

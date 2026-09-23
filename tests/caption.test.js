@@ -44,7 +44,11 @@ test('🔒 アミノ酸組成の基準表記「タンパク質100gあたり」�
 
   const got = extractProteinFromCaption(caption);
 
-  assert.notEqual(got.per100g, 100, '基準表記の 100g を含有量として読んでいます');
+  assert.notEqual(
+    got.per100g,
+    100,
+    '基準表記の 100g を含有量として読んでいます',
+  );
   assert.equal(got.per100g, null);
 });
 
@@ -56,7 +60,11 @@ test('🔒 アミノ酸内訳の見出し「たん白質100g中」を含有量�
 
   const got = extractProteinFromCaption(caption);
 
-  assert.notEqual(got.per100g, 100, '基準表記の 100g を含有量として読んでいます');
+  assert.notEqual(
+    got.per100g,
+    100,
+    '基準表記の 100g を含有量として読んでいます',
+  );
   assert.equal(got.per100g, null);
 });
 
@@ -69,7 +77,11 @@ test('🔒 原材料表示「ホエイたんぱく質100%」を含有率とし�
     'たん白質100%のシンプル設計',
   ]) {
     const got = extractProteinFromCaption(caption);
-    assert.equal(got.per100g, null, `「${caption}」から 100% を含有率として読んでいます`);
+    assert.equal(
+      got.per100g,
+      null,
+      `「${caption}」から 100% を含有率として読んでいます`,
+    );
   }
 });
 
@@ -82,13 +94,18 @@ test('🔒 無水換算・乾物換算の含有率を製品の含有率として
     'たん白質含有率 80.0% 乾燥重量あたり',
   ]) {
     const got = extractProteinFromCaption(caption);
-    assert.equal(got.per100g, null, `「${caption}」から無水換算値を読んでいます`);
+    assert.equal(
+      got.per100g,
+      null,
+      `「${caption}」から無水換算値を読んでいます`,
+    );
   }
 });
 
 // 値が1つだけなら、これまでどおり読める（上の防御で潰していないことの確認）
 test('基準が2つ書かれていても、値が1つずつ対応していれば読む', () => {
-  const caption = '100gあたり たんぱく質 80.0g ／ 1食(30g)あたり たんぱく質 24.0g';
+  const caption =
+    '100gあたり たんぱく質 80.0g ／ 1食(30g)あたり たんぱく質 24.0g';
 
   const got = extractProteinFromCaption(caption);
 
@@ -98,7 +115,9 @@ test('基準が2つ書かれていても、値が1つずつ対応していれば
 
 // 全角パーセントはラベルの転記でよく混ざる。読めないと取りこぼしになる。
 test('全角パーセントの含有率も読む', () => {
-  const got = extractProteinFromCaption('■高品質ホエイ たんぱく質含有率 71％ ■内容量 3kg');
+  const got = extractProteinFromCaption(
+    '■高品質ホエイ たんぱく質含有率 71％ ■内容量 3kg',
+  );
 
   assert.equal(got.basis, 'ratio');
   assert.equal(got.per100g, 71);
@@ -129,7 +148,8 @@ test('1食あたり表記から100gあたりに直す', () => {
 });
 
 test('100gあたり表記をそのまま読む', () => {
-  const caption = '栄養成分表示(100gあたり)：エネルギー 390kcal たんぱく質 80.7g 脂質 5.4g';
+  const caption =
+    '栄養成分表示(100gあたり)：エネルギー 390kcal たんぱく質 80.7g 脂質 5.4g';
 
   const got = extractProteinFromCaption(caption);
 
@@ -165,7 +185,8 @@ test('表記ゆれ（蛋白質・タンパク質）を読む', () => {
 });
 
 test('脂質・炭水化物・エネルギーを取り違えない', () => {
-  const caption = '100gあたり エネルギー 402kcal 脂質 5.4g 炭水化物 5.1g たんぱく質 76.5g';
+  const caption =
+    '100gあたり エネルギー 402kcal 脂質 5.4g 炭水化物 5.1g たんぱく質 76.5g';
 
   const got = extractProteinFromCaption(caption);
 
@@ -184,7 +205,8 @@ test('1食あたりと100gあたりが両方あり整合するなら100gあた�
 });
 
 test('食い違う値が読めたら ambiguous にして何も返さない', () => {
-  const caption = '100gあたり たんぱく質 80.0g ／ 製品100g当たり たんぱく質 60.0g';
+  const caption =
+    '100gあたり たんぱく質 80.0g ／ 製品100g当たり たんぱく質 60.0g';
 
   const got = extractProteinFromCaption(caption);
 
@@ -210,7 +232,12 @@ test('基準の書かれていない数値は採らない', () => {
 });
 
 test('栄養成分表示が無い説明文では何も返さない', () => {
-  for (const caption of ['送料無料 大容量3kg 選べるフレーバー', '', null, undefined]) {
+  for (const caption of [
+    '送料無料 大容量3kg 選べるフレーバー',
+    '',
+    null,
+    undefined,
+  ]) {
     const got = extractProteinFromCaption(caption);
     assert.equal(got.per100g, null);
     assert.equal(got.servingSizeG, null);

@@ -316,7 +316,10 @@ function supportStep(t, support, level) {
  *   `headingLevel` は段の見出しのタグ。ページの見出しの深さに合わせる。
  *   `page` は匿名シグナルに載せる識別子（`requestPageId()` で作る）
  */
-export function requestFlow(t, { support = null, headingLevel = DEFAULT_HEADING_LEVEL, page = '' } = {}) {
+export function requestFlow(
+  t,
+  { support = null, headingLevel = DEFAULT_HEADING_LEVEL, page = '' } = {},
+) {
   const level = headingLevel;
   return `<section class="request-flow" id="${REQUEST_FLOW_ID}" data-request-flow${
     page ? ` data-request-page="${escapeAttribute(page)}"` : ''

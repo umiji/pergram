@@ -54,6 +54,7 @@ org = load_script()
 # 固定の会話記録を一時ディレクトリへ展開する
 # --------------------------------------------------------------------------
 
+
 def place(src: str, dst: str, root: str) -> None:
     """fixture を写す。`cwd` だけは一時ディレクトリの実パスに差し替える。
 
@@ -80,11 +81,17 @@ class LedgerCase(unittest.TestCase):
         os.makedirs(os.path.join(root, "docs"))
         os.makedirs(subagents)
 
-        place(os.path.join(FIXTURES, "session-main.jsonl"),
-              os.path.join(base, "proj", SESSION + ".jsonl"), root)
+        place(
+            os.path.join(FIXTURES, "session-main.jsonl"),
+            os.path.join(base, "proj", SESSION + ".jsonl"),
+            root,
+        )
         for name in sorted(os.listdir(os.path.join(FIXTURES, "subagents"))):
-            place(os.path.join(FIXTURES, "subagents", name),
-                  os.path.join(subagents, name), root)
+            place(
+                os.path.join(FIXTURES, "subagents", name),
+                os.path.join(subagents, name),
+                root,
+            )
 
         org.update(root, base)
         cls.rows = org.read_ledger(org.ledger_path(root))
@@ -96,13 +103,13 @@ class LedgerCase(unittest.TestCase):
     # --- 読み出しの補助 ---
 
     def pick(self, **where) -> list:
-        return [r for r in self.rows
-                if all(r[k] == v for k, v in where.items())]
+        return [r for r in self.rows if all(r[k] == v for k, v in where.items())]
 
     def one(self, **where) -> dict:
         hits = self.pick(**where)
-        self.assertEqual(len(hits), 1,
-                         "台帳の行が1つに定まらない: %r → %d行" % (where, len(hits)))
+        self.assertEqual(
+            len(hits), 1, "台帳の行が1つに定まらない: %r → %d行" % (where, len(hits))
+        )
         return hits[0]
 
     def totals(self, rows: list) -> dict:
@@ -122,20 +129,24 @@ class LedgerCase(unittest.TestCase):
 
     def assertRoundtrips(self, expected: int, rows: list, note: str = "") -> None:
         got = self.roundtrips(rows)
-        self.assertIn(expected, got,
-                      "往復 %d を数えている列が無い（候補: %s）%s"
-                      % (expected, sorted(got), note))
+        self.assertIn(
+            expected,
+            got,
+            "往復 %d を数えている列が無い（候補: %s）%s"
+            % (expected, sorted(got), note),
+        )
 
 
 # --------------------------------------------------------------------------
 # 担当エージェントの記録
 # --------------------------------------------------------------------------
 
+
 class TestBundleByRequestId(LedgerCase):
     """**このタスクの肝。** agent-alpha は `req_A` が3行 + `req_B` が1行の計4行。
 
-        行ごと（いまの実装）      入力 15 / 出力 270 / 書込 1,500 / 読出 5,000 / 4回
-        応答ごと（あるべき姿）    入力  7 / 出力 268 / 書込   500 / 読出 3,000 / 2回
+    行ごと（いまの実装）      入力 15 / 出力 270 / 書込 1,500 / 読出 5,000 / 4回
+    応答ごと（あるべき姿）    入力  7 / 出力 268 / 書込   500 / 読出 3,000 / 2回
     """
 
     def alpha(self) -> dict:
@@ -153,9 +164,11 @@ class TestBundleByRequestId(LedgerCase):
     def test_出力は最後の行の値を採る(self):
         row = self.alpha()
         # req_A は 1 → 1 → 218 と伸び、218 が完全な値。足すと 220 になる。
-        self.assertEqual(row["出力"], 268,
-                         "最後の行 218 と req_B の 50。足し込むと 270、"
-                         "最初の行を採ると 51 になる")
+        self.assertEqual(
+            row["出力"],
+            268,
+            "最後の行 218 と req_B の 50。足し込むと 270、最初の行を採ると 51 になる",
+        )
 
     def test_合計は4費目の和のまま(self):
         row = self.alpha()
@@ -188,13 +201,15 @@ class TestWithoutRequestId(LedgerCase):
 
     def test_requestId_が無い行のトークンは素直に足す(self):
         row = self.beta()
-        self.assertEqual((row["入力"], row["出力"], row["キャッシュ読出"]),
-                         (10, 20, 200))
+        self.assertEqual(
+            (row["入力"], row["出力"], row["キャッシュ読出"]), (10, 20, 200)
+        )
 
 
 # --------------------------------------------------------------------------
 # メインセッション（オーケストレーター）
 # --------------------------------------------------------------------------
+
 
 class TestMainSession(LedgerCase):
     """メインセッションもタスク別に分けたうえで束ねる。"""
@@ -205,17 +220,19 @@ class TestMainSession(LedgerCase):
     def test_タスクごとの行でも応答単位で束ねる(self):
         # req_M1 は2行（出力 2 → 40）。T-101 の行はこれだけ。
         row = self.one(記録元=org.MAIN_SOURCE, タスクID="T-101")
-        self.assertEqual((row["入力"], row["出力"],
-                          row["キャッシュ書込"], row["キャッシュ読出"]),
-                         (6, 40, 100, 800),
-                         "行ごとに足すと (12, 42, 200, 1600) になる")
+        self.assertEqual(
+            (row["入力"], row["出力"], row["キャッシュ書込"], row["キャッシュ読出"]),
+            (6, 40, 100, 800),
+            "行ごとに足すと (12, 42, 200, 1600) になる",
+        )
         self.assertRoundtrips(1, [row])
 
     def test_1行だけの応答はそのまま数える(self):
         row = self.one(記録元=org.MAIN_SOURCE, タスクID="T-102")
-        self.assertEqual((row["入力"], row["出力"],
-                          row["キャッシュ書込"], row["キャッシュ読出"]),
-                         (2, 30, 0, 900))
+        self.assertEqual(
+            (row["入力"], row["出力"], row["キャッシュ書込"], row["キャッシュ読出"]),
+            (2, 30, 0, 900),
+        )
         self.assertRoundtrips(1, [row])
 
     def test_応答の途中でタスクIDが変わっても二重に数えない(self):
@@ -228,18 +245,20 @@ class TestMainSession(LedgerCase):
         rows = [r for r in self.main_rows() if r["タスクID"] in ("T-103", "T-104")]
         self.assertTrue(rows, "T-103 / T-104 の行が1つも無い")
         got = self.totals(rows)
-        self.assertEqual((got["入力"], got["出力"],
-                          got["キャッシュ書込"], got["キャッシュ読出"]),
-                         (8, 60, 200, 700),
-                         "割って数えると (16, 63, 400, 1400) になる")
+        self.assertEqual(
+            (got["入力"], got["出力"], got["キャッシュ書込"], got["キャッシュ読出"]),
+            (8, 60, 200, 700),
+            "割って数えると (16, 63, 400, 1400) になる",
+        )
         self.assertRoundtrips(1, rows)
 
     def test_メインセッション全体の合計(self):
         got = self.totals(self.main_rows())
-        self.assertEqual((got["入力"], got["出力"],
-                          got["キャッシュ書込"], got["キャッシュ読出"]),
-                         (17, 137, 300, 2450),
-                         "行ごとに足すと (31, 142, 600, 3950) になる")
+        self.assertEqual(
+            (got["入力"], got["出力"], got["キャッシュ書込"], got["キャッシュ読出"]),
+            (17, 137, 300, 2450),
+            "行ごとに足すと (31, 142, 600, 3950) になる",
+        )
         self.assertRoundtrips(4, self.main_rows(), "（行を数えると 6 になる）")
 
 
@@ -261,8 +280,9 @@ class TestTaskId(LedgerCase):
         （タスク不明に寄せる / 直前のタスクのままにする）。ここで禁じるのは、
         **3桁でないIDが台帳へ書かれること**だけである。
         """
-        bad = sorted({r["タスクID"] for r in self.rows
-                      if SHORT_TASK_ID.match(r["タスクID"])})
+        bad = sorted(
+            {r["タスクID"] for r in self.rows if SHORT_TASK_ID.match(r["タスクID"])}
+        )
         self.assertEqual(bad, [], "3桁でないタスクIDが台帳に入っている")
 
     def test_3桁のタスクIDは従来どおり拾う(self):
@@ -276,11 +296,19 @@ class TestTaskId(LedgerCase):
 # 台帳そのもの
 # --------------------------------------------------------------------------
 
+
 class TestLedgerShape(LedgerCase):
     """列が壊れると、フックが毎回書き換えるこの台帳が読めなくなる。"""
 
     def test_必要な列がそろっている(self):
-        for column in ["タスクID", "担当", "モデル", "セッションID", "記録元", "最終更新"]:
+        for column in [
+            "タスクID",
+            "担当",
+            "モデル",
+            "セッションID",
+            "記録元",
+            "最終更新",
+        ]:
             self.assertIn(column, org.COLUMNS)
         for kind in org.KINDS:
             self.assertIn(kind, org.COLUMNS)
@@ -289,13 +317,17 @@ class TestLedgerShape(LedgerCase):
     def test_担当は記録から取れている(self):
         self.assertEqual(self.one(記録元="agent-alpha")["担当"], "org-implementation")
         self.assertEqual(self.one(記録元="agent-beta")["担当"], "org-review")
-        self.assertEqual({r["担当"] for r in self.pick(記録元=org.MAIN_SOURCE)},
-                         {org.ORCHESTRATOR})
+        self.assertEqual(
+            {r["担当"] for r in self.pick(記録元=org.MAIN_SOURCE)}, {org.ORCHESTRATOR}
+        )
 
     def test_どの行も合計が4費目の和になっている(self):
         for row in self.rows:
-            self.assertEqual(row["合計"], sum(row[k] for k in org.KINDS),
-                             "合計が費目の和と合わない: %r" % row["記録元"])
+            self.assertEqual(
+                row["合計"],
+                sum(row[k] for k in org.KINDS),
+                "合計が費目の和と合わない: %r" % row["記録元"],
+            )
 
 
 if __name__ == "__main__":

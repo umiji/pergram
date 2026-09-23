@@ -37,7 +37,10 @@ function makeEnv({ failWrite = false } = {}) {
     },
     ASSETS: {
       async fetch(request) {
-        return new Response('asset', { status: 200, headers: { 'x-from': new URL(request.url).pathname } });
+        return new Response('asset', {
+          status: 200,
+          headers: { 'x-from': new URL(request.url).pathname },
+        });
       },
     },
   };
@@ -108,7 +111,11 @@ test('同じ選択肢を2度送っても1度しか保存しない', async () => 
 test('自由記述は空欄なら null で保存し、上限を超えたら切る', async () => {
   const { env, writes } = makeEnv();
   await worker.fetch(
-    post({ email: 'a@example.com', nutrients_other: '   ', requests: 'あ'.repeat(REQUESTS_MAX + 50) }),
+    post({
+      email: 'a@example.com',
+      nutrients_other: '   ',
+      requests: 'あ'.repeat(REQUESTS_MAX + 50),
+    }),
     env,
   );
 
@@ -120,7 +127,13 @@ test('自由記述は空欄なら null で保存し、上限を超えたら切�
 test('🔒 年齢・体調など許可していない項目は保存しない', async () => {
   const { env, writes } = makeEnv();
   await worker.fetch(
-    post({ email: 'a@example.com', age: 30, sex: 'male', condition: '疲れやすい', medication: 'なし' }),
+    post({
+      email: 'a@example.com',
+      age: 30,
+      sex: 'male',
+      condition: '疲れやすい',
+      medication: 'なし',
+    }),
     env,
   );
 
@@ -131,7 +144,10 @@ test('🔒 年齢・体調など許可していない項目は保存しない', 
 
   const stored = JSON.stringify(args.slice(0, -1));
   for (const leaked of ['30', 'male', '疲れやすい', 'なし']) {
-    assert.ok(!stored.includes(leaked), `保存してはいけない値「${leaked}」がバインドされています`);
+    assert.ok(
+      !stored.includes(leaked),
+      `保存してはいけない値「${leaked}」がバインドされています`,
+    );
   }
   // 列が増えていないことを見る。最後が時刻であることも確かめる
   assert.equal(args.length, STORED_COLUMNS);
@@ -164,7 +180,10 @@ test('不正なメールアドレスは 400 で、DB に触らない', async () 
 
 test('壊れた JSON は 400', async () => {
   const { env } = makeEnv();
-  const req = new Request('https://pergram.example/api/waitlist', { method: 'POST', body: '{' });
+  const req = new Request('https://pergram.example/api/waitlist', {
+    method: 'POST',
+    body: '{',
+  });
   assert.equal((await worker.fetch(req, env)).status, 400);
 });
 
@@ -180,7 +199,10 @@ test('🔒 保存に失敗しても応答に原因を書かない', async () => 
 
 test('POST 以外は 405 を返し、許可メソッドを伝える', async () => {
   const { env, writes } = makeEnv();
-  const res = await worker.fetch(new Request('https://pergram.example/api/waitlist'), env);
+  const res = await worker.fetch(
+    new Request('https://pergram.example/api/waitlist'),
+    env,
+  );
 
   assert.equal(res.status, 405);
   assert.equal(res.headers.get('Allow'), 'POST');
@@ -190,8 +212,15 @@ test('POST 以外は 405 を返し、許可メソッドを伝える', async () =
 test('API 以外のパスは静的ファイルの担当に渡す', async () => {
   const { env } = makeEnv();
   for (const path of ['/', '/ja/', '/ja/protein/', '/assets/lp.css']) {
-    const res = await worker.fetch(new Request(`https://pergram.example${path}`), env);
-    assert.equal(res.headers.get('x-from'), path, `${path} が静的側に渡っていません`);
+    const res = await worker.fetch(
+      new Request(`https://pergram.example${path}`),
+      env,
+    );
+    assert.equal(
+      res.headers.get('x-from'),
+      path,
+      `${path} が静的側に渡っていません`,
+    );
   }
 });
 
@@ -266,7 +295,8 @@ const SIGNAL_PATH = '/api/request-signal';
 const SIGNAL_ID = '3f2504e0-4f89-41d3-9a0c-0305e82c3301';
 /** 送信本文に必ず載る「どのページか」。形は src/templates/request.js の requestPageId() */
 const SIGNAL_PAGE = 'ja:protein';
-const signalBody = (over = {}) => JSON.stringify({ id: SIGNAL_ID, page: SIGNAL_PAGE, ...over });
+const signalBody = (over = {}) =>
+  JSON.stringify({ id: SIGNAL_ID, page: SIGNAL_PAGE, ...over });
 
 const postSignal = (bodyText) =>
   new Request(`https://pergram.example${SIGNAL_PATH}`, {
@@ -306,8 +336,14 @@ test('🔒 匿名シグナルの保存先は request_signal テーブルだけ�
   await worker.fetch(postSignal(signalBody()), env);
 
   const sql = writes[0].sql.replace(/\s+/g, ' ').toUpperCase();
-  assert.ok(sql.includes('REQUEST_SIGNAL'), `保存先が request_signal ではありません: ${writes[0].sql}`);
-  assert.ok(!sql.includes('WAITLIST'), '🔒 匿名シグナルが waitlist テーブルへ書き込んでいます');
+  assert.ok(
+    sql.includes('REQUEST_SIGNAL'),
+    `保存先が request_signal ではありません: ${writes[0].sql}`,
+  );
+  assert.ok(
+    !sql.includes('WAITLIST'),
+    '🔒 匿名シグナルが waitlist テーブルへ書き込んでいます',
+  );
 });
 
 test('同じ id を2度送っても行は増えない（重複を無視する）', async () => {
@@ -320,7 +356,8 @@ test('同じ id を2度送っても行は増えない（重複を無視する）
   assert.equal(res.status, 204, `2度目の応答が ${res.status} です`);
   const sql = writes[1].sql.replace(/\s+/g, ' ').toUpperCase();
   assert.ok(
-    /INSERT\s+OR\s+IGNORE/.test(sql) || /ON CONFLICT[^)]*\)?\s*DO NOTHING/.test(sql),
+    /INSERT\s+OR\s+IGNORE/.test(sql) ||
+      /ON CONFLICT[^)]*\)?\s*DO NOTHING/.test(sql),
     `重複を無視する書き方になっていません: ${writes[1].sql}`,
   );
 });
@@ -344,7 +381,9 @@ test('匿名シグナルの id が UUID v4 でなければ 400 で、DB に触�
 test('🔒 id と page 以外のキーが混ざっていたら 400（余計な情報を保存経路に近づけない）', async () => {
   const { env, writes } = makeEnv();
   const res = await worker.fetch(
-    postSignal(signalBody({ ua: 'Mozilla/5.0', referrer: 'https://example.com/' })),
+    postSignal(
+      signalBody({ ua: 'Mozilla/5.0', referrer: 'https://example.com/' }),
+    ),
     env,
   );
 
@@ -364,7 +403,10 @@ test('🔒 匿名シグナルの保存に失敗しても応答に原因を書か
 
 test('匿名シグナルのパスは POST 以外を 405 で返す', async () => {
   const { env, writes } = makeEnv();
-  const res = await worker.fetch(new Request(`https://pergram.example${SIGNAL_PATH}`), env);
+  const res = await worker.fetch(
+    new Request(`https://pergram.example${SIGNAL_PATH}`),
+    env,
+  );
 
   assert.equal(res.status, 405);
   assert.equal(res.headers.get('Allow'), 'POST');
@@ -391,30 +433,37 @@ test('匿名シグナルは id と page を受け取り、3つの値を保存す
 
   assert.equal(res.status, 204);
   assert.equal(writes.length, 1);
-  assert.equal(writes[0].args.length, 3, '🔒 保存する値は id / created_at / page の3つだけ');
+  assert.equal(
+    writes[0].args.length,
+    3,
+    '🔒 保存する値は id / created_at / page の3つだけ',
+  );
   assert.ok(
     writes[0].args.includes(SIGNAL_PAGE),
     `page が保存されていません: ${JSON.stringify(writes[0].args)}`,
   );
   const sql = writes[0].sql.replace(/\s+/g, ' ').toUpperCase();
   assert.ok(sql.includes('PAGE'), `page 列へ書いていません: ${writes[0].sql}`);
-  assert.ok(!sql.includes('WAITLIST'), '🔒 匿名シグナルが waitlist テーブルへ書き込んでいます');
+  assert.ok(
+    !sql.includes('WAITLIST'),
+    '🔒 匿名シグナルが waitlist テーブルへ書き込んでいます',
+  );
 });
 
 test('page の形が合わない匿名シグナルは 400 で、DB に触らない', async () => {
   const bad = [
-    'ja',                       // 区切りが無い
-    'ja:',                      // ページ側が空
-    ':protein',                 // 言語側が空
-    '/ja/protein/',             // パスをそのまま送っている
-    'JA:protein',               // 大文字
-    'ja:Protein',               // 大文字
-    'jpn:lp',                   // 言語が2文字でない
-    `${SIGNAL_PAGE} `,          // 🔒 前後の空白を落として救わない
+    'ja', // 区切りが無い
+    'ja:', // ページ側が空
+    ':protein', // 言語側が空
+    '/ja/protein/', // パスをそのまま送っている
+    'JA:protein', // 大文字
+    'ja:Protein', // 大文字
+    'jpn:lp', // 言語が2文字でない
+    `${SIGNAL_PAGE} `, // 🔒 前後の空白を落として救わない
     ` ${SIGNAL_PAGE}`,
-    `ja:${'a'.repeat(41)}`,     // 41文字は長すぎる
-    'ja:プロテイン',             // 非 ASCII
-    'ja:pro tein',              // 空白入り
+    `ja:${'a'.repeat(41)}`, // 41文字は長すぎる
+    'ja:プロテイン', // 非 ASCII
+    'ja:pro tein', // 空白入り
     '',
     12345,
     null,
@@ -422,16 +471,38 @@ test('page の形が合わない匿名シグナルは 400 で、DB に触らな�
 
   for (const page of bad) {
     const { env, writes } = makeEnv();
-    const res = await worker.fetch(postSignal(JSON.stringify({ id: SIGNAL_ID, page })), env);
-    assert.equal(res.status, 400, `page=${JSON.stringify(page)} が弾かれていません`);
-    assert.equal(writes.length, 0, `page=${JSON.stringify(page)} で DB に書き込んでいます`);
+    const res = await worker.fetch(
+      postSignal(JSON.stringify({ id: SIGNAL_ID, page })),
+      env,
+    );
+    assert.equal(
+      res.status,
+      400,
+      `page=${JSON.stringify(page)} が弾かれていません`,
+    );
+    assert.equal(
+      writes.length,
+      0,
+      `page=${JSON.stringify(page)} で DB に書き込んでいます`,
+    );
   }
 });
 
 test('page の形が合っていれば通る（境界と実在の識別子）', async () => {
-  for (const page of ['ja:lp', 'en:lp', 'ja:protein', 'en:creatine', 'ja:a', `ja:${'a'.repeat(40)}`, 'ja:vitamin-d3']) {
+  for (const page of [
+    'ja:lp',
+    'en:lp',
+    'ja:protein',
+    'en:creatine',
+    'ja:a',
+    `ja:${'a'.repeat(40)}`,
+    'ja:vitamin-d3',
+  ]) {
     const { env, writes } = makeEnv();
-    const res = await worker.fetch(postSignal(JSON.stringify({ id: SIGNAL_ID, page })), env);
+    const res = await worker.fetch(
+      postSignal(JSON.stringify({ id: SIGNAL_ID, page })),
+      env,
+    );
     assert.equal(res.status, 204, `page=${page} が通りません`);
     assert.equal(writes.length, 1);
   }
@@ -447,13 +518,20 @@ test('🔒 キー集合が {id, page} ちょうどでなければ 400（余分�
     const { env, writes } = makeEnv();
     const res = await worker.fetch(postSignal(JSON.stringify(body)), env);
     assert.equal(res.status, 400, `${JSON.stringify(body)} が弾かれていません`);
-    assert.equal(writes.length, 0, `${JSON.stringify(body)} で DB に書き込んでいます`);
+    assert.equal(
+      writes.length,
+      0,
+      `${JSON.stringify(body)} で DB に書き込んでいます`,
+    );
   }
 });
 
 test('🔒 page の無い匿名シグナルは 400（任意項目にしない）', async () => {
   const { env, writes } = makeEnv();
-  const res = await worker.fetch(postSignal(JSON.stringify({ id: SIGNAL_ID })), env);
+  const res = await worker.fetch(
+    postSignal(JSON.stringify({ id: SIGNAL_ID })),
+    env,
+  );
 
   assert.equal(res.status, 400, 'page の無い本文が通っています');
   assert.equal(writes.length, 0);

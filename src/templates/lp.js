@@ -10,7 +10,12 @@
 import { escapeHtml } from '../lib/i18n.js';
 import { layout } from './layout.js';
 import { hero, siteHeader } from './lp/hero.js';
-import { features, howItWorks, roadmap, ROADMAP_NUTRIENTS } from './lp/sections.js';
+import {
+  features,
+  howItWorks,
+  roadmap,
+  ROADMAP_NUTRIENTS,
+} from './lp/sections.js';
 import { siteFooter, waitlist, CHANNEL_CHIPS } from './lp/form.js';
 import { supportScript } from './lp/support.js';
 import { organization, webSite } from '../lib/jsonld.js';

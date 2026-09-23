@@ -74,12 +74,20 @@ export function enrichRow(row, suggestion) {
       reject('protein_per_100g', 'すでに値が入っているため上書きしない');
     } else if (!Number.isFinite(protein)) {
       reject('protein_per_100g', '数値として読めない');
-    } else if (!evidenceSupports(row.item_caption, suggestion.protein_evidence)) {
+    } else if (
+      !evidenceSupports(row.item_caption, suggestion.protein_evidence)
+    ) {
       reject('protein_per_100g', '根拠の抜粋が説明文に実在しない');
     } else if (!evidenceStatesNumber(suggestion.protein_evidence, protein)) {
       reject('protein_per_100g', '根拠の中に値そのものが書かれていない');
-    } else if (protein < PROTEIN_RATIO_RANGE.min || protein > PROTEIN_RATIO_RANGE.max) {
-      reject('protein_per_100g', `含有率が想定の範囲外（${PROTEIN_RATIO_RANGE.min}〜${PROTEIN_RATIO_RANGE.max}%）`);
+    } else if (
+      protein < PROTEIN_RATIO_RANGE.min ||
+      protein > PROTEIN_RATIO_RANGE.max
+    ) {
+      reject(
+        'protein_per_100g',
+        `含有率が想定の範囲外（${PROTEIN_RATIO_RANGE.min}〜${PROTEIN_RATIO_RANGE.max}%）`,
+      );
     } else {
       accepted.protein_per_100g = protein;
     }
@@ -158,7 +166,8 @@ export async function enrichRows(rows, callModel) {
     const suggestion = await callModel(buildPrompt(row));
     const result = enrichRow(row, suggestion);
     out.push(result.row);
-    for (const r of result.rejected) rejected.push({ product_id: row.product_id, ...r });
+    for (const r of result.rejected)
+      rejected.push({ product_id: row.product_id, ...r });
   }
 
   return { rows: out, rejected };

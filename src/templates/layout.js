@@ -107,10 +107,15 @@ ${content}
  * 🔒 初回接触（LP・OGP・広告）ではタグラインと必ずセットで出す。
  *    `-gram` が Instagram / Telegram の連想を呼ぶため、単体では SNS アプリに見える。
  */
-export function wordmark(t, { withTagline = false, href = '/', as = 'a' } = {}) {
+export function wordmark(
+  t,
+  { withTagline = false, href = '/', as = 'a' } = {},
+) {
   const brandName = escapeHtml(t('brand.name'));
   const inner = `<img class="brand__logo-img" src="/assets/images/pergram_logo.svg" alt="${brandName}" width="140" height="30">${
-    withTagline ? `<span class="brand__tagline">${escapeHtml(t('brand.tagline'))}</span>` : ''
+    withTagline
+      ? `<span class="brand__tagline">${escapeHtml(t('brand.tagline'))}</span>`
+      : ''
   }`;
 
   if (as === 'div') return `<div class="brand">${inner}</div>`;

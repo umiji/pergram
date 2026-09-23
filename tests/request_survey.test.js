@@ -41,7 +41,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
 
-import { NUTRIENTS_OTHER_MAX, REQUESTS_MAX } from '../src/lib/waitlist_fields.js';
+import {
+  NUTRIENTS_OTHER_MAX,
+  REQUESTS_MAX,
+} from '../src/lib/waitlist_fields.js';
 import { loadTranslator } from '../src/lib/i18n.js';
 import { requestCta, requestFlow } from '../src/templates/request.js';
 import { market } from './fixtures.js';
@@ -84,7 +87,13 @@ const BOUND_VALUES = 6;
  * 送信本文のキー。**ちょうど一致で検証する**（`worker/request_signal.js` と同じ厳しさ）。
  * ⚠️ **T-070 から1文字も変えない。**出荷箱に控えられた回答がこの形で送られてくる。
  */
-const PAYLOAD_KEYS = ['channel', 'id', 'nutrients', 'nutrients_other', 'requests'];
+const PAYLOAD_KEYS = [
+  'channel',
+  'id',
+  'nutrients',
+  'nutrients_other',
+  'requests',
+];
 
 /** ブラウザごとの識別子の置き場。request_signal.id と同じ値 */
 const SIGNAL_STORAGE_KEY = 'pergram.request_signal_id';
@@ -213,16 +222,28 @@ test('A-1 🔒 保存先は waitlist だけ（新しい表を作らない・requ
 
 test('A-4 🔒 メールアドレスを混ぜた本文は 400 で、DB に触らない', async () => {
   const { env, writes } = makeEnv();
-  const res = await worker.fetch(postSurvey(surveyBody({ email: 'a@example.com' })), env);
+  const res = await worker.fetch(
+    postSurvey(surveyBody({ email: 'a@example.com' })),
+    env,
+  );
 
   assert.equal(res.status, 400, '🔒 メールアドレス付きの本文が通っています');
-  assert.equal(writes.length, 0, '🔒 メールアドレス付きの本文で DB に書き込んでいます');
+  assert.equal(
+    writes.length,
+    0,
+    '🔒 メールアドレス付きの本文で DB に書き込んでいます',
+  );
 });
 
 test('A-4 🔒 匿名の受け口の SQL は email 列に一切触らない', async () => {
   const { env, writes } = makeEnv();
   await worker.fetch(
-    postSurvey(surveyBody({ nutrients_other: 'a@example.com', requests: 'b@example.com' })),
+    postSurvey(
+      surveyBody({
+        nutrients_other: 'a@example.com',
+        requests: 'b@example.com',
+      }),
+    ),
     env,
   );
 
@@ -255,8 +276,16 @@ test('A-5 🔒 キー集合がちょうど一致しなければ 400（余分な�
   for (const extra of extras) {
     const { env, writes } = makeEnv();
     const res = await worker.fetch(postSurvey(surveyBody(extra)), env);
-    assert.equal(res.status, 400, `${JSON.stringify(extra)} が弾かれていません`);
-    assert.equal(writes.length, 0, `${JSON.stringify(extra)} で DB に書き込んでいます`);
+    assert.equal(
+      res.status,
+      400,
+      `${JSON.stringify(extra)} が弾かれていません`,
+    );
+    assert.equal(
+      writes.length,
+      0,
+      `${JSON.stringify(extra)} で DB に書き込んでいます`,
+    );
   }
 });
 
@@ -268,7 +297,11 @@ test('A-5 🔒 キーが足りない本文も 400（任意項目にしない）'
     const { env, writes } = makeEnv();
     const res = await worker.fetch(postSurvey(JSON.stringify(payload)), env);
     assert.equal(res.status, 400, `${missing} の無い本文が通っています`);
-    assert.equal(writes.length, 0, `${missing} の無い本文で DB に書き込んでいます`);
+    assert.equal(
+      writes.length,
+      0,
+      `${missing} の無い本文で DB に書き込んでいます`,
+    );
   }
 });
 
@@ -289,16 +322,35 @@ test('A-5 🔒 出荷箱に控えられた形の本文が、そのまま 204 で
     env,
   );
 
-  assert.equal(res.status, 204, '🔒 出荷箱に控えられた形の本文が通らない。控えが永久に送れなくなる');
+  assert.equal(
+    res.status,
+    204,
+    '🔒 出荷箱に控えられた形の本文が通らない。控えが永久に送れなくなる',
+  );
   assert.equal(writes.length, 1);
 });
 
 test('A-5 id が UUID v4 でなければ 400 で、DB に触らない', async () => {
-  for (const id of ['not-a-uuid', '', 12345, null, `${SURVEY_ID} `, ` ${SURVEY_ID}`]) {
+  for (const id of [
+    'not-a-uuid',
+    '',
+    12345,
+    null,
+    `${SURVEY_ID} `,
+    ` ${SURVEY_ID}`,
+  ]) {
     const { env, writes } = makeEnv();
     const res = await worker.fetch(postSurvey(surveyBody({ id })), env);
-    assert.equal(res.status, 400, `id=${JSON.stringify(id)} が弾かれていません`);
-    assert.equal(writes.length, 0, `id=${JSON.stringify(id)} で DB に書き込んでいます`);
+    assert.equal(
+      res.status,
+      400,
+      `id=${JSON.stringify(id)} が弾かれていません`,
+    );
+    assert.equal(
+      writes.length,
+      0,
+      `id=${JSON.stringify(id)} で DB に書き込んでいます`,
+    );
   }
 });
 
@@ -313,7 +365,10 @@ test('A-5 壊れた JSON と配列の本文は 400', async () => {
 
 test('A-5 POST 以外は 405 を返し、許可メソッドを伝える', async () => {
   const { env, writes } = makeEnv();
-  const res = await worker.fetch(new Request(`https://pergram.example${SURVEY_PATH}`), env);
+  const res = await worker.fetch(
+    new Request(`https://pergram.example${SURVEY_PATH}`),
+    env,
+  );
 
   assert.equal(res.status, 405);
   assert.equal(res.headers.get('Allow'), 'POST');
@@ -346,7 +401,11 @@ test('A-6 上限を超えた自由記述は切って保存する（弾かない�
     env,
   );
 
-  assert.equal(res.status, 204, '🔒 長すぎる自由記述を弾いています。切るのが正しい');
+  assert.equal(
+    res.status,
+    204,
+    '🔒 長すぎる自由記述を弾いています。切るのが正しい',
+  );
   const [, , , nutrientsOther, requests] = writes[0].args;
   assert.equal(nutrientsOther.length, NUTRIENTS_OTHER_MAX);
   assert.equal(requests.length, REQUESTS_MAX);
@@ -354,10 +413,17 @@ test('A-6 上限を超えた自由記述は切って保存する（弾かない�
 
 test('A-6 空欄・空白だけの自由記述は null で保存する', async () => {
   const { env, writes } = makeEnv();
-  await worker.fetch(postSurvey(surveyBody({ nutrients_other: '   ', requests: null })), env);
+  await worker.fetch(
+    postSurvey(surveyBody({ nutrients_other: '   ', requests: null })),
+    env,
+  );
 
   const [, , , nutrientsOther, requests] = writes[0].args;
-  assert.equal(nutrientsOther, null, '空白だけの入力は null にして列を汚さない');
+  assert.equal(
+    nutrientsOther,
+    null,
+    '空白だけの入力は null にして列を汚さない',
+  );
   assert.equal(requests, null, 'null の自由記述は null のまま保存する');
 });
 
@@ -380,12 +446,23 @@ test('A-6 🔒 許可リストにない成分と購入先は落とし、重複�
 test('A-6 何も選ばずに送っても1行残る（飛ばすのは skip ボタンの役目）', async () => {
   const { env, writes } = makeEnv();
   const res = await worker.fetch(
-    postSurvey(surveyBody({ nutrients: [], channel: [], nutrients_other: null, requests: null })),
+    postSurvey(
+      surveyBody({
+        nutrients: [],
+        channel: [],
+        nutrients_other: null,
+        requests: null,
+      }),
+    ),
     env,
   );
 
   assert.equal(res.status, 204);
-  assert.equal(writes.length, 1, '空の回答でも「送った」という事実は1行として残す');
+  assert.equal(
+    writes.length,
+    1,
+    '空の回答でも「送った」という事実は1行として残す',
+  );
 });
 
 /* ====================================================================== */
@@ -400,7 +477,9 @@ try {
 }
 
 const schemaSql = await readFile('worker/schema.sql', 'utf8');
-const sqliteOptions = DatabaseSync ? {} : { skip: 'node:sqlite が無い Node で実行された' };
+const sqliteOptions = DatabaseSync
+  ? {}
+  : { skip: 'node:sqlite が無い Node で実行された' };
 
 function makeRealEnv() {
   const db = new DatabaseSync(':memory:');
@@ -414,7 +493,9 @@ function makeRealEnv() {
           const statement = db.prepare(sql);
           return {
             bind(...args) {
-              const params = Object.fromEntries(args.map((value, index) => [index + 1, value]));
+              const params = Object.fromEntries(
+                args.map((value, index) => [index + 1, value]),
+              );
               return {
                 async run() {
                   statement.run(params);
@@ -432,9 +513,11 @@ function makeRealEnv() {
 
 const allRows = (db) => db.prepare('SELECT * FROM waitlist').all();
 /** 匿名の回答の行（アンケート回答率の分子はこちら） */
-const anonRows = (db) => db.prepare('SELECT * FROM waitlist WHERE id IS NOT NULL').all();
+const anonRows = (db) =>
+  db.prepare('SELECT * FROM waitlist WHERE id IS NOT NULL').all();
 /** メールアドレスを預かった行 */
-const emailRows = (db) => db.prepare('SELECT * FROM waitlist WHERE email IS NOT NULL').all();
+const emailRows = (db) =>
+  db.prepare('SELECT * FROM waitlist WHERE email IS NOT NULL').all();
 
 const postWaitlist = (body) =>
   new Request('https://pergram.example/api/waitlist', {
@@ -443,70 +526,94 @@ const postWaitlist = (body) =>
     body: JSON.stringify(body),
   });
 
-test('A-1 メールアドレスを送っていなくても waitlist に1行残る', sqliteOptions, async () => {
-  const { db, env } = makeRealEnv();
-  const res = await worker.fetch(postSurvey(surveyBody()), env);
+test(
+  'A-1 メールアドレスを送っていなくても waitlist に1行残る',
+  sqliteOptions,
+  async () => {
+    const { db, env } = makeRealEnv();
+    const res = await worker.fetch(postSurvey(surveyBody()), env);
 
-  assert.equal(res.status, 204);
-  assert.equal(
-    anonRows(db).length,
-    1,
-    '🔒 メールアドレスを入れなかった人の回答が捨てられている（T-070 / T-071 の欠陥そのもの）',
-  );
-  assert.equal(emailRows(db).length, 0, 'メールアドレスの行が勝手にできている');
+    assert.equal(res.status, 204);
+    assert.equal(
+      anonRows(db).length,
+      1,
+      '🔒 メールアドレスを入れなかった人の回答が捨てられている（T-070 / T-071 の欠陥そのもの）',
+    );
+    assert.equal(
+      emailRows(db).length,
+      0,
+      'メールアドレスの行が勝手にできている',
+    );
 
-  const row = anonRows(db)[0];
-  assert.equal(row.id, SURVEY_ID);
-  assert.equal(row.email, null, '🔒 匿名の行に email が入っている');
-  assert.equal(row.nutrients, 'creatine');
-  assert.equal(row.requests, '送料込みで並べたい');
-});
+    const row = anonRows(db)[0];
+    assert.equal(row.id, SURVEY_ID);
+    assert.equal(row.email, null, '🔒 匿名の行に email が入っている');
+    assert.equal(row.nutrients, 'creatine');
+    assert.equal(row.requests, '送料込みで並べたい');
+  },
+);
 
-test('A-2 メールアドレスを入れた行は id が NULL のまま入る', sqliteOptions, async () => {
-  const { db, env } = makeRealEnv();
-  const res = await worker.fetch(
-    postWaitlist({
-      email: 'a@example.com',
-      nutrients: ['creatine'],
-      channel: ['rakuten'],
-      nutrients_other: 'グルタミン',
-      requests: '送料込みで並べたい',
-    }),
-    env,
-  );
+test(
+  'A-2 メールアドレスを入れた行は id が NULL のまま入る',
+  sqliteOptions,
+  async () => {
+    const { db, env } = makeRealEnv();
+    const res = await worker.fetch(
+      postWaitlist({
+        email: 'a@example.com',
+        nutrients: ['creatine'],
+        channel: ['rakuten'],
+        nutrients_other: 'グルタミン',
+        requests: '送料込みで並べたい',
+      }),
+      env,
+    );
 
-  assert.equal(res.status, 200);
-  assert.deepEqual(await res.json(), { ok: true });
+    assert.equal(res.status, 200);
+    assert.deepEqual(await res.json(), { ok: true });
 
-  const rows = emailRows(db);
-  assert.equal(rows.length, 1, '待機リストへの登録が壊れている');
-  assert.equal(rows[0].email, 'a@example.com');
-  assert.equal(rows[0].id, null, '🔒 メールアドレスの行に匿名の識別子が入っている');
-  assert.equal(rows[0].nutrients, 'creatine');
-  assert.equal(rows[0].requests, '送料込みで並べたい');
-});
+    const rows = emailRows(db);
+    assert.equal(rows.length, 1, '待機リストへの登録が壊れている');
+    assert.equal(rows[0].email, 'a@example.com');
+    assert.equal(
+      rows[0].id,
+      null,
+      '🔒 メールアドレスの行に匿名の識別子が入っている',
+    );
+    assert.equal(rows[0].nutrients, 'creatine');
+    assert.equal(rows[0].requests, '送料込みで並べたい');
+  },
+);
 
-test('A-2 待機リストの2段階の追記（空で上書きしない）が壊れていない', sqliteOptions, async () => {
-  const { db, env } = makeRealEnv();
+test(
+  'A-2 待機リストの2段階の追記（空で上書きしない）が壊れていない',
+  sqliteOptions,
+  async () => {
+    const { db, env } = makeRealEnv();
 
-  await worker.fetch(
-    postWaitlist({
-      email: 'a@example.com',
-      nutrients: ['creatine'],
-      channel: ['rakuten'],
-      nutrients_other: 'グルタミン',
-      requests: '送料込みで並べたい',
-    }),
-    env,
-  );
-  // 登録済みに気づかず、もう一度メールアドレスだけを送ってくる経路（T-011 の 🔒）
-  await worker.fetch(postWaitlist({ email: 'a@example.com' }), env);
+    await worker.fetch(
+      postWaitlist({
+        email: 'a@example.com',
+        nutrients: ['creatine'],
+        channel: ['rakuten'],
+        nutrients_other: 'グルタミン',
+        requests: '送料込みで並べたい',
+      }),
+      env,
+    );
+    // 登録済みに気づかず、もう一度メールアドレスだけを送ってくる経路（T-011 の 🔒）
+    await worker.fetch(postWaitlist({ email: 'a@example.com' }), env);
 
-  const rows = emailRows(db);
-  assert.equal(rows.length, 1, '同じメールアドレスで行が増えている');
-  assert.equal(rows[0].nutrients, 'creatine', '🔒 空のステップ1が集めた回答を消している');
-  assert.equal(rows[0].requests, '送料込みで並べたい');
-});
+    const rows = emailRows(db);
+    assert.equal(rows.length, 1, '同じメールアドレスで行が増えている');
+    assert.equal(
+      rows[0].nutrients,
+      'creatine',
+      '🔒 空のステップ1が集めた回答を消している',
+    );
+    assert.equal(rows[0].requests, '送料込みで並べたい');
+  },
+);
 
 test('A-3 同じ識別子で2度答えても行は増えない', sqliteOptions, async () => {
   const { db, env } = makeRealEnv();
@@ -541,16 +648,27 @@ test('A-3 識別子が違えば別の行になる', sqliteOptions, async () => {
   assert.equal(anonRows(db).length, 2, '別のブラウザの回答が1行に潰れている');
 });
 
-test('A-2 匿名の行とメールアドレスの行は同じ表で共存する', sqliteOptions, async () => {
-  const { db, env } = makeRealEnv();
+test(
+  'A-2 匿名の行とメールアドレスの行は同じ表で共存する',
+  sqliteOptions,
+  async () => {
+    const { db, env } = makeRealEnv();
 
-  await worker.fetch(postSurvey(surveyBody()), env);
-  await worker.fetch(postWaitlist({ email: 'a@example.com', nutrients: ['creatine'] }), env);
+    await worker.fetch(postSurvey(surveyBody()), env);
+    await worker.fetch(
+      postWaitlist({ email: 'a@example.com', nutrients: ['creatine'] }),
+      env,
+    );
 
-  assert.equal(allRows(db).length, 2, '匿名の行とメールアドレスの行が同居できていない');
-  assert.equal(anonRows(db).length, 1);
-  assert.equal(emailRows(db).length, 1);
-});
+    assert.equal(
+      allRows(db).length,
+      2,
+      '匿名の行とメールアドレスの行が同居できていない',
+    );
+    assert.equal(anonRows(db).length, 1);
+    assert.equal(emailRows(db).length, 1);
+  },
+);
 
 /* ====================================================================== */
 /* A-4: 🔒 id と email を両方持つ行を、DB が拒否する                        */
@@ -578,7 +696,15 @@ test('A-4 🔒 id と email を両方持つ行は DB が拒否する', sqliteOpt
       db.prepare(
         `INSERT INTO waitlist (id, email, nutrients, channel, nutrients_other, requests, created_at)
          VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      ).run(SURVEY_ID, 'a@example.com', 'creatine', 'rakuten', null, null, '2026-09-08T00:00:00Z');
+      ).run(
+        SURVEY_ID,
+        'a@example.com',
+        'creatine',
+        'rakuten',
+        null,
+        null,
+        '2026-09-08T00:00:00Z',
+      );
     },
     /CHECK|constraint/i,
     '🔒 匿名の識別子とメールアドレスを同じ行に置けてしまう。' +
@@ -592,32 +718,53 @@ test('A-4 🔒 片方だけの行は通る（制約が広すぎない）', sqlit
   db.exec(schemaSql);
 
   const insert = (id, email) =>
-    db.prepare(
-      `INSERT INTO waitlist (id, email, nutrients, channel, nutrients_other, requests, created_at)
+    db
+      .prepare(
+        `INSERT INTO waitlist (id, email, nutrients, channel, nutrients_other, requests, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    ).run(id, email, 'creatine', 'rakuten', null, null, '2026-09-08T00:00:00Z');
+      )
+      .run(
+        id,
+        email,
+        'creatine',
+        'rakuten',
+        null,
+        null,
+        '2026-09-08T00:00:00Z',
+      );
 
   insert(SURVEY_ID, null);
   insert(null, 'a@example.com');
 
-  assert.equal(allRows(db).length, 2, '片方だけの行まで拒否している。制約が広すぎる');
-});
-
-test('A-4 🔒 匿名の行へ後から email を書き足すこともできない', sqliteOptions, () => {
-  const db = new DatabaseSync(':memory:');
-  db.exec(schemaSql);
-
-  db.prepare(
-    `INSERT INTO waitlist (id, nutrients, channel, nutrients_other, requests, created_at)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-  ).run(SURVEY_ID, 'creatine', 'rakuten', null, null, '2026-09-08T00:00:00Z');
-
-  assert.throws(
-    () => db.prepare('UPDATE waitlist SET email = ? WHERE id = ?').run('a@example.com', SURVEY_ID),
-    /CHECK|constraint/i,
-    '🔒 UPDATE で紐づけられてしまう。CHECK 制約は INSERT だけでなく UPDATE も止める',
+  assert.equal(
+    allRows(db).length,
+    2,
+    '片方だけの行まで拒否している。制約が広すぎる',
   );
 });
+
+test(
+  'A-4 🔒 匿名の行へ後から email を書き足すこともできない',
+  sqliteOptions,
+  () => {
+    const db = new DatabaseSync(':memory:');
+    db.exec(schemaSql);
+
+    db.prepare(
+      `INSERT INTO waitlist (id, nutrients, channel, nutrients_other, requests, created_at)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    ).run(SURVEY_ID, 'creatine', 'rakuten', null, null, '2026-09-08T00:00:00Z');
+
+    assert.throws(
+      () =>
+        db
+          .prepare('UPDATE waitlist SET email = ? WHERE id = ?')
+          .run('a@example.com', SURVEY_ID),
+      /CHECK|constraint/i,
+      '🔒 UPDATE で紐づけられてしまう。CHECK 制約は INSERT だけでなく UPDATE も止める',
+    );
+  },
+);
 
 /* ====================================================================== */
 /* A-1 / A-2 / A-3 / A-5: ブラウザ側                                       */
@@ -639,8 +786,10 @@ ${requestCta(t, { location: 'products_request_bottom' })}
 ${requestFlow(t, { support: market.support, page: PAGE_ID })}`;
 }
 
-const surveyCalls = (dom) => dom.fetchCalls.filter((call) => call.url.includes(SURVEY_PATH));
-const waitlistCalls = (dom) => dom.fetchCalls.filter((call) => call.url.includes(WAITLIST_ENDPOINT));
+const surveyCalls = (dom) =>
+  dom.fetchCalls.filter((call) => call.url.includes(SURVEY_PATH));
+const waitlistCalls = (dom) =>
+  dom.fetchCalls.filter((call) => call.url.includes(WAITLIST_ENDPOINT));
 
 async function answerSurvey({ beforeClick, blank = false, ...options } = {}) {
   const dom = await runLpScript(page(), {
@@ -651,15 +800,19 @@ async function answerSurvey({ beforeClick, blank = false, ...options } = {}) {
   });
   if (beforeClick) beforeClick(dom);
 
-  dom.body.querySelectorAll('[data-request-cta]')[0].dispatchEvent(new DomEvent('click'));
+  dom.body
+    .querySelectorAll('[data-request-cta]')[0]
+    .dispatchEvent(new DomEvent('click'));
   await dom.flush();
 
   const form = dom.body.querySelector('[data-request-survey]');
   assert.ok(form, 'アンケートのフォームがありません');
   if (!blank) {
-    form.querySelector('input[name="nutrients"][value="creatine"]').checked = true;
+    form.querySelector('input[name="nutrients"][value="creatine"]').checked =
+      true;
     form.querySelector('input[name="channel"][value="rakuten"]').checked = true;
-    form.querySelector('[name="nutrients_other"]').value = NUTRIENTS_OTHER_INPUT;
+    form.querySelector('[name="nutrients_other"]').value =
+      NUTRIENTS_OTHER_INPUT;
     form.querySelector('[name="requests"]').value = REQUESTS_INPUT;
   }
 
@@ -677,9 +830,17 @@ async function answerSurvey({ beforeClick, blank = false, ...options } = {}) {
 test('A-1 アンケートを送るとサーバへ回答が飛ぶ（メールアドレスを入れる前に）', async () => {
   const { surveys, dom } = await answerSurvey();
 
-  assert.equal(surveys.length, 1, '🔒 アンケートの回答がサーバへ送られていない');
+  assert.equal(
+    surveys.length,
+    1,
+    '🔒 アンケートの回答がサーバへ送られていない',
+  );
   assert.equal(surveys[0].method, 'POST');
-  assert.equal(waitlistCalls(dom).length, 0, 'メールの段を送っていないのに待機リストへ送っている');
+  assert.equal(
+    waitlistCalls(dom).length,
+    0,
+    'メールの段を送っていないのに待機リストへ送っている',
+  );
 });
 
 test('A-5 🔒 送信先も本文のキーも T-070 から変わっていない', async () => {
@@ -701,8 +862,16 @@ test('A-5 🔒 送信先も本文のキーも T-070 から変わっていない'
 test('A-3 送るのは押下と同じ識別子（pergram.request_signal_id）である', async () => {
   const { surveys, dom } = await answerSurvey();
 
-  assert.equal(surveys[0].body.id, SURVEY_ID, '🔒 押下と別の識別子で送っている');
-  assert.equal(dom.storageData.get(SIGNAL_STORAGE_KEY), SURVEY_ID, '保存済みの識別子を書き換えている');
+  assert.equal(
+    surveys[0].body.id,
+    SURVEY_ID,
+    '🔒 押下と別の識別子で送っている',
+  );
+  assert.equal(
+    dom.storageData.get(SIGNAL_STORAGE_KEY),
+    SURVEY_ID,
+    '保存済みの識別子を書き換えている',
+  );
 });
 
 test('A-1 送信が失敗しても次の段（メールアドレス）は開く', async () => {
@@ -712,7 +881,11 @@ test('A-1 送信が失敗しても次の段（メールアドレス）は開く'
   ]) {
     const { emailStep, surveys } = await answerSurvey({ respond });
     assert.equal(surveys.length, 1, `${name}アンケートを送っていない`);
-    assert.equal(emailStep.hidden, false, `${name}メールアドレスの段が開かない`);
+    assert.equal(
+      emailStep.hidden,
+      false,
+      `${name}メールアドレスの段が開かない`,
+    );
   }
 });
 
@@ -724,7 +897,11 @@ test('A-1 識別子を持たないブラウザでは送らないが、導線は�
     },
   });
 
-  assert.equal(surveys.length, 0, '🔒 識別子を作れない環境で疑似乱数を自作している');
+  assert.equal(
+    surveys.length,
+    0,
+    '🔒 識別子を作れない環境で疑似乱数を自作している',
+  );
   assert.equal(emailStep.hidden, false, '識別子が無いと導線が止まっている');
 });
 
@@ -753,7 +930,9 @@ test('A-2 メールアドレスの段は今までどおり待機リストへ6列
   for (const key of Object.keys(calls[0].body)) {
     const isIdentifier = calls[0].body[key] === SURVEY_ID;
     assert.ok(
-      ['channel', 'email', 'nutrients', 'nutrients_other', 'requests'].includes(key) || isIdentifier,
+      ['channel', 'email', 'nutrients', 'nutrients_other', 'requests'].includes(
+        key,
+      ) || isIdentifier,
       `🔒 待機リストへ保存列の外の項目を送っています: ${key}`,
     );
   }
@@ -796,7 +975,10 @@ test('🔒 回答数・人数を画面に描画しない', async () => {
   const { dom } = await answerSurvey();
 
   const text = dom.body.textContent || '';
-  assert.ok(!/\d+\s*(件|人|名)/.test(text), `🔒 押下数・回答数を画面に出している（N-03）: ${text.slice(0, 200)}`);
+  assert.ok(
+    !/\d+\s*(件|人|名)/.test(text),
+    `🔒 押下数・回答数を画面に出している（N-03）: ${text.slice(0, 200)}`,
+  );
 });
 
 /* ====================================================================== */
@@ -813,12 +995,19 @@ function parseColumns(inner) {
     .map((one) => one.trim())
     .filter(Boolean)
     .map((one) => one.split(/[\s(]/)[0].toLowerCase())
-    .filter((name) => /^[a-z_]+$/.test(name) && !['primary', 'unique', 'foreign', 'check'].includes(name));
+    .filter(
+      (name) =>
+        /^[a-z_]+$/.test(name) &&
+        !['primary', 'unique', 'foreign', 'check'].includes(name),
+    );
 }
 
 function tableBlock(sql, table) {
   const match = sql.match(
-    new RegExp(`CREATE TABLE(?:\\s+IF NOT EXISTS)?\\s+${table}\\s*\\(([\\s\\S]*?)\\n\\)\\s*;`, 'i'),
+    new RegExp(
+      `CREATE TABLE(?:\\s+IF NOT EXISTS)?\\s+${table}\\s*\\(([\\s\\S]*?)\\n\\)\\s*;`,
+      'i',
+    ),
   );
   return match ? match[1] : null;
 }
@@ -836,10 +1025,16 @@ const SHIPPED_MIGRATIONS = new Set([
 
 async function migrationFiles() {
   const dir = 'worker/migrations';
-  const names = (await readdir(dir)).filter((name) => name.endsWith('.sql')).sort();
+  const names = (await readdir(dir))
+    .filter((name) => name.endsWith('.sql'))
+    .sort();
   const files = [];
   for (const name of names) {
-    files.push({ name, path: `${dir}/${name}`, sql: await readFile(`${dir}/${name}`, 'utf8') });
+    files.push({
+      name,
+      path: `${dir}/${name}`,
+      sql: await readFile(`${dir}/${name}`, 'utf8'),
+    });
   }
   return files;
 }
@@ -877,10 +1072,38 @@ CREATE TABLE request_signal (
 
 /** 本番と同じ4行ぶんの合成データ。**本物のメールアドレスは使わない** */
 const EXISTING_ROWS = [
-  ['one@example.com', 'creatine', 'rakuten', 'グルタミン', '送料込みで並べたい', '2026-08-01T01:00:00.000Z'],
-  ['two@example.com', 'hmb,vitamins', 'amazon,iherb', null, null, '2026-08-15T02:00:00.000Z'],
-  ['three@example.com', '', '', null, '海外の製品も見たい', '2026-09-01T03:00:00.000Z'],
-  ['four@example.com', 'multivitamin', 'yahoo', 'クエン酸', null, '2026-09-07T04:00:00.000Z'],
+  [
+    'one@example.com',
+    'creatine',
+    'rakuten',
+    'グルタミン',
+    '送料込みで並べたい',
+    '2026-08-01T01:00:00.000Z',
+  ],
+  [
+    'two@example.com',
+    'hmb,vitamins',
+    'amazon,iherb',
+    null,
+    null,
+    '2026-08-15T02:00:00.000Z',
+  ],
+  [
+    'three@example.com',
+    '',
+    '',
+    null,
+    '海外の製品も見たい',
+    '2026-09-01T03:00:00.000Z',
+  ],
+  [
+    'four@example.com',
+    'multivitamin',
+    'yahoo',
+    'クエン酸',
+    null,
+    '2026-09-07T04:00:00.000Z',
+  ],
 ];
 
 /** 本番と同じ形の DB を作り、4行入れて、新しい移行SQL を流す */
@@ -921,88 +1144,151 @@ test('B-1 worker/schema.sql の waitlist が7列になっている', async () =>
   );
 });
 
-test('B-1 移行SQL を流した後の姿が worker/schema.sql と一致する', sqliteOptions, async () => {
-  const { db, applied } = await migrated();
+test(
+  'B-1 移行SQL を流した後の姿が worker/schema.sql と一致する',
+  sqliteOptions,
+  async () => {
+    const { db, applied } = await migrated();
 
-  assert.ok(applied.length > 0, 'T-071 の移行SQL が worker/migrations/ に無い');
-  const columns = db
-    .prepare('SELECT name FROM pragma_table_info(?)')
-    .all('waitlist')
-    .map((row) => row.name);
+    assert.ok(
+      applied.length > 0,
+      'T-071 の移行SQL が worker/migrations/ に無い',
+    );
+    const columns = db
+      .prepare('SELECT name FROM pragma_table_info(?)')
+      .all('waitlist')
+      .map((row) => row.name);
 
-  assert.deepEqual(
-    columns.sort(),
-    [...WAITLIST_COLUMNS].sort(),
-    `移行SQL（${applied.join(' / ')}）を流した後の waitlist が worker/schema.sql と食い違っている`,
-  );
-});
+    assert.deepEqual(
+      columns.sort(),
+      [...WAITLIST_COLUMNS].sort(),
+      `移行SQL（${applied.join(' / ')}）を流した後の waitlist が worker/schema.sql と食い違っている`,
+    );
+  },
+);
 
-test('B-2 🔒 既存の4行が移行後も1文字も変わらずに残る', sqliteOptions, async () => {
-  const { db } = await migrated();
+test(
+  'B-2 🔒 既存の4行が移行後も1文字も変わらずに残る',
+  sqliteOptions,
+  async () => {
+    const { db } = await migrated();
 
-  const rows = db.prepare('SELECT * FROM waitlist ORDER BY created_at').all();
-  assert.equal(rows.length, EXISTING_ROWS.length, '🔒 移行で行が失われている。本番の登録者である');
+    const rows = db.prepare('SELECT * FROM waitlist ORDER BY created_at').all();
+    assert.equal(
+      rows.length,
+      EXISTING_ROWS.length,
+      '🔒 移行で行が失われている。本番の登録者である',
+    );
 
-  rows.forEach((row, index) => {
-    const [email, nutrients, channel, nutrientsOther, requests, createdAt] = EXISTING_ROWS[index];
-    assert.equal(row.email, email, `${index} 行目のメールアドレスが変わっている`);
-    assert.equal(row.nutrients, nutrients, `${index} 行目の成分が変わっている`);
-    assert.equal(row.channel, channel, `${index} 行目の購入先が変わっている`);
-    assert.equal(row.nutrients_other, nutrientsOther, `${index} 行目の自由記述が変わっている`);
-    assert.equal(row.requests, requests, `${index} 行目の自由記述が変わっている`);
-    assert.equal(row.created_at, createdAt, `${index} 行目の登録日時が変わっている`);
-    assert.equal(row.id, null, '🔒 既存の行に匿名の識別子が入っている');
-  });
-});
+    rows.forEach((row, index) => {
+      const [email, nutrients, channel, nutrientsOther, requests, createdAt] =
+        EXISTING_ROWS[index];
+      assert.equal(
+        row.email,
+        email,
+        `${index} 行目のメールアドレスが変わっている`,
+      );
+      assert.equal(
+        row.nutrients,
+        nutrients,
+        `${index} 行目の成分が変わっている`,
+      );
+      assert.equal(row.channel, channel, `${index} 行目の購入先が変わっている`);
+      assert.equal(
+        row.nutrients_other,
+        nutrientsOther,
+        `${index} 行目の自由記述が変わっている`,
+      );
+      assert.equal(
+        row.requests,
+        requests,
+        `${index} 行目の自由記述が変わっている`,
+      );
+      assert.equal(
+        row.created_at,
+        createdAt,
+        `${index} 行目の登録日時が変わっている`,
+      );
+      assert.equal(row.id, null, '🔒 既存の行に匿名の識別子が入っている');
+    });
+  },
+);
 
-test('B-2 🔒 移行後の表でも id と email を両方持つ行は拒否される', sqliteOptions, async () => {
-  const { db } = await migrated();
+test(
+  'B-2 🔒 移行後の表でも id と email を両方持つ行は拒否される',
+  sqliteOptions,
+  async () => {
+    const { db } = await migrated();
 
-  assert.throws(
-    () =>
-      db.prepare(
-        `INSERT INTO waitlist (id, email, nutrients, channel, nutrients_other, requests, created_at)
+    assert.throws(
+      () =>
+        db
+          .prepare(
+            `INSERT INTO waitlist (id, email, nutrients, channel, nutrients_other, requests, created_at)
          VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      ).run(SURVEY_ID, 'a@example.com', '', '', null, null, '2026-09-08T00:00:00Z'),
-    /CHECK|constraint/i,
-    '🔒 移行SQL が作った表に CHECK 制約が無い。schema.sql にだけ書いても本番は守られない',
-  );
-});
+          )
+          .run(
+            SURVEY_ID,
+            'a@example.com',
+            '',
+            '',
+            null,
+            null,
+            '2026-09-08T00:00:00Z',
+          ),
+      /CHECK|constraint/i,
+      '🔒 移行SQL が作った表に CHECK 制約が無い。schema.sql にだけ書いても本番は守られない',
+    );
+  },
+);
 
-test('B-2 移行後の表でも、同じ鍵の2度目は行を増やさない', sqliteOptions, async () => {
-  const { db } = await migrated();
+test(
+  'B-2 移行後の表でも、同じ鍵の2度目は行を増やさない',
+  sqliteOptions,
+  async () => {
+    const { db } = await migrated();
 
-  const env = {
-    DB: {
-      prepare(sql) {
-        const statement = db.prepare(sql);
-        return {
-          bind(...args) {
-            const params = Object.fromEntries(args.map((value, index) => [index + 1, value]));
-            return {
-              async run() {
-                statement.run(params);
-                return { success: true };
-              },
-            };
-          },
-        };
+    const env = {
+      DB: {
+        prepare(sql) {
+          const statement = db.prepare(sql);
+          return {
+            bind(...args) {
+              const params = Object.fromEntries(
+                args.map((value, index) => [index + 1, value]),
+              );
+              return {
+                async run() {
+                  statement.run(params);
+                  return { success: true };
+                },
+              };
+            },
+          };
+        },
       },
-    },
-    ASSETS: { fetch: async () => new Response('asset', { status: 200 }) },
-  };
+      ASSETS: { fetch: async () => new Response('asset', { status: 200 }) },
+    };
 
-  await worker.fetch(postSurvey(surveyBody()), env);
-  await worker.fetch(postSurvey(surveyBody({ nutrients: ['hmb'] })), env);
-  await worker.fetch(postWaitlist({ email: 'one@example.com', nutrients: ['hmb'] }), env);
+    await worker.fetch(postSurvey(surveyBody()), env);
+    await worker.fetch(postSurvey(surveyBody({ nutrients: ['hmb'] })), env);
+    await worker.fetch(
+      postWaitlist({ email: 'one@example.com', nutrients: ['hmb'] }),
+      env,
+    );
 
-  assert.equal(anonRows(db).length, 1, '同じ識別子で行が増えている（索引が張られていない）');
-  assert.equal(
-    emailRows(db).length,
-    EXISTING_ROWS.length,
-    '既存のメールアドレスで行が増えている（email の一意性が失われている）',
-  );
-});
+    assert.equal(
+      anonRows(db).length,
+      1,
+      '同じ識別子で行が増えている（索引が張られていない）',
+    );
+    assert.equal(
+      emailRows(db).length,
+      EXISTING_ROWS.length,
+      '既存のメールアドレスで行が増えている（email の一意性が失われている）',
+    );
+  },
+);
 
 test('B-3 🔒 request_survey の定義と移行SQL がリポジトリから消えている', async () => {
   assert.ok(

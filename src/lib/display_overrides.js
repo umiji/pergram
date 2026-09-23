@@ -29,7 +29,11 @@ export function applyDisplayOverrides(data, overrides) {
     // 🔒 ホワイトリスト外は捨てる。スプレッドで丸ごと混ぜない。
     const picked = {};
     for (const field of DISPLAY_FIELDS) {
-      if (entry[field] !== undefined && entry[field] !== null && entry[field] !== '') {
+      if (
+        entry[field] !== undefined &&
+        entry[field] !== null &&
+        entry[field] !== ''
+      ) {
         picked[field] = entry[field];
       }
     }
@@ -38,7 +42,9 @@ export function applyDisplayOverrides(data, overrides) {
 
   const products = data.products.map((product) => {
     const over = byId.get(product.id);
-    return over?.brand === undefined ? product : { ...product, brand: over.brand };
+    return over?.brand === undefined
+      ? product
+      : { ...product, brand: over.brand };
   });
 
   const productI18n = data.productI18n.map((row) => {

@@ -20,7 +20,12 @@
 import { escapeHtml } from '../../lib/i18n.js';
 import { CHANNEL_CHIPS } from '../../lib/waitlist_fields.js';
 import { wordmark } from '../layout.js';
-import { requestCta, requestFlow, requestPageId, REQUEST_PAGE_LP } from '../request.js';
+import {
+  requestCta,
+  requestFlow,
+  requestPageId,
+  REQUEST_PAGE_LP,
+} from '../request.js';
 
 /**
  * 要望の導線ひとそろい。見出し → 第1段階のボタン → 段（初期状態は全て hidden）。

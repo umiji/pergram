@@ -31,7 +31,8 @@ const SCRIPT = 'src/assets/request.js';
 const PAGE_ID = 'ja:protein';
 
 /** 改行の差（CRLF）でセレクタの照合が落ちないよう正規化して読む */
-const readCss = async (path) => (await readFile(path, 'utf8')).replace(/\r\n/g, '\n');
+const readCss = async (path) =>
+  (await readFile(path, 'utf8')).replace(/\r\n/g, '\n');
 /** コメントを外した CSS。宣言だけを見るときはこちら（コメントに書いた 🔒 の文が引っかかる） */
 const stripComments = (css) => css.replace(/\/\*[\s\S]*?\*\//g, '');
 
@@ -46,7 +47,8 @@ function tree(html) {
   return root;
 }
 
-const band = (t = tJa) => tree(requestCta(t, { location: 'products_request_top' }));
+const band = (t = tJa) =>
+  tree(requestCta(t, { location: 'products_request_top' }));
 
 /** 文書順の添字。前後関係はこれで比べる */
 function order(root) {
@@ -76,7 +78,10 @@ test('帯は版面 → 2つの箱（テキスト列 / 行動列）の入れ子�
   const root = band();
   const layout = root.querySelector('.request-band__layout');
   assert.ok(layout, '.request-band__layout が無い');
-  assert.equal(layout.parentNode.classList.contains('request-band__inner'), true);
+  assert.equal(
+    layout.parentNode.classList.contains('request-band__inner'),
+    true,
+  );
 
   const text = root.querySelector('.request-band__text');
   const action = root.querySelector('.request-band__action');
@@ -88,7 +93,9 @@ test('帯は版面 → 2つの箱（テキスト列 / 行動列）の入れ子�
 test('🔒 テキスト列は主文・副文・受領・注記を持ち、行動列はボタンだけを持つ', () => {
   const root = band();
   const classesOf = (selector) =>
-    root.querySelector(selector).children.map((el) => el.getAttribute('class').split(' ')[0]);
+    root
+      .querySelector(selector)
+      .children.map((el) => el.getAttribute('class').split(' ')[0]);
 
   assert.deepEqual(classesOf('.request-band__text'), [
     'request-band__lede',
@@ -111,7 +118,11 @@ test('🔒 B-4b DOM 順を CSS で入れ替えていない（order / *-reverse �
   const scoped = stripComments(siteCss)
     .split('\n')
     .filter((line) => /(^|[\s;{])order\s*:|-reverse\b/.test(line));
-  assert.deepEqual(scoped, [], `site.css に order / *-reverse がある: ${scoped.join(' / ')}`);
+  assert.deepEqual(
+    scoped,
+    [],
+    `site.css に order / *-reverse がある: ${scoped.join(' / ')}`,
+  );
 });
 
 /* ====================================================================== */
@@ -122,7 +133,11 @@ test('🔒 C-5 受領メッセージの器は空・hidden で出る（JS が動�
   const received = band().querySelector('[data-request-received]');
   assert.ok(received, '受領メッセージの器が無い');
   assert.equal(received.hidden, true, '器が最初から見えている');
-  assert.equal(received.textContent.trim(), '', '文言が HTML に埋まっている（読み上げが飛ぶ）');
+  assert.equal(
+    received.textContent.trim(),
+    '',
+    '文言が HTML に埋まっている（読み上げが飛ぶ）',
+  );
   assert.equal(received.getAttribute('role'), 'status', 'role="status" が無い');
   assert.equal(
     received.getAttribute('data-message'),
@@ -133,7 +148,11 @@ test('🔒 C-5 受領メッセージの器は空・hidden で出る（JS が動�
 
 test('🔒 C-2 受領の文言に数字が入らない（押下数・人数の表示にしない）', () => {
   for (const t of [tJa, tEn]) {
-    for (const key of ['request.receivedMessage', 'request.received', 'request.micro']) {
+    for (const key of [
+      'request.receivedMessage',
+      'request.received',
+      'request.micro',
+    ]) {
       assert.equal(/\d/.test(t(key)), false, `${key} に数字がある: ${t(key)}`);
     }
   }
@@ -156,23 +175,45 @@ test('🔒 data-cta と aria-controls の値を変えていない（GA4 の前�
 /* ====================================================================== */
 
 test('完了条件 A-7 無償の第1段階と有償の支援段が別の語を名乗る', () => {
-  for (const [name, t] of [['ja', tJa], ['en', tEn]]) {
-    const free = [t('request.cta'), t('request.headerCta'), t('request.headerCtaShort')];
+  for (const [name, t] of [
+    ['ja', tJa],
+    ['en', tEn],
+  ]) {
+    const free = [
+      t('request.cta'),
+      t('request.headerCta'),
+      t('request.headerCtaShort'),
+    ];
     const paid = [t('request.supportHeading'), t('lp.support.buttonText')];
     const word = name === 'ja' ? '応援' : /support/i;
-    const has = (s) => (typeof word === 'string' ? s.includes(word) : word.test(s));
+    const has = (s) =>
+      typeof word === 'string' ? s.includes(word) : word.test(s);
 
-    for (const label of free) assert.ok(has(label), `${name}: 無償側が語を名乗っていない: ${label}`);
+    for (const label of free)
+      assert.ok(has(label), `${name}: 無償側が語を名乗っていない: ${label}`);
     for (const label of paid) {
-      assert.equal(has(label), false, `${name}: 有償側が無償側と同じ語を使っている: ${label}`);
+      assert.equal(
+        has(label),
+        false,
+        `${name}: 有償側が無償側と同じ語を使っている: ${label}`,
+      );
     }
   }
 });
 
 test('🔒 A-4 「優先的に対応」を書かない（順位を約束する事実が無い）', () => {
   for (const t of [tJa, tEn]) {
-    for (const key of ['request.receivedMessage', 'request.micro', 'request.sub', 'request.lede']) {
-      assert.equal(/優先/.test(t(key)), false, `${key} が優先順位を約束している: ${t(key)}`);
+    for (const key of [
+      'request.receivedMessage',
+      'request.micro',
+      'request.sub',
+      'request.lede',
+    ]) {
+      assert.equal(
+        /優先/.test(t(key)),
+        false,
+        `${key} が優先順位を約束している: ${t(key)}`,
+      );
     }
   }
 });
@@ -194,7 +235,9 @@ test('🔒 帯の文の1区切りは 17 文字以内', () => {
     'request.receivedMessage': 17,
   };
   for (const [key, limit] of Object.entries(limits)) {
-    for (const chunk of tJa(key).split(/[、。！？]/).filter(Boolean)) {
+    for (const chunk of tJa(key)
+      .split(/[、。！？]/)
+      .filter(Boolean)) {
       assert.ok(
         chunk.length <= limit,
         `${key} の1区切りが ${limit} 文字を超えている（${chunk.length}）: ${chunk}`,
@@ -207,13 +250,19 @@ test('🔒 帯の文の1区切りは 17 文字以内', () => {
 /* CSS の出所（完了条件 B-6）と幾何の 🔒                                    */
 /* ====================================================================== */
 
-const GEOMETRY = /(^|[\s;{])(padding|margin|gap|row-gap|column-gap|grid-template-[a-z]+|border-radius|max-width)\s*:/;
+const GEOMETRY =
+  /(^|[\s;{])(padding|margin|gap|row-gap|column-gap|grid-template-[a-z]+|border-radius|max-width)\s*:/;
 
 test('🔒 B-6 帯の幾何を決める宣言が products.css / lp.css に無い', () => {
-  for (const [name, css] of [['products.css', productsCss], ['lp.css', lpCss]]) {
+  for (const [name, css] of [
+    ['products.css', productsCss],
+    ['lp.css', lpCss],
+  ]) {
     // `.request-band` を含むセレクタのブロックだけを取り出して見る
     const blocks = [
-      ...stripComments(css).matchAll(/([^{}]*\.request-band[^{}]*)\{([^{}]*)\}/g),
+      ...stripComments(css).matchAll(
+        /([^{}]*\.request-band[^{}]*)\{([^{}]*)\}/g,
+      ),
     ];
     for (const [, selector, body] of blocks) {
       assert.equal(
@@ -226,13 +275,29 @@ test('🔒 B-6 帯の幾何を決める宣言が products.css / lp.css に無い
 });
 
 test('🔒 帯の版面と切り替え点が site.css / tokens.css にある', () => {
-  assert.match(tokensCss, /--band-max:\s*54rem/, 'tokens.css に --band-max が無い');
-  assert.match(tokensCss, /--band-cta-max:\s*26rem/, '--band-cta-max を改名・変更している');
+  assert.match(
+    tokensCss,
+    /--band-max:\s*54rem/,
+    'tokens.css に --band-max が無い',
+  );
+  assert.match(
+    tokensCss,
+    /--band-cta-max:\s*26rem/,
+    '--band-cta-max を改名・変更している',
+  );
 
   const layout = blockOf(siteCss, '.request-band__layout {');
   assert.ok(layout, '.request-band__layout が site.css に無い');
-  assert.match(layout, /max-width:\s*var\(--band-max\)/, '版面の上限が無い（B-1d）');
-  assert.match(layout, /margin-inline:\s*auto/, '版面を中央へ寄せていない（B-1d）');
+  assert.match(
+    layout,
+    /max-width:\s*var\(--band-max\)/,
+    '版面の上限が無い（B-1d）',
+  );
+  assert.match(
+    layout,
+    /margin-inline:\s*auto/,
+    '版面を中央へ寄せていない（B-1d）',
+  );
 
   assert.match(
     siteCss,
@@ -242,7 +307,9 @@ test('🔒 帯の版面と切り替え点が site.css / tokens.css にある', (
   // 面の余白（§1 の @media 900px）は帯の面も含むので、見るのは**版面**の名前だけにする。
   // 列の切り替えが @media にあると、LP と製品一覧で分岐が割れる（design.md §4.7）
   assert.equal(
-    /@media[^{]*\{[^}]*\.request-band__layout/.test(stripComments(siteCss).replace(/\n/g, ' ')),
+    /@media[^{]*\{[^}]*\.request-band__layout/.test(
+      stripComments(siteCss).replace(/\n/g, ' '),
+    ),
     false,
     '🔒 画面幅（@media）で帯の列を切り替えている（design.md §4.7）',
   );
@@ -250,10 +317,17 @@ test('🔒 帯の版面と切り替え点が site.css / tokens.css にある', (
 
 test('🔒 2列は垂直中央揃え・両端配置（space-between）・ボタンは文字幅', () => {
   const start = siteCss.indexOf('@container request-band (min-width: 50rem)');
-  const twoCol = siteCss.slice(start, siteCss.indexOf('\n}\n', siteCss.indexOf('.request-band__button', start)));
+  const twoCol = siteCss.slice(
+    start,
+    siteCss.indexOf('\n}\n', siteCss.indexOf('.request-band__button', start)),
+  );
 
   assert.match(twoCol, /align-items:\s*center/, '🔒 垂直中央揃えでない');
-  assert.match(twoCol, /justify-content:\s*space-between/, '🔒 両端配置（space-between）でない');
+  assert.match(
+    twoCol,
+    /justify-content:\s*space-between/,
+    '🔒 両端配置（space-between）でない',
+  );
   assert.match(twoCol, /width:\s*max-content/, '右列のボタンが文字幅でない');
 });
 
@@ -262,19 +336,29 @@ test('🔒 6要素は同じ箱（width: 100% / max-width: --band-cta-max）を�
     '.request-band__lede,\n.request-band__sub,\n.request-band__micro,\n' +
     '.request-band__received,\n.request-band__button,\n.request-band__note {';
   const body = blockOf(siteCss, selector);
-  assert.ok(body, '6要素の共通規則が無い（ここが列の中の軸そのもの。design.md §4.13）');
+  assert.ok(
+    body,
+    '6要素の共通規則が無い（ここが列の中の軸そのもの。design.md §4.13）',
+  );
   assert.match(body, /width:\s*100%/);
   assert.match(body, /max-width:\s*var\(--band-cta-max\)/);
 });
 
 test('🔒 字送り: 主文は T1、マイクロコピーと注記は同じ T4', () => {
   const lede = blockOf(siteCss, '.request-band__lede {');
-  assert.match(lede, /font-size:\s*var\(--size-md\)/, '主文が T1（18px）でない');
+  assert.match(
+    lede,
+    /font-size:\s*var\(--size-md\)/,
+    '主文が T1（18px）でない',
+  );
   assert.match(lede, /font-weight:\s*700/);
   assert.match(lede, /color:\s*var\(--ink\)/);
 
   const t4 = blockOf(siteCss, '.request-band__micro,\n.request-band__note {');
-  assert.ok(t4, 'マイクロコピーと注記が同じ規則になっていない（片方だけ弱めない）');
+  assert.ok(
+    t4,
+    'マイクロコピーと注記が同じ規則になっていない（片方だけ弱めない）',
+  );
   assert.match(t4, /font-size:\s*var\(--size-sm\)/);
   assert.match(t4, /color:\s*var\(--muted-weak\)/);
 });
@@ -287,8 +371,16 @@ test('🔒 句読点折り返しは対で置く（帯の5つの文すべて）',
     '.request-band__received {',
   ]) {
     const body = blockOf(siteCss, selector);
-    assert.match(body, /word-break:\s*keep-all/, `${selector} に keep-all が無い`);
-    assert.match(body, /overflow-wrap:\s*break-word/, `${selector} に overflow-wrap が無い`);
+    assert.match(
+      body,
+      /word-break:\s*keep-all/,
+      `${selector} に keep-all が無い`,
+    );
+    assert.match(
+      body,
+      /overflow-wrap:\s*break-word/,
+      `${selector} に overflow-wrap が無い`,
+    );
   }
 });
 
@@ -305,7 +397,10 @@ test('🔒 C-4 受領の動きは不透明度だけ。reduced-motion の打ち�
       '🔒 打ち消しを帯へ個別に書いている（site.css 末尾の全称セレクタが効く）',
     );
   }
-  assert.match(siteCss, /@keyframes request-band-receipt \{\s*from \{\s*opacity: 0;/);
+  assert.match(
+    siteCss,
+    /@keyframes request-band-receipt \{\s*from \{\s*opacity: 0;/,
+  );
 });
 
 /* ====================================================================== */
@@ -333,19 +428,29 @@ test('C-1 押下の直後に受領メッセージが出て、注記と入れ替�
   const note = bandEl.querySelector('[data-request-note]');
 
   assert.equal(received.hidden, false, '受領メッセージが出ていない');
-  assert.equal(received.textContent, tJa('request.receivedMessage'), 'JS が文言を書き込んでいない');
+  assert.equal(
+    received.textContent,
+    tJa('request.receivedMessage'),
+    'JS が文言を書き込んでいない',
+  );
   assert.equal(note.hidden, true, '🔒 注記と入れ替わっていない（帯が伸びる）');
 });
 
 test('🔒 C-3 押し直しても受領メッセージを書き直さない（role="status" が2度読む）', async () => {
   const { dom, button } = await clickFirst();
-  const received = dom.body.querySelector('.request-band [data-request-received]');
+  const received = dom.body.querySelector(
+    '.request-band [data-request-received]',
+  );
   received.textContent = 'SENTINEL';
 
   button.dispatchEvent(new DomEvent('click'));
   await dom.flush();
 
-  assert.equal(received.textContent, 'SENTINEL', '押し直しで受領メッセージを書き直している');
+  assert.equal(
+    received.textContent,
+    'SENTINEL',
+    '押し直しで受領メッセージを書き直している',
+  );
   assert.equal(received.hidden, false);
 });
 
@@ -360,7 +465,15 @@ test('🔒 上下2つの帯が同時に受領の姿になる', async () => {
   assert.equal(bands.length, 2, '帯が2つでない');
 
   for (const one of bands) {
-    assert.equal(one.querySelector('[data-request-received]').hidden, false, '受領が出ていない帯がある');
-    assert.equal(one.querySelector('[data-request-note]').hidden, true, '注記が残っている帯がある');
+    assert.equal(
+      one.querySelector('[data-request-received]').hidden,
+      false,
+      '受領が出ていない帯がある',
+    );
+    assert.equal(
+      one.querySelector('[data-request-note]').hidden,
+      true,
+      '注記が残っている帯がある',
+    );
   }
 });

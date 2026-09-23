@@ -147,7 +147,10 @@ export function explainer({ t, explainerKey }) {
  *    実データが揃ったら products.betaNoData の行ごと消す。
  */
 export function affiliateNotice({ t, nutrientName, displayUnit }) {
-  const affiliateText = t('products.affiliate', { nutrient: nutrientName, unit: displayUnit });
+  const affiliateText = t('products.affiliate', {
+    nutrient: nutrientName,
+    unit: displayUnit,
+  });
   const betaText = t('products.betaNoData');
 
   return `<p class="notice">
@@ -157,4 +160,3 @@ export function affiliateNotice({ t, nutrientName, displayUnit }) {
   }</span>
 </p>`;
 }
-

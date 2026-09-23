@@ -1,7 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { crawlPolicy, isBlocked, llmsTxt, robotsTxt, sitemapXml } from '../src/build/crawl.js';
+import {
+  crawlPolicy,
+  isBlocked,
+  llmsTxt,
+  robotsTxt,
+  sitemapXml,
+} from '../src/build/crawl.js';
 import { SITE_ORIGIN } from '../src/lib/site.js';
 
 /** design/service.md §7 と ad-lp.md §1 の禁止語。render.test.js と同じ一覧 */
@@ -52,28 +58,42 @@ test('robots.txt はサイトマップの絶対 URL を指す', () => {
 });
 
 test('🔒 robots.txt で塞いだ URL をサイトマップに載せない', () => {
-  const locs = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => new URL(m[1]).pathname);
+  const locs = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(
+    (m) => new URL(m[1]).pathname,
+  );
   assert.ok(locs.length > 0, 'サイトマップが空');
   for (const loc of locs) {
-    assert.equal(isBlocked(loc, policy.blocked), false, `${loc} は robots.txt で塞がれている`);
+    assert.equal(
+      isBlocked(loc, policy.blocked),
+      false,
+      `${loc} は robots.txt で塞がれている`,
+    );
   }
 });
 
 test('サイトマップは絶対 URL と lastmod を持つ', () => {
   assert.ok(sitemap.includes(`<loc>${SITE_ORIGIN}/ja/</loc>`));
   assert.ok(sitemap.includes('<lastmod>2026-08-16</lastmod>'));
-  assert.ok(sitemap.includes('xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"'));
+  assert.ok(
+    sitemap.includes('xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"'),
+  );
 });
 
 test('llms.txt は llmstxt.org の書式（H1 と要約の引用）で始まる', () => {
   const lines = llms.split('\n');
   assert.equal(lines[0], '# pergram');
-  assert.ok(lines.find((l) => l.startsWith('> ')), '要約の引用行がない');
+  assert.ok(
+    lines.find((l) => l.startsWith('> ')),
+    '要約の引用行がない',
+  );
 });
 
 test('🔒 llms.txt に禁止語を書かない', () => {
   for (const word of BANNED_WORDS) {
-    assert.ok(!llms.includes(word), `llms.txt に禁止語「${word}」が含まれている`);
+    assert.ok(
+      !llms.includes(word),
+      `llms.txt に禁止語「${word}」が含まれている`,
+    );
   }
 });
 
@@ -83,16 +103,30 @@ test('🔒 llms.txt は独自スコアを作らないことを明示する（N-0
 });
 
 test('🔒 llms.txt は塞いだページへ誘導しない', () => {
-  const links = [...llms.matchAll(/\]\((https?:[^)]+)\)/g)].map((m) => new URL(m[1]).pathname);
+  const links = [...llms.matchAll(/\]\((https?:[^)]+)\)/g)].map(
+    (m) => new URL(m[1]).pathname,
+  );
   for (const link of links) {
-    assert.equal(isBlocked(link, policy.blocked), false, `${link} は robots.txt で塞がれている`);
+    assert.equal(
+      isBlocked(link, policy.blocked),
+      false,
+      `${link} は robots.txt で塞がれている`,
+    );
   }
 });
 
 test('公開範囲を1箇所変えると robots とサイトマップの両方が追従する', () => {
-  const opened = { ...policy, blocked: policy.blocked.filter((p) => p !== '/ja/protein/') };
-  opened.open = [...opened.open, { path: '/ja/protein/', changefreq: 'daily', priority: '0.9' }];
+  const opened = {
+    ...policy,
+    blocked: policy.blocked.filter((p) => p !== '/ja/protein/'),
+  };
+  opened.open = [
+    ...opened.open,
+    { path: '/ja/protein/', changefreq: 'daily', priority: '0.9' },
+  ];
 
   assert.ok(!robotsTxt(opened).includes('Disallow: /ja/protein/'));
-  assert.ok(sitemapXml(opened, { lastmod: '2026-08-16' }).includes('/ja/protein/'));
+  assert.ok(
+    sitemapXml(opened, { lastmod: '2026-08-16' }).includes('/ja/protein/'),
+  );
 });

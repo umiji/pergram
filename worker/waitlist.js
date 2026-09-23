@@ -57,7 +57,8 @@ const SIGNAL_ID_KEY = 'signal_id';
  * 受け取ってよい識別子の形。`crypto.randomUUID()` が返す UUID v4 だけ。
  * `request_signal.id` / `worker/request_survey.js` と同じ規則である。
  */
-const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_V4 =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /**
  * 匿名の識別子。**任意項目**なので、無い・null・形が壊れているときは黙って null にする。
@@ -146,7 +147,11 @@ export async function handleWaitlist(request, env) {
   //    この下の `payload.email` が例外になって 500 になる**（R-3。
   //    `worker/request_survey.js` は同じ形で先に弾いている）。
   //    400 は「送り方が違う」、500 は「サーバが壊れた」であって、意味が別である。
-  if (payload === null || typeof payload !== 'object' || Array.isArray(payload)) {
+  if (
+    payload === null ||
+    typeof payload !== 'object' ||
+    Array.isArray(payload)
+  ) {
     return json({ error: 'invalid_json' }, 400);
   }
 

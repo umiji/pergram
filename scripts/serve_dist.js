@@ -30,7 +30,9 @@ const tempFilesToDelete = [
 for (const f of tempFilesToDelete) {
   const p = path.join(process.cwd(), 'scripts', f);
   if (existsSync(p)) {
-    try { unlinkSync(p); } catch (e) {}
+    try {
+      unlinkSync(p);
+    } catch (e) {}
   }
 }
 
@@ -46,10 +48,14 @@ const SOURCE = path.join('data', 'products.json');
  * 🔒 読めない値は既定値で黙って続けず止める。別のポートで見ていることに気付けないため。
  */
 export function resolvePort(argv, fallback = DEFAULT_PORT) {
-  const index = argv.findIndex((a) => a === '--port' || a.startsWith('--port='));
+  const index = argv.findIndex(
+    (a) => a === '--port' || a.startsWith('--port='),
+  );
   if (index === -1) return fallback;
 
-  const raw = argv[index].includes('=') ? argv[index].split('=')[1] : argv[index + 1];
+  const raw = argv[index].includes('=')
+    ? argv[index].split('=')[1]
+    : argv[index + 1];
   const port = Number.parseInt(raw, 10);
   if (!Number.isInteger(port) || port < 0 || port > 65535) {
     throw new Error(`ポート番号として読めません: ${raw ?? '(指定なし)'}`);
@@ -74,7 +80,9 @@ async function main() {
   try {
     await stat(ENTRY);
   } catch {
-    console.error(`${ENTRY} がありません。先に npm run build を実行してください。`);
+    console.error(
+      `${ENTRY} がありません。先に npm run build を実行してください。`,
+    );
     process.exit(1);
   }
 
@@ -82,13 +90,18 @@ async function main() {
   if (stale) console.error(stale);
 
   const server = await serve(DIST, port);
-  console.log(`実データ（data/）をビルドした dist/ を配信しています。Ctrl+C で止まります。`);
+  console.log(
+    `実データ（data/）をビルドした dist/ を配信しています。Ctrl+C で止まります。`,
+  );
   console.log(`  LP        http://${HOST}:${server.port}/ja/`);
   console.log(`  製品一覧  http://${HOST}:${server.port}/ja/protein/`);
 }
 
 // テストから resolvePort を読むため、直接実行されたときだけ走らせる。
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (
+  process.argv[1] &&
+  import.meta.url === pathToFileURL(process.argv[1]).href
+) {
   main().catch((err) => {
     console.error(err.message);
     process.exit(1);

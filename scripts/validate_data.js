@@ -10,7 +10,8 @@ import path from 'node:path';
 import { validateDataset, hasBlockingIssue } from '../src/lib/validate.js';
 
 const DATA_DIR = 'data';
-const readJson = async (name) => JSON.parse(await readFile(path.join(DATA_DIR, name), 'utf8'));
+const readJson = async (name) =>
+  JSON.parse(await readFile(path.join(DATA_DIR, name), 'utf8'));
 
 const issues = validateDataset({
   products: await readJson('products.json'),

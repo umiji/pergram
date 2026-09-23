@@ -101,8 +101,10 @@ X の上限は **重み付きで280単位**（`twitter-text` v3）。**日本語
 **日本語だけなら140文字が上限**である。改行も1単位を消費する。
 
 ```python
-LIGHT = [(0x0000,0x10FF),(0x2000,0x200D),(0x2010,0x201F),(0x2032,0x2037)]
-weighted = sum(100 if any(a<=ord(c)<=b for a,b in LIGHT) else 200 for c in text) / 100
+LIGHT = [(0x0000, 0x10FF), (0x2000, 0x200D), (0x2010, 0x201F), (0x2032, 0x2037)]
+weighted = (
+    sum(100 if any(a <= ord(c) <= b for a, b in LIGHT) else 200 for c in text) / 100
+)
 # weighted <= 280 なら投稿できる
 ```
 

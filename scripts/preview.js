@@ -31,7 +31,10 @@ await mkdir(path.join(OUT, 'assets'), { recursive: true });
 
 const nutrients = [
   { id: NUTRIENT_ID, count: rows.length },
-  ...ROADMAP_NUTRIENTS.filter((id) => id !== NUTRIENT_ID).map((id) => ({ id, count: 0 })),
+  ...ROADMAP_NUTRIENTS.filter((id) => id !== NUTRIENT_ID).map((id) => ({
+    id,
+    count: 0,
+  })),
 ];
 
 await writeFile(
@@ -81,7 +84,9 @@ for (const file of ['tokens.css', 'site.css', 'lp.css', 'products.css']) {
 for (const file of ['lp.js', 'products.js', 'request.js']) {
   await cp(path.join('src/assets', file), path.join(OUT, 'assets', file));
 }
-await cp('src/assets/images', path.join(OUT, 'assets', 'images'), { recursive: true }).catch(() => { });
+await cp('src/assets/images', path.join(OUT, 'assets', 'images'), {
+  recursive: true,
+}).catch(() => {});
 
 // file:// で開くと /assets/... がドライブのルートを指してしまい、CSS も JS も当たらない。
 // 本番と同じくルートを持つサーバから配る。--build-only で書き出しだけにできる。
@@ -97,6 +102,8 @@ if (process.argv.includes('--build-only')) {
 }
 
 if (emptyHero) {
-  console.log('--empty-hero: ヒーローのランキングカードを外した状態で描いています。');
+  console.log(
+    '--empty-hero: ヒーローのランキングカードを外した状態で描いています。',
+  );
 }
 console.log('⚠️ サンプルデータです。デプロイしないでください。');

@@ -30,7 +30,8 @@ const REQUEST_INTERVAL_MS = 1100;
 const DATA = 'data';
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-const readJson = async (name) => JSON.parse(await readFile(path.join(DATA, name), 'utf8'));
+const readJson = async (name) =>
+  JSON.parse(await readFile(path.join(DATA, name), 'utf8'));
 
 /** 商品コード1件の問い合わせ URL。エンドポイントと認証は rakuten_api.js が唯一の出所 */
 export function buildItemUrl({ appId, accessKey, affiliateId, itemCode }) {
@@ -64,10 +65,18 @@ export function toSnapshot({ item, productId, fetchedAt }) {
   };
 }
 
-async function fetchByItemCode({ appId, accessKey, affiliateId, appUrl, itemCode }) {
+async function fetchByItemCode({
+  appId,
+  accessKey,
+  affiliateId,
+  appUrl,
+  itemCode,
+}) {
   const url = buildItemUrl({ appId, accessKey, affiliateId, itemCode });
 
-  const res = await fetch(url, { headers: apiHeaders({ appUrl, purpose: 'price refresh' }) });
+  const res = await fetch(url, {
+    headers: apiHeaders({ appUrl, purpose: 'price refresh' }),
+  });
   if (res.status === 404) return null;
   if (!res.ok) {
     // 🔒 手がかりを足すだけ。リトライもフォールバックもしない。失敗は失敗のまま落とす。
@@ -101,7 +110,9 @@ async function main() {
     if (!item) {
       // 取得できなかった製品は前回の行をそのまま残す。空欄にしない（design/service.md §6）。
       // 🔒 購入リンクと送料区分も前回のまま引き継ぐ。
-      const last = previous.find((s) => s.product_id === product.id && s.merchant === 'rakuten');
+      const last = previous.find(
+        (s) => s.product_id === product.id && s.merchant === 'rakuten',
+      );
       if (last) snapshots.push({ ...last, in_stock: false });
       missing += 1;
     } else {
@@ -132,15 +143,24 @@ async function main() {
     'utf8',
   );
 
-  const affiliateCount = snapshots.filter((s) => s.url?.includes('hb.afl.rakuten.co.jp')).length;
+  const affiliateCount = snapshots.filter((s) =>
+    s.url?.includes('hb.afl.rakuten.co.jp'),
+  ).length;
   console.log(`更新 ${snapshots.length} 件 / 取得できず ${missing} 件`);
   console.log(`アフィリエイト ${affiliateCount} 件 — 残りは素の商品 URL`);
-  console.log(`送料 判別 ${snapshots.filter((s) => s.postage_included !== null).length} 件`);
-  console.log(`要レビュー ${issues.filter((i) => i.code === 'V-06').length} 件（価格の急変）`);
+  console.log(
+    `送料 判別 ${snapshots.filter((s) => s.postage_included !== null).length} 件`,
+  );
+  console.log(
+    `要レビュー ${issues.filter((i) => i.code === 'V-06').length} 件（価格の急変）`,
+  );
 }
 
 // テストから buildItemUrl / toSnapshot を読むため、直接実行されたときだけ走らせる。
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (
+  process.argv[1] &&
+  import.meta.url === pathToFileURL(process.argv[1]).href
+) {
   main().catch((err) => {
     console.error(err.message);
     process.exit(1);

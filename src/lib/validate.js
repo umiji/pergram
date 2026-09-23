@@ -29,7 +29,9 @@ const issue = (code, severity, productId, message, detail) => ({
 function median(values) {
   const sorted = [...values].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+  return sorted.length % 2 === 0
+    ? (sorted[mid - 1] + sorted[mid]) / 2
+    : sorted[mid];
 }
 
 /**
@@ -38,7 +40,8 @@ function median(values) {
  */
 function checkUnitConsistency(product, content, nutrient) {
   if (nutrient?.canonical_unit !== 'g') return [];
-  if (!(content.amount_elemental > 0) || !(product.serving_size_g > 0)) return [];
+  if (!(content.amount_elemental > 0) || !(product.serving_size_g > 0))
+    return [];
   if (content.amount_elemental > product.serving_size_g) {
     return [
       issue(
@@ -46,7 +49,10 @@ function checkUnitConsistency(product, content, nutrient) {
         'error',
         product.id,
         '有効成分量が1食量を超えています。単位の取り違えの可能性があります。',
-        { amount_elemental: content.amount_elemental, serving_size_g: product.serving_size_g },
+        {
+          amount_elemental: content.amount_elemental,
+          serving_size_g: product.serving_size_g,
+        },
       ),
     ];
   }
@@ -57,15 +63,23 @@ function checkUnitConsistency(product, content, nutrient) {
 function checkRange(product, content, nutrient) {
   const per100g = contentPer100g(product, content);
   if (per100g === null) {
-    return [issue('V-02', 'error', product.id, '100gあたり含有量が導出できません。')];
+    return [
+      issue('V-02', 'error', product.id, '100gあたり含有量が導出できません。'),
+    ];
   }
   const range = CONTENT_RANGE[nutrient.id] ?? CONTENT_RANGE._default;
   if (per100g < range.min || per100g > range.max) {
     return [
-      issue('V-02', 'review', product.id, '100gあたり含有量が想定レンジ外です。', {
-        per100g,
-        range,
-      }),
+      issue(
+        'V-02',
+        'review',
+        product.id,
+        '100gあたり含有量が想定レンジ外です。',
+        {
+          per100g,
+          range,
+        },
+      ),
     ];
   }
   return [];
@@ -79,10 +93,16 @@ function checkUpperLimit(product, content, nutrient, referenceValues) {
   if (!ref) return [];
   if (content.amount_elemental > ref.ul * 10) {
     return [
-      issue('V-03', 'review', product.id, '1食あたり含有量が耐容上限量を大きく超えています。', {
-        amount_elemental: content.amount_elemental,
-        ul: ref.ul,
-      }),
+      issue(
+        'V-03',
+        'review',
+        product.id,
+        '1食あたり含有量が耐容上限量を大きく超えています。',
+        {
+          amount_elemental: content.amount_elemental,
+          ul: ref.ul,
+        },
+      ),
     ];
   }
   return [];
@@ -94,15 +114,23 @@ function checkMagnitude(product, content, nutrient) {
   if (per100g === null) return [];
   if (nutrient.canonical_unit === 'g' && per100g > 100) {
     return [
-      issue('V-04', 'error', product.id, '100gあたり含有量が100gを超えています。桁の取り違えの可能性があります。', {
-        per100g,
-      }),
+      issue(
+        'V-04',
+        'error',
+        product.id,
+        '100gあたり含有量が100gを超えています。桁の取り違えの可能性があります。',
+        {
+          per100g,
+        },
+      ),
     ];
   }
   const weight = netWeightG(product);
   if (weight !== null && (weight < 50 || weight > 30000)) {
     return [
-      issue('V-04', 'review', product.id, '内容量が想定レンジ外です。', { netWeightG: weight }),
+      issue('V-04', 'review', product.id, '内容量が想定レンジ外です。', {
+        netWeightG: weight,
+      }),
     ];
   }
   return [];
@@ -119,11 +147,17 @@ function checkBrandConsistency(rowsByBrand) {
       const ratio = r.per100g / med;
       if (ratio > 2 || ratio < 0.5) {
         issues.push(
-          issue('V-05', 'review', r.productId, 'ブランド内の他製品と含有率が大きく異なります。', {
-            brand,
-            per100g: r.per100g,
-            brandMedian: med,
-          }),
+          issue(
+            'V-05',
+            'review',
+            r.productId,
+            'ブランド内の他製品と含有率が大きく異なります。',
+            {
+              brand,
+              per100g: r.per100g,
+              brandMedian: med,
+            },
+          ),
         );
       }
     }
@@ -143,12 +177,18 @@ function checkPriceDelta(current, previous) {
     const delta = Math.abs(s.price - prev.price) / prev.price;
     if (delta > PRICE_DELTA_THRESHOLD) {
       issues.push(
-        issue('V-06', 'review', s.product_id, '前回取得時から価格が大きく変化しています。', {
-          merchant: s.merchant,
-          previous: prev.price,
-          current: s.price,
-          delta,
-        }),
+        issue(
+          'V-06',
+          'review',
+          s.product_id,
+          '前回取得時から価格が大きく変化しています。',
+          {
+            merchant: s.merchant,
+            previous: prev.price,
+            current: s.price,
+            delta,
+          },
+        ),
       );
     }
   }
@@ -176,19 +216,28 @@ export function validateDataset({
     const product = productById.get(content.product_id);
     if (!product) {
       issues.push(
-        issue('V-00', 'error', content.product_id, '存在しない製品を参照しています。'),
+        issue(
+          'V-00',
+          'error',
+          content.product_id,
+          '存在しない製品を参照しています。',
+        ),
       );
       continue;
     }
     const nutrient = nutrientById.get(content.nutrient_id);
     if (!nutrient) {
-      issues.push(issue('V-00', 'error', product.id, '存在しない成分を参照しています。'));
+      issues.push(
+        issue('V-00', 'error', product.id, '存在しない成分を参照しています。'),
+      );
       continue;
     }
 
     issues.push(...checkUnitConsistency(product, content, nutrient));
     issues.push(...checkRange(product, content, nutrient));
-    issues.push(...checkUpperLimit(product, content, nutrient, referenceValues));
+    issues.push(
+      ...checkUpperLimit(product, content, nutrient, referenceValues),
+    );
     issues.push(...checkMagnitude(product, content, nutrient));
 
     const per100g = contentPer100g(product, content);

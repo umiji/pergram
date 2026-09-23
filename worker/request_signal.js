@@ -41,7 +41,8 @@
  *    ここは利用者の入力欄ではなくスクリプトが作った識別子の受け口なので、
  *    形が違う時点で「こちらの想定していない何か」である。
  */
-const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_V4 =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /**
  * 受け取ってよい page の形。`<locale>:<ページの識別子>`（`ja:lp` / `ja:protein` /
@@ -70,7 +71,11 @@ export async function handleRequestSignal(request, env) {
     return problem(400);
   }
 
-  if (payload === null || typeof payload !== 'object' || Array.isArray(payload)) {
+  if (
+    payload === null ||
+    typeof payload !== 'object' ||
+    Array.isArray(payload)
+  ) {
     return problem(400);
   }
 
@@ -79,9 +84,12 @@ export async function handleRequestSignal(request, env) {
   // 🔒 `page` は任意項目にしない。無い行が混ざると「どのページからの要望が多いか」が
   //    数えられず、この列を足した目的（T-058）が果たせない。
   const keys = Object.keys(payload);
-  if (keys.length !== 2 || !keys.includes('id') || !keys.includes('page')) return problem(400);
-  if (typeof payload.id !== 'string' || !UUID_V4.test(payload.id)) return problem(400);
-  if (typeof payload.page !== 'string' || !PAGE_ID.test(payload.page)) return problem(400);
+  if (keys.length !== 2 || !keys.includes('id') || !keys.includes('page'))
+    return problem(400);
+  if (typeof payload.id !== 'string' || !UUID_V4.test(payload.id))
+    return problem(400);
+  if (typeof payload.page !== 'string' || !PAGE_ID.test(payload.page))
+    return problem(400);
 
   try {
     // 同じ id の2度目は無視する。ブラウザが送り直したときに 500 を返すと、
