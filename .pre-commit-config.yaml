@@ -1,0 +1,31 @@
+# コミットが成立する前に、秘密情報の検査と書式の統一を行う。
+#
+# gitleaks は ~/.local/bin/gitleaks.exe を直接呼ぶ。公式の pre-commit hook は
+# Go でビルドする作りで、この端末に Go が無いため使えない（2026-09-23 に確認）。
+# 新しい端末では ~/.claude/bootstrap.ps1 が pre-commit と gitleaks を入れる。
+#
+#   pre-commit install      このリポジトリで有効にする（clone 直後に 1 回）
+#   pre-commit run -a       全ファイルに手で流す
+#   git commit --no-verify  検査を飛ばす（緊急時のみ）
+repos:
+  - repo: local
+    hooks:
+      - id: gitleaks
+        name: 秘密情報の検査 (gitleaks)
+        entry: gitleaks
+        args: ["git", "--pre-commit", "--staged", "--redact", "--verbose"]
+        language: system
+        pass_filenames: false
+  - repo: local
+    hooks:
+      - id: prettier
+        name: 書式の統一 (prettier)
+        entry: prettier --write
+        language: node
+        additional_dependencies: ["prettier@3.9.8"]
+        types_or: [ts, tsx, javascript, jsx]
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.8
+    hooks:
+      - id: ruff-format
+        name: 書式の統一 (ruff format)
