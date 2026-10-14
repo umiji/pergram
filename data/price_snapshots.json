@@ -266,8 +266,8 @@
     "currency": "JPY",
     "postage_included": false,
     "url": "https://hb.afl.rakuten.co.jp/hgc/g00r136n.zbpeq85d.g00r136n.zbper6ea/?pc=https%3A%2F%2Fitem.rakuten.co.jp%2Frakuten24%2F4972174354172%2F&m=http%3A%2F%2Fm.rakuten.co.jp%2Frakuten24%2Fi%2F11201930%2F&rafcid=wsc_i_is_dc5bdc72-9f97-4834-b63f-52165ad1fc87",
-    "in_stock": false,
-    "fetched_at": "2026-09-27"
+    "in_stock": true,
+    "fetched_at": "2026-10-14"
   },
   {
     "product_id": "rakuten:myprotein:10001200",
@@ -282,7 +282,7 @@
   {
     "product_id": "rakuten:toyomarket:10000307",
     "merchant": "rakuten",
-    "price": 3480,
+    "price": 3132,
     "currency": "JPY",
     "postage_included": true,
     "url": "https://hb.afl.rakuten.co.jp/hgc/g00tainn.zbpeq0d1.g00tainn.zbperf99/?pc=https%3A%2F%2Fitem.rakuten.co.jp%2Ftoyomarket%2Fvitas026%2F&m=http%3A%2F%2Fm.rakuten.co.jp%2Ftoyomarket%2Fi%2F10000307%2F&rafcid=wsc_i_is_dc5bdc72-9f97-4834-b63f-52165ad1fc87",
